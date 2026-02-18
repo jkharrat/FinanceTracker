@@ -12,7 +12,7 @@ import {
   Keyboard,
   Animated,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import { useColors } from '../../src/context/ThemeContext';
@@ -41,6 +41,13 @@ export default function LoginScreen() {
   const router = useRouter();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  useFocusEffect(
+    useCallback(() => {
+      exitOpacity.setValue(1);
+      exitScale.setValue(1);
+    }, [exitOpacity, exitScale]),
+  );
 
   const isValid =
     mode === 'parent'
