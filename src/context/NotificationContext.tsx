@@ -132,6 +132,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       return;
     }
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.warn('[push-debug] sendRemotePush skipped: no active session');
+        return;
+      }
       console.log('[push-debug] Invoking send-push edge function for family:', currentFamilyId);
       const { data, error } = await supabase.functions.invoke('send-push', {
         body: {
