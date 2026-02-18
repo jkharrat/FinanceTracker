@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/context/AuthContext';
 import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
+import PageTransition from '../../src/components/PageTransition';
 
 export default function SetupScreen() {
   const [displayName, setDisplayName] = useState('');
@@ -68,6 +69,7 @@ export default function SetupScreen() {
   };
 
   return (
+    <PageTransition>
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -161,8 +163,19 @@ export default function SetupScreen() {
             <Text style={styles.buttonText}>Create Account</Text>
           )}
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.loginLink}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.loginLinkText}>
+            Already have an account? <Text style={styles.loginLinkBold}>Sign in</Text>
+          </Text>
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
+    </PageTransition>
   );
 }
 
@@ -260,5 +273,17 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 17,
       fontWeight: '700',
       color: colors.textWhite,
+    },
+    loginLink: {
+      alignItems: 'center',
+      paddingVertical: 12,
+    },
+    loginLinkText: {
+      fontSize: 15,
+      color: colors.textSecondary,
+    },
+    loginLinkBold: {
+      fontWeight: '700',
+      color: colors.primary,
     },
   });
