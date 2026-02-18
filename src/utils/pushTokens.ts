@@ -86,21 +86,22 @@ export async function registerPushToken(
 
   const resolvedPlatform = platform === 'web' ? 'web' : Platform.OS === 'ios' ? 'ios' : 'android';
 
-  try {
-    await supabase
-      .from('push_tokens')
-      .upsert(
-        {
-          user_id: userId,
-          family_id: familyId,
-          token,
-          platform: resolvedPlatform,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id,token' },
-      );
-  } catch (error) {
-    console.error('Failed to store push token:', error);
+  const { error } = await supabase
+    .from('push_tokens')
+    .upsert(
+      {
+        user_id: userId,
+        family_id: familyId,
+        token,
+        platform: resolvedPlatform,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,token' },
+    );
+
+  if (error) {
+    console.error('Failed to store push token:', error.message);
+    return null;
   }
 
   return token;
@@ -128,11 +129,14 @@ export async function unregisterPushToken(userId: string): Promise<void> {
     }
 
     if (token) {
-      await supabase
+      const { error } = await supabase
         .from('push_tokens')
         .delete()
         .eq('user_id', userId)
         .eq('token', token);
+      if (error) {
+        console.error('Failed to delete push token:', error.message);
+      }
     }
   } catch (error) {
     console.error('Failed to unregister push token:', error);

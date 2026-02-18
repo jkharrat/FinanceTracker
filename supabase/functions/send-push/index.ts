@@ -26,7 +26,11 @@ interface WebPushSubscription {
 // ---------------------------------------------------------------------------
 
 function base64UrlToBase64(base64url: string): string {
-  return base64url.replace(/-/g, '+').replace(/_/g, '/');
+  let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = base64.length % 4;
+  if (pad === 2) base64 += '==';
+  else if (pad === 3) base64 += '=';
+  return base64;
 }
 
 function base64UrlDecode(str: string): Uint8Array {
@@ -280,14 +284,15 @@ async function sendWebPush(
   subscriptions: string[],
   title: string,
   body: string,
-): Promise<void> {
-  if (subscriptions.length === 0) return;
+  adminClient: ReturnType<typeof createClient>,
+): Promise<number> {
+  if (subscriptions.length === 0) return 0;
 
   const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
   const vapidPrivateKeyB64 = Deno.env.get('VAPID_PRIVATE_KEY');
   if (!vapidPublicKey || !vapidPrivateKeyB64) {
     console.error('Missing VAPID keys – skipping web push');
-    return;
+    return 0;
   }
 
   const { privateKey: vapidPrivateKey } = await importVapidKeys(
@@ -298,6 +303,8 @@ async function sendWebPush(
   const payload = new TextEncoder().encode(
     JSON.stringify({ title, body, icon: '/assets/icon.png' }),
   );
+
+  let sent = 0;
 
   for (const subJson of subscriptions) {
     try {
@@ -334,7 +341,15 @@ async function sendWebPush(
           signal: controller.signal,
         });
 
-        if (!resp.ok) {
+        if (resp.ok) {
+          sent++;
+        } else if (resp.status === 404 || resp.status === 410) {
+          console.warn(`Subscription expired (${resp.status}), removing stale token`);
+          await adminClient
+            .from('push_tokens')
+            .delete()
+            .eq('token', subJson);
+        } else {
           const text = await resp.text().catch(() => '');
           console.error(`Web push endpoint returned ${resp.status}: ${text}`);
         }
@@ -345,6 +360,8 @@ async function sendWebPush(
       console.error('Failed to send web push to subscription:', error);
     }
   }
+
+  return sent;
 }
 
 // ---------------------------------------------------------------------------
@@ -402,13 +419,20 @@ serve(async (req: Request) => {
       .filter((t) => t.platform === 'web')
       .map((t) => t.token);
 
-    await Promise.allSettled([
+    const [mobileResult, webSent] = await Promise.allSettled([
       sendExpoPush(mobileTokens, notification.title, notification.message),
-      sendWebPush(webSubscriptions, notification.title, notification.message),
+      sendWebPush(webSubscriptions, notification.title, notification.message, adminClient),
     ]);
 
+    const webCount = webSent.status === 'fulfilled' ? webSent.value : 0;
+
     return new Response(
-      JSON.stringify({ sent: mobileTokens.length + webSubscriptions.length }),
+      JSON.stringify({
+        sent: mobileTokens.length + webCount,
+        mobile: mobileTokens.length,
+        web: webCount,
+        webTotal: webSubscriptions.length,
+      }),
       { headers: { 'Content-Type': 'application/json', ...CORS } },
     );
   } catch (error) {

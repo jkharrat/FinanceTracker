@@ -126,13 +126,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     if (!currentFamilyId) return;
     if (!prefsRef.current.pushEnabled) return;
     try {
-      await supabase.functions.invoke('send-push', {
+      const { error } = await supabase.functions.invoke('send-push', {
         body: {
           family_id: currentFamilyId,
           sender_token: currentPushTokenRef.current,
           notification: { title, message },
         },
       });
+      if (error) {
+        console.error('Remote push invocation error:', error);
+      }
     } catch (error) {
       console.error('Failed to send remote push:', error);
     }
@@ -330,7 +333,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     if (!options?.skipLocalPush) {
       await scheduleLocalPush(notification.title, notification.message);
     }
-    sendRemotePush(notification.title, notification.message);
+    await sendRemotePush(notification.title, notification.message);
   }, [isNotificationEnabled, currentFamilyId, scheduleLocalPush, sendRemotePush]);
 
   const markAsRead = useCallback(async (id: string) => {
@@ -449,7 +452,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         }
 
         await scheduleLocalPush(title, message);
-        sendRemotePush(title, message);
+        await sendRemotePush(title, message);
 
         await supabase.from('reached_milestones').insert({
           kid_id: kid.id,
