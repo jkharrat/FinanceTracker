@@ -42,10 +42,6 @@ export default function LoginScreen() {
   const router = useRouter();
   const colors = useColors();
 
-  if (!loading && session && user) {
-    const route = user.role === 'admin' ? '/(admin)' : '/(kid)';
-    return <Redirect href={route} />;
-  }
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   useFocusEffect(
@@ -144,6 +140,11 @@ export default function LoginScreen() {
       setPassword('');
     }, 120);
   }, [mode, slideAnim, formFade, formSlide]);
+
+  if (!loading && session && user) {
+    const route = user.role === 'admin' ? '/(admin)' : '/(kid)';
+    return <Redirect href={route} />;
+  }
 
   return (
     <PageTransition variant="fade">
