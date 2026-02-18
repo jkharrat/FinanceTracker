@@ -3,17 +3,10 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { AppNotification, NotificationPreferences, NotificationType, Kid, NotificationRow } from '../types';
+import { MILESTONE_THRESHOLDS, DEFAULT_PREFS } from '../utils/notifications';
+import { rowToNotification } from '../utils/transforms';
 
 const MAX_NOTIFICATIONS = 200;
-const MILESTONE_THRESHOLDS = [25, 50, 75, 100];
-
-const DEFAULT_PREFS: NotificationPreferences = {
-  allowance: true,
-  transactions: true,
-  transfers: true,
-  goalMilestones: true,
-  pushEnabled: true,
-};
 
 if (Platform.OS !== 'web') {
   Notifications.setNotificationHandler({
@@ -25,19 +18,6 @@ if (Platform.OS !== 'web') {
       shouldShowList: true,
     }),
   });
-}
-
-function rowToNotification(row: NotificationRow): AppNotification {
-  return {
-    id: row.id,
-    type: row.type as NotificationType,
-    title: row.title,
-    message: row.message,
-    kidId: row.kid_id ?? '',
-    read: row.read,
-    date: row.date,
-    data: row.data as AppNotification['data'],
-  };
 }
 
 interface NotificationContextType {

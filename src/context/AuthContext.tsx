@@ -2,8 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 import { Profile, Family } from '../types';
-
-const KID_EMAIL_DOMAIN = 'kid.financetracker.internal';
+import { kidEmail, KID_EMAIL_DOMAIN } from '../utils/auth';
 
 type AdminUser = { role: 'admin'; email: string; displayName: string };
 type KidUser = { role: 'kid'; kidId: string; name: string };
@@ -32,10 +31,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-function kidEmail(kidId: string): string {
-  return `${kidId}@${KID_EMAIL_DOMAIN}`;
-}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);

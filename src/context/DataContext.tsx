@@ -4,77 +4,8 @@ import { supabase } from '../lib/supabase';
 import { Kid, Transaction, TransferInfo, AllowanceFrequency, TransactionCategory, SavingsGoal, KidRow, TransactionRow } from '../types';
 import { useNotifications } from './NotificationContext';
 import { useAuth } from './AuthContext';
-
-const FREQUENCY_LABELS: Record<AllowanceFrequency, string> = {
-  weekly: 'Weekly allowance',
-  monthly: 'Monthly allowance',
-};
-
-function getNextMonday(date: Date): Date {
-  const result = new Date(date);
-  const day = result.getDay();
-  const daysUntilMonday = day === 0 ? 1 : (8 - day);
-  result.setDate(result.getDate() + daysUntilMonday);
-  result.setHours(0, 0, 0, 0);
-  return result;
-}
-
-function advanceDueDate(current: Date, frequency: AllowanceFrequency): Date {
-  if (frequency === 'weekly') {
-    const next = new Date(current);
-    next.setDate(next.getDate() + 7);
-    return next;
-  }
-  return new Date(current.getFullYear(), current.getMonth() + 1, 1);
-}
-
-function getFirstDueDate(createdAt: Date, frequency: AllowanceFrequency): Date {
-  if (frequency === 'weekly') {
-    return getNextMonday(createdAt);
-  }
-  return new Date(createdAt.getFullYear(), createdAt.getMonth() + 1, 1);
-}
-
-function rowToKid(row: KidRow, transactions: Transaction[]): Kid {
-  return {
-    id: row.id,
-    family_id: row.family_id,
-    user_id: row.user_id,
-    name: row.name,
-    avatar: row.avatar,
-    password: '',
-    allowanceAmount: Number(row.allowance_amount),
-    allowanceFrequency: row.allowance_frequency,
-    balance: Number(row.balance),
-    transactions,
-    createdAt: row.created_at,
-    lastAllowanceDate: row.last_allowance_date,
-    savingsGoal:
-      row.savings_goal_name && row.savings_goal_target
-        ? { name: row.savings_goal_name, targetAmount: Number(row.savings_goal_target) }
-        : undefined,
-  };
-}
-
-function txRowToTransaction(row: TransactionRow): Transaction {
-  return {
-    id: row.id,
-    type: row.type,
-    amount: Number(row.amount),
-    description: row.description,
-    category: row.category as TransactionCategory,
-    date: row.date,
-    transfer_id: row.transfer_id ?? undefined,
-  };
-}
-
-interface AllowanceInfo {
-  kidId: string;
-  kidName: string;
-  totalAmount: number;
-  count: number;
-  previousBalance: number;
-}
+import { processAllowances } from '../utils/allowance';
+import { rowToKid, txRowToTransaction } from '../utils/transforms';
 
 interface DataContextType {
   kids: Kid[];
@@ -212,64 +143,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const refreshData = useCallback(async () => {
     await loadData();
   }, [loadData]);
-
-  function processAllowances(kidsList: Kid[]): { updated: Kid[]; changed: boolean; allowanceInfos: AllowanceInfo[] } {
-    const now = new Date();
-    let changed = false;
-    const allowanceInfos: AllowanceInfo[] = [];
-
-    const updated = kidsList.map((kid) => {
-      if (kid.allowanceAmount <= 0) return kid;
-
-      let nextDue: Date;
-      if (kid.lastAllowanceDate) {
-        nextDue = advanceDueDate(new Date(kid.lastAllowanceDate), kid.allowanceFrequency);
-      } else {
-        nextDue = getFirstDueDate(new Date(kid.createdAt), kid.allowanceFrequency);
-      }
-
-      const newTransactions: Transaction[] = [];
-      const previousBalance = kid.balance;
-      let newBalance = kid.balance;
-      let lastDate = kid.lastAllowanceDate;
-
-      while (nextDue <= now) {
-        const txId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-        newTransactions.push({
-          id: txId,
-          type: 'add',
-          amount: kid.allowanceAmount,
-          description: FREQUENCY_LABELS[kid.allowanceFrequency],
-          category: 'allowance',
-          date: nextDue.toISOString(),
-        });
-        newBalance = Math.round((newBalance + kid.allowanceAmount) * 100) / 100;
-        lastDate = nextDue.toISOString();
-        nextDue = advanceDueDate(nextDue, kid.allowanceFrequency);
-      }
-
-      if (newTransactions.length > 0) {
-        changed = true;
-        allowanceInfos.push({
-          kidId: kid.id,
-          kidName: kid.name,
-          totalAmount: Math.round((newBalance - previousBalance) * 100) / 100,
-          count: newTransactions.length,
-          previousBalance,
-        });
-        return {
-          ...kid,
-          balance: newBalance,
-          lastAllowanceDate: lastDate,
-          transactions: [...newTransactions.reverse(), ...kid.transactions],
-        };
-      }
-
-      return kid;
-    });
-
-    return { updated, changed, allowanceInfos };
-  }
 
   const addKid = async (
     name: string,
