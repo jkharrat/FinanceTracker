@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Keyboard,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +29,10 @@ export default function LoginScreen() {
   const [loggingIn, setLoggingIn] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const formFade = useRef(new Animated.Value(1)).current;
+  const formSlide = useRef(new Animated.Value(0)).current;
 
   const { loginAdmin, loginKid } = useAuth();
   const router = useRouter();
@@ -74,13 +79,38 @@ export default function LoginScreen() {
     }
   };
 
-  const switchMode = (newMode: LoginMode) => {
-    setMode(newMode);
-    setError('');
-    setEmail('');
-    setName('');
-    setPassword('');
-  };
+  const switchMode = useCallback((newMode: LoginMode) => {
+    if (newMode === mode) return;
+
+    const toValue = newMode === 'kid' ? 1 : 0;
+    const slideDirection = newMode === 'kid' ? 1 : -1;
+
+    Animated.spring(slideAnim, {
+      toValue,
+      useNativeDriver: false,
+      tension: 68,
+      friction: 12,
+    }).start();
+
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(formFade, { toValue: 0, duration: 120, useNativeDriver: true }),
+        Animated.timing(formSlide, { toValue: slideDirection * -20, duration: 120, useNativeDriver: true }),
+      ]),
+      Animated.parallel([
+        Animated.timing(formFade, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.spring(formSlide, { toValue: 0, useNativeDriver: true, tension: 80, friction: 12 }),
+      ]),
+    ]).start();
+
+    setTimeout(() => {
+      setMode(newMode);
+      setError('');
+      setEmail('');
+      setName('');
+      setPassword('');
+    }, 120);
+  }, [mode, slideAnim, formFade, formSlide]);
 
   return (
     <KeyboardAvoidingView
@@ -104,8 +134,19 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.toggleContainer}>
+          <Animated.View
+            style={[
+              styles.toggleIndicator,
+              {
+                left: slideAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['1%', '50%'],
+                }),
+              },
+            ]}
+          />
           <TouchableOpacity
-            style={[styles.toggleButton, mode === 'parent' && styles.toggleActive]}
+            style={styles.toggleButton}
             onPress={() => switchMode('parent')}
             activeOpacity={0.7}
           >
@@ -119,7 +160,7 @@ export default function LoginScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.toggleButton, mode === 'kid' && styles.toggleActive]}
+            style={styles.toggleButton}
             onPress={() => switchMode('kid')}
             activeOpacity={0.7}
           >
@@ -134,7 +175,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.form}>
+        <Animated.View style={[styles.form, { opacity: formFade, transform: [{ translateX: formSlide }] }]}>
           {mode === 'parent' ? (
             <View style={styles.field}>
               <Text style={styles.label}>Email</Text>
@@ -209,7 +250,7 @@ export default function LoginScreen() {
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
-        </View>
+        </Animated.View>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -229,7 +270,7 @@ export default function LoginScreen() {
         {mode === 'parent' && (
           <TouchableOpacity
             style={styles.createAccountLink}
-            onPress={() => router.push('/(auth)/setup')}
+            onPress={() => router.push('/(auth)/onboarding')}
             activeOpacity={0.7}
           >
             <Text style={styles.createAccountText}>
@@ -279,6 +320,15 @@ const createStyles = (colors: ThemeColors) =>
       borderRadius: 14,
       padding: 4,
       marginBottom: 28,
+      position: 'relative',
+    },
+    toggleIndicator: {
+      position: 'absolute',
+      top: 4,
+      bottom: 4,
+      width: '48%',
+      backgroundColor: colors.primary,
+      borderRadius: 10,
     },
     toggleButton: {
       flex: 1,
@@ -288,9 +338,7 @@ const createStyles = (colors: ThemeColors) =>
       gap: 6,
       paddingVertical: 12,
       borderRadius: 10,
-    },
-    toggleActive: {
-      backgroundColor: colors.primary,
+      zIndex: 1,
     },
     toggleText: {
       fontSize: 15,
