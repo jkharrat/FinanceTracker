@@ -31,8 +31,9 @@
       "bundler": "metro"
     },
     "extra": {
+      "router": {},
       "eas": {
-        "projectId": "your-eas-project-id"
+        "projectId": "f9a091b3-0c67-4f4d-ade9-be9da2c4161e"
       }
     },
     "plugins": [
@@ -45,6 +46,7 @@
           "color": "#6C63FF"
         }
       ]
-    ]
+    ],
+    "owner": "dsaber"
   }
 }
