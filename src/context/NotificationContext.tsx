@@ -327,7 +327,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
 
     await scheduleLocalPush(notification.title, notification.message);
-    await sendRemotePush(notification.title, notification.message);
+    sendRemotePush(notification.title, notification.message);
   }, [isNotificationEnabled, currentFamilyId, scheduleLocalPush, sendRemotePush]);
 
   const markAsRead = useCallback(async (id: string) => {
@@ -446,7 +446,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         }
 
         await scheduleLocalPush(title, message);
-        await sendRemotePush(title, message);
+        sendRemotePush(title, message);
 
         await supabase.from('reached_milestones').insert({
           kid_id: kid.id,

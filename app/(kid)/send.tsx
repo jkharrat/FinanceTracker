@@ -181,7 +181,7 @@ export default function SendMoneyScreen() {
               placeholderTextColor={colors.textLight}
               maxLength={100}
               returnKeyType="done"
-              autoCapitalize="characters"
+              autoCapitalize="sentences"
             />
 
             {/* Error */}
