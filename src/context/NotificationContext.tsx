@@ -123,10 +123,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const sendRemotePush = useCallback(async (title: string, message: string) => {
-    if (!currentFamilyId) return;
-    if (!prefsRef.current.pushEnabled) return;
+    if (!currentFamilyId) {
+      console.warn('[push-debug] sendRemotePush skipped: currentFamilyId is null');
+      return;
+    }
+    if (!prefsRef.current.pushEnabled) {
+      console.warn('[push-debug] sendRemotePush skipped: pushEnabled is false');
+      return;
+    }
     try {
-      const { error } = await supabase.functions.invoke('send-push', {
+      console.log('[push-debug] Invoking send-push edge function for family:', currentFamilyId);
+      const { data, error } = await supabase.functions.invoke('send-push', {
         body: {
           family_id: currentFamilyId,
           sender_token: currentPushTokenRef.current,
@@ -134,10 +141,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         },
       });
       if (error) {
-        console.error('Remote push invocation error:', error);
+        console.error('[push-debug] Remote push invocation error:', error);
+      } else {
+        console.log('[push-debug] Remote push response:', data);
       }
     } catch (error) {
-      console.error('Failed to send remote push:', error);
+      console.error('[push-debug] Failed to send remote push:', error);
     }
   }, [currentFamilyId]);
 
@@ -309,8 +318,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     notification: Omit<AppNotification, 'id' | 'read' | 'date'>,
     options?: { skipLocalPush?: boolean }
   ) => {
-    if (!isNotificationEnabled(notification.type)) return;
-    if (!currentFamilyId) return;
+    if (!isNotificationEnabled(notification.type)) {
+      console.warn('[push-debug] addNotification skipped: notification type disabled:', notification.type);
+      return;
+    }
+    if (!currentFamilyId) {
+      console.warn('[push-debug] addNotification skipped: currentFamilyId is null');
+      return;
+    }
 
     const { data: row } = await supabase
       .from('notifications')
