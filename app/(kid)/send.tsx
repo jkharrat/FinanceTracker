@@ -54,9 +54,8 @@ export default function SendMoneyScreen() {
       const result = await transferMoney(kidId, selectedKidId, parsedAmount, desc);
 
       if (result.success) {
-        const isWeb = typeof window !== 'undefined' && typeof window.alert === 'function';
-        if (isWeb) {
-          window.alert(`Transfer Sent! $${parsedAmount.toFixed(2)} sent to ${selectedKid?.name ?? 'friend'}`);
+        if (Platform.OS === 'web') {
+          window.alert(`$${parsedAmount.toFixed(2)} sent to ${selectedKid?.name ?? 'friend'}`);
           router.back();
         } else {
           Alert.alert(
@@ -68,6 +67,8 @@ export default function SendMoneyScreen() {
       } else {
         setError(result.error ?? 'Transfer failed');
       }
+    } catch (e: any) {
+      setError(e?.message || 'Something went wrong');
     } finally {
       setSending(false);
     }
