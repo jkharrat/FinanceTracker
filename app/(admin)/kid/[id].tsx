@@ -332,14 +332,14 @@ export default function KidDetailScreen() {
           title: kid.name,
           headerRight: () => (
             <View style={styles.headerButtons}>
-              <TouchableOpacity onPress={handleStats} style={styles.headerButton}>
-                <Text style={styles.headerButtonText}>Stats</Text>
+              <TouchableOpacity onPress={handleStats} style={styles.headerIconButton} accessibilityLabel="Stats">
+                <Ionicons name="bar-chart-outline" size={20} color={colors.primary} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleEdit} style={styles.headerButton}>
-                <Text style={styles.headerButtonText}>Edit</Text>
+              <TouchableOpacity onPress={handleEdit} style={styles.headerIconButton} accessibilityLabel="Edit">
+                <Ionicons name="create-outline" size={20} color={colors.primary} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleDelete} style={styles.headerButton}>
-                <Text style={[styles.headerButtonText, styles.deleteText]}>Remove</Text>
+              <TouchableOpacity onPress={handleDelete} style={[styles.headerIconButton, styles.headerIconButtonDanger]} accessibilityLabel="Remove">
+                <Ionicons name="trash-outline" size={20} color={colors.danger} />
               </TouchableOpacity>
             </View>
           ),
@@ -431,18 +431,20 @@ const createStyles = (colors: ThemeColors) =>
     },
     headerButtons: {
       flexDirection: 'row',
-      gap: 16,
+      alignItems: 'center',
+      gap: 8,
+      marginRight: 4,
     },
-    headerButton: {
-      paddingVertical: 4,
+    headerIconButton: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.surfaceAlt,
     },
-    headerButtonText: {
-      fontSize: 15,
-      fontWeight: '600',
-      color: colors.primary,
-    },
-    deleteText: {
-      color: colors.danger,
+    headerIconButtonDanger: {
+      backgroundColor: colors.dangerLight,
     },
     listContent: {
       paddingBottom: 40,
