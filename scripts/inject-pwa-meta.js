@@ -17,8 +17,23 @@ const pwaTags = `
 
     <!-- PWA: manifest & theme -->
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="theme-color" content="#6C63FF" />
-    <link rel="manifest" href="/manifest.json" />`;
+    <meta name="theme-color" content="#F8F9FD" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- PWA: iOS standalone styling -->
+    <style>
+      html, body {
+        margin: 0;
+        height: 100%;
+        background-color: #F8F9FD;
+      }
+      @media (prefers-color-scheme: dark) {
+        html, body { background-color: #0F172A; }
+      }
+      @media all and (display-mode: standalone) {
+        body { padding-top: env(safe-area-inset-top); }
+      }
+    </style>`;
 
 let html = fs.readFileSync(distHtml, 'utf-8');
 

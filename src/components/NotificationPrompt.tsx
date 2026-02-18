@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import { useColors } from '../context/ThemeContext';
+import { isIOSPWA } from '../utils/pushTokens';
 import AnimatedPressable from './AnimatedPressable';
 import { ThemeColors } from '../constants/colors';
 
@@ -30,9 +31,10 @@ export default function NotificationPrompt() {
     !!session?.user?.id;
 
   const handleEnable = useCallback(async () => {
-    const granted = await enablePushNotifications();
-    if (granted && session?.user?.id && familyId) {
-      await registerPushToken(session.user.id, familyId);
+    const userId = session?.user?.id;
+    const granted = await enablePushNotifications(userId ?? undefined, familyId ?? undefined);
+    if (granted && userId && familyId && !isIOSPWA()) {
+      await registerPushToken(userId, familyId);
     }
     setDismissed(true);
     await AsyncStorage.setItem(DISMISSED_KEY, 'true');

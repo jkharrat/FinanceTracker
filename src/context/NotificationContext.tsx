@@ -8,6 +8,7 @@ import { rowToNotification } from '../utils/transforms';
 import {
   registerPushToken as registerToken,
   unregisterPushToken as unregisterToken,
+  isIOSPWA,
 } from '../utils/pushTokens';
 
 const MAX_NOTIFICATIONS = 200;
@@ -40,7 +41,7 @@ interface NotificationContextType {
   registerPushToken: (userId: string, familyId: string) => Promise<void>;
   unregisterPushToken: (userId: string) => Promise<void>;
   pushPermissionStatus: 'undetermined' | 'granted' | 'denied';
-  enablePushNotifications: () => Promise<boolean>;
+  enablePushNotifications: (userId?: string, familyId?: string) => Promise<boolean>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -94,7 +95,20 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     })();
   }, []);
 
-  const enablePushNotifications = useCallback(async (): Promise<boolean> => {
+  const enablePushNotifications = useCallback(async (userId?: string, familyId?: string): Promise<boolean> => {
+    if (Platform.OS === 'web' && isIOSPWA()) {
+      // iOS PWA: pushManager.subscribe() handles the permission prompt.
+      // Doing it all in one call preserves the user-gesture context that iOS requires.
+      if (userId && familyId) {
+        const token = await registerToken(userId, familyId);
+        const granted = token !== null;
+        setPushPermissionStatus(granted ? 'granted' : 'denied');
+        if (granted) currentPushTokenRef.current = token;
+        return granted;
+      }
+      return false;
+    }
+
     let granted = false;
     if (Platform.OS === 'web') {
       if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -267,11 +281,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     if (!prefsRef.current.pushEnabled) return;
     if (Platform.OS === 'web') {
       try {
-        if (
-          typeof window !== 'undefined' &&
-          'Notification' in window &&
-          Notification.permission === 'granted'
-        ) {
+        if (typeof window === 'undefined') return;
+        if (isIOSPWA()) {
+          // iOS PWA doesn't support the Notification constructor from page context;
+          // route through the service worker instead.
+          const reg = await navigator.serviceWorker.ready;
+          await reg.showNotification(title, { body, icon: '/assets/icon.png' });
+        } else if ('Notification' in window && Notification.permission === 'granted') {
           new Notification(title, { body, icon: '/assets/icon.png' });
         }
       } catch (error) {

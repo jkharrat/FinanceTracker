@@ -14,6 +14,16 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+export function isIOSPWA(): boolean {
+  if (typeof window === 'undefined') return false;
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isStandalone = (navigator as any).standalone === true ||
+    window.matchMedia('(display-mode: standalone)').matches;
+  return isIOS && isStandalone;
+}
+
 async function getMobileToken(): Promise<string | null> {
   try {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -69,6 +79,38 @@ async function getWebPushSubscription(): Promise<string | null> {
   }
 }
 
+async function getIOSPWAPushSubscription(): Promise<string | null> {
+  try {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return null;
+    if (!('PushManager' in window)) return null;
+
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+
+    const vapidPublicKey = process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!vapidPublicKey) {
+      console.warn('Push tokens: missing EXPO_PUBLIC_VAPID_PUBLIC_KEY env var');
+      return null;
+    }
+
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      // On iOS PWA, pushManager.subscribe() triggers the permission prompt.
+      // Must NOT call Notification.requestPermission() separately — that
+      // would consume the user-gesture context and cause subscribe() to fail.
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      });
+    }
+
+    return JSON.stringify(subscription.toJSON());
+  } catch (error) {
+    console.error('Failed to get iOS PWA push subscription:', error);
+    return null;
+  }
+}
+
 export async function registerPushToken(
   userId: string,
   familyId: string,
@@ -77,7 +119,9 @@ export async function registerPushToken(
   let token: string | null = null;
 
   if (platform === 'web') {
-    token = await getWebPushSubscription();
+    token = isIOSPWA()
+      ? await getIOSPWAPushSubscription()
+      : await getWebPushSubscription();
   } else {
     token = await getMobileToken();
   }
