@@ -11,7 +11,6 @@ function FamilySync() {
   const { setFamilyId } = useNotifications();
 
   useEffect(() => {
-    console.log('[push-debug] FamilySync: familyId =', familyId);
     setFamilyId(familyId);
   }, [familyId, setFamilyId]);
 
@@ -25,14 +24,12 @@ function PushTokenSync() {
 
   useEffect(() => {
     const userId = session?.user?.id;
-    console.log('[push-debug] PushTokenSync: userId =', userId, 'familyId =', familyId, 'permission =', pushPermissionStatus);
     if (userId && familyId && pushPermissionStatus === 'granted') {
       if (registeredRef.current !== userId) {
         registerPushToken(userId, familyId).then(() => {
-          console.log('[push-debug] Push token registered successfully');
           registeredRef.current = userId;
         }).catch((err) => {
-          console.error('[push-debug] Push token registration failed:', err);
+          console.error('Push token registration failed:', err);
           registeredRef.current = null;
         });
       }

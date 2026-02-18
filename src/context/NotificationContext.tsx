@@ -123,22 +123,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const sendRemotePush = useCallback(async (title: string, message: string) => {
-    if (!currentFamilyId) {
-      console.warn('[push-debug] sendRemotePush skipped: currentFamilyId is null');
-      return;
-    }
-    if (!prefsRef.current.pushEnabled) {
-      console.warn('[push-debug] sendRemotePush skipped: pushEnabled is false');
-      return;
-    }
+    if (!currentFamilyId) return;
+    if (!prefsRef.current.pushEnabled) return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        console.warn('[push-debug] sendRemotePush skipped: no active session');
-        return;
-      }
-      console.log('[push-debug] Invoking send-push edge function for family:', currentFamilyId);
-      const { data, error } = await supabase.functions.invoke('send-push', {
+      if (!session) return;
+      const { error } = await supabase.functions.invoke('send-push', {
         body: {
           family_id: currentFamilyId,
           sender_token: currentPushTokenRef.current,
@@ -146,12 +136,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         },
       });
       if (error) {
-        console.error('[push-debug] Remote push invocation error:', error);
-      } else {
-        console.log('[push-debug] Remote push response:', data);
+        console.error('Remote push invocation error:', error);
       }
     } catch (error) {
-      console.error('[push-debug] Failed to send remote push:', error);
+      console.error('Failed to send remote push:', error);
     }
   }, [currentFamilyId]);
 
@@ -323,14 +311,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     notification: Omit<AppNotification, 'id' | 'read' | 'date'>,
     options?: { skipLocalPush?: boolean }
   ) => {
-    if (!isNotificationEnabled(notification.type)) {
-      console.warn('[push-debug] addNotification skipped: notification type disabled:', notification.type);
-      return;
-    }
-    if (!currentFamilyId) {
-      console.warn('[push-debug] addNotification skipped: currentFamilyId is null');
-      return;
-    }
+    if (!isNotificationEnabled(notification.type)) return;
+    if (!currentFamilyId) return;
 
     const { data: row } = await supabase
       .from('notifications')
