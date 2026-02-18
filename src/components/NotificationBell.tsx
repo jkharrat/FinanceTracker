@@ -1,10 +1,11 @@
 import React from 'react';
-import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import { useColors } from '../context/ThemeContext';
+import AnimatedPressable from './AnimatedPressable';
 
 export default function NotificationBell() {
   const router = useRouter();
@@ -24,7 +25,7 @@ export default function NotificationBell() {
   };
 
   return (
-    <TouchableOpacity onPress={handlePress} style={styles.container} hitSlop={8}>
+    <AnimatedPressable variant="button" onPress={handlePress} style={styles.container} hitSlop={8}>
       <Ionicons name="notifications-outline" size={24} color={colors.text} />
       {count > 0 && (
         <View style={[styles.badge, { backgroundColor: colors.danger }]}>
@@ -33,7 +34,7 @@ export default function NotificationBell() {
           </Text>
         </View>
       )}
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }
 

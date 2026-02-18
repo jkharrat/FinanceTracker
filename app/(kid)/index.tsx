@@ -16,6 +16,7 @@ import { useTheme, useColors } from '../../src/context/ThemeContext';
 import { TransactionItem } from '../../src/components/TransactionItem';
 import { EmptyState } from '../../src/components/EmptyState';
 import NotificationBell from '../../src/components/NotificationBell';
+import AnimatedPressable from '../../src/components/AnimatedPressable';
 import { ThemeColors } from '../../src/constants/colors';
 import { AllowanceFrequency, TransactionCategory, CATEGORIES, SavingsGoal } from '../../src/types';
 import { Avatars } from '../../src/constants/colors';
@@ -259,7 +260,7 @@ export default function KidDashboardScreen() {
         const progress = Math.min(Math.max(kid.balance / goal.targetAmount, 0), 1);
         const percent = Math.round(progress * 100);
         return (
-          <TouchableOpacity style={styles.goalCard} onPress={openGoalEditor} activeOpacity={0.7}>
+          <AnimatedPressable variant="card" style={styles.goalCard} onPress={openGoalEditor}>
             <View style={styles.goalHeader}>
               <Text style={styles.goalLabel}>Savings Goal</Text>
               <View style={styles.goalHeaderRight}>
@@ -282,38 +283,38 @@ export default function KidDashboardScreen() {
             <Text style={styles.goalAmounts}>
               ${Math.max(kid.balance, 0).toFixed(2)} of ${goal.targetAmount.toFixed(2)}
             </Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         );
       })() : (
-        <TouchableOpacity style={styles.setGoalButton} onPress={openGoalEditor} activeOpacity={0.7}>
+        <AnimatedPressable variant="row" style={styles.setGoalButton} onPress={openGoalEditor}>
           <Ionicons name="flag-outline" size={20} color={colors.primary} />
           <Text style={styles.setGoalButtonText}>Set a Savings Goal</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
-        </TouchableOpacity>
+        </AnimatedPressable>
       )}
 
       {kid.transactions.length > 0 && (
-        <TouchableOpacity
+        <AnimatedPressable
+          variant="row"
           style={styles.statsButton}
           onPress={() => router.push('/(kid)/stats')}
-          activeOpacity={0.7}
         >
           <Ionicons name="bar-chart-outline" size={20} color={colors.primary} />
           <Text style={styles.statsButtonText}>View Spending Insights</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
-        </TouchableOpacity>
+        </AnimatedPressable>
       )}
 
       {kids.length > 1 && (
-        <TouchableOpacity
+        <AnimatedPressable
+          variant="row"
           style={styles.sendMoneyButton}
           onPress={() => router.push('/(kid)/send')}
-          activeOpacity={0.7}
         >
           <Ionicons name="send" size={20} color={colors.textWhite} />
           <Text style={styles.sendMoneyButtonText}>Send Money</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.textWhite} />
-        </TouchableOpacity>
+        </AnimatedPressable>
       )}
 
       <View style={styles.transactionsHeader}>
@@ -409,17 +410,17 @@ export default function KidDashboardScreen() {
         options={{
           title: `${kid.name}'s Dashboard`,
           headerLeft: () => (
-            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton} activeOpacity={0.7}>
+            <AnimatedPressable variant="button" onPress={handleLogout} style={styles.logoutButton}>
               <Ionicons name="log-out-outline" size={20} color={colors.danger} />
               <Text style={styles.logoutLabel}>Logout</Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
           ),
           headerRight: () => (
             <View style={styles.headerRight}>
-              <TouchableOpacity onPress={cycleTheme} style={styles.themeButton} activeOpacity={0.7}>
+              <AnimatedPressable variant="button" onPress={cycleTheme} style={styles.themeButton}>
                 <Ionicons name={THEME_ICONS[mode]} size={20} color={colors.primary} />
                 <Text style={styles.themeLabel}>{THEME_LABELS[mode]}</Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
               <NotificationBell />
             </View>
           ),
@@ -474,17 +475,19 @@ const createStyles = (colors: ThemeColors) =>
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: 20,
-      backgroundColor: colors.dangerLight,
+      backgroundColor: colors.surfaceAlt,
+      marginLeft: 8,
     },
     logoutLabel: {
       fontSize: 13,
       fontWeight: '600',
-      color: colors.danger,
+      color: colors.textSecondary,
     },
     headerRight: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
+      marginRight: 8,
     },
     themeButton: {
       flexDirection: 'row',

@@ -18,6 +18,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
 import PageTransition from '../../src/components/PageTransition';
+import AnimatedPressable from '../../src/components/AnimatedPressable';
 
 type LoginMode = 'parent' | 'kid';
 
@@ -283,29 +284,29 @@ export default function LoginScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
+        <AnimatedPressable
+          variant="button"
           style={[styles.button, (!isValid || loggingIn) && styles.buttonDisabled]}
           onPress={handleLogin}
           disabled={!isValid || loggingIn}
-          activeOpacity={0.85}
         >
           {loggingIn ? (
             <ActivityIndicator color={colors.textWhite} />
           ) : (
             <Text style={styles.buttonText}>Sign In</Text>
           )}
-        </TouchableOpacity>
+        </AnimatedPressable>
 
         {mode === 'parent' && (
-          <TouchableOpacity
+          <AnimatedPressable
+            variant="button"
             style={styles.createAccountLink}
             onPress={() => animateOut(() => router.push('/(auth)/onboarding'))}
-            activeOpacity={0.7}
           >
             <Text style={styles.createAccountText}>
               Don't have an account? <Text style={styles.createAccountBold}>Create one</Text>
             </Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         )}
       </View>
     </KeyboardAvoidingView>

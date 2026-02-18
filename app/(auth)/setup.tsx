@@ -15,6 +15,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
 import PageTransition from '../../src/components/PageTransition';
+import AnimatedPressable from '../../src/components/AnimatedPressable';
 
 export default function SetupScreen() {
   const [displayName, setDisplayName] = useState('');
@@ -151,28 +152,28 @@ export default function SetupScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
+        <AnimatedPressable
+          variant="button"
           style={[styles.button, !isValid && styles.buttonDisabled]}
           onPress={handleSetup}
           disabled={!isValid}
-          activeOpacity={0.85}
         >
           {saving ? (
             <ActivityIndicator color={colors.textWhite} />
           ) : (
             <Text style={styles.buttonText}>Create Account</Text>
           )}
-        </TouchableOpacity>
+        </AnimatedPressable>
 
-        <TouchableOpacity
+        <AnimatedPressable
+          variant="button"
           style={styles.loginLink}
           onPress={() => router.back()}
-          activeOpacity={0.7}
         >
           <Text style={styles.loginLinkText}>
             Already have an account? <Text style={styles.loginLinkBold}>Sign in</Text>
           </Text>
-        </TouchableOpacity>
+        </AnimatedPressable>
       </View>
     </KeyboardAvoidingView>
     </PageTransition>

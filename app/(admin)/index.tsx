@@ -15,6 +15,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import { KidCard } from '../../src/components/KidCard';
 import { EmptyState } from '../../src/components/EmptyState';
 import NotificationBell from '../../src/components/NotificationBell';
+import AnimatedPressable from '../../src/components/AnimatedPressable';
 import { ThemeColors } from '../../src/constants/colors';
 import type { ThemeMode } from '../../src/context/ThemeContext';
 
@@ -64,17 +65,17 @@ export default function AdminHomeScreen() {
       <Stack.Screen
         options={{
           headerLeft: () => (
-            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton} activeOpacity={0.7}>
+            <AnimatedPressable variant="button" onPress={handleLogout} style={styles.logoutButton}>
               <Ionicons name="log-out-outline" size={20} color={colors.danger} />
               <Text style={styles.logoutLabel}>Logout</Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
           ),
           headerRight: () => (
             <View style={styles.headerRight}>
-              <TouchableOpacity onPress={cycleTheme} style={styles.themeButton} activeOpacity={0.7}>
+              <AnimatedPressable variant="button" onPress={cycleTheme} style={styles.themeButton}>
                 <Ionicons name={THEME_ICONS[mode]} size={20} color={colors.primary} />
                 <Text style={styles.themeLabel}>{THEME_LABELS[mode]}</Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
               <NotificationBell />
             </View>
           ),
@@ -103,15 +104,15 @@ export default function AdminHomeScreen() {
           />
         )}
         ListHeaderComponent={
-          <TouchableOpacity
+          <AnimatedPressable
+            variant="row"
             style={styles.addParentButton}
             onPress={() => router.push('/(admin)/add-admin')}
-            activeOpacity={0.7}
           >
             <Ionicons name="person-add-outline" size={18} color={colors.primary} />
             <Text style={styles.addParentText}>Add Parent</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
-          </TouchableOpacity>
+          </AnimatedPressable>
         }
         contentContainerStyle={[
           styles.listContent,
@@ -127,13 +128,13 @@ export default function AdminHomeScreen() {
         showsVerticalScrollIndicator={false}
       />
 
-      <TouchableOpacity
+      <AnimatedPressable
+        variant="button"
         style={styles.fab}
         onPress={() => router.push('/(admin)/add-kid')}
-        activeOpacity={0.85}
       >
         <Text style={styles.fabIcon}>+</Text>
-      </TouchableOpacity>
+      </AnimatedPressable>
     </View>
   );
 }
@@ -157,17 +158,19 @@ const createStyles = (colors: ThemeColors) =>
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: 20,
-      backgroundColor: colors.dangerLight,
+      backgroundColor: colors.surfaceAlt,
+      marginLeft: 8,
     },
     logoutLabel: {
       fontSize: 13,
       fontWeight: '600',
-      color: colors.danger,
+      color: colors.textSecondary,
     },
     headerRight: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
+      marginRight: 8,
     },
     themeButton: {
       flexDirection: 'row',

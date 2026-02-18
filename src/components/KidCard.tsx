@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useColors } from '../context/ThemeContext';
 import { ThemeColors } from '../constants/colors';
 import { Kid, AllowanceFrequency } from '../types';
+import AnimatedPressable from './AnimatedPressable';
 
 interface KidCardProps {
   kid: Kid;
@@ -24,7 +25,7 @@ export function KidCard({ kid, onPress }: KidCardProps) {
   const progressPercent = Math.round(progress * 100);
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
+    <AnimatedPressable variant="card" style={styles.card} onPress={onPress}>
       <View style={styles.leftSection}>
         <View style={styles.avatarContainer}>
           <Text style={styles.avatar}>{kid.avatar}</Text>
@@ -62,7 +63,7 @@ export function KidCard({ kid, onPress }: KidCardProps) {
           </Text>
         </View>
       )}
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }
 
