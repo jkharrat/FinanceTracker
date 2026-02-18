@@ -34,14 +34,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const isLoadingRef = useRef(false);
   const pendingReloadRef = useRef(false);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (force = false) => {
     if (!familyId) {
       setKids([]);
       setLoading(false);
       return;
     }
 
-    if (isLoadingRef.current) {
+    if (isLoadingRef.current && !force) {
       pendingReloadRef.current = true;
       return;
     }
@@ -211,7 +211,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshData = useCallback(async () => {
-    await loadData();
+    await loadData(true);
   }, [loadData]);
 
   const addKid = async (
@@ -260,7 +260,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
-    await loadData();
+    await loadData(true);
     return newKidRow.id as string;
   };
 
@@ -305,7 +305,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log('Update successful!');
-      await loadData();
+      await loadData(true);
     } catch (e: any) {
       console.error('EXCEPTION IN UPDATE:', e);
       const errorMsg = e?.message || String(e) || 'Unknown error';
@@ -331,7 +331,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log('Delete successful!');
-      await loadData();
+      await loadData(true);
     } catch (e: any) {
       console.error('EXCEPTION IN DELETE:', e);
       Alert.alert('Delete Error', e?.message || String(e));
@@ -351,7 +351,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
 
-    await loadData();
+    await loadData(true);
   };
 
   const updateSavingsGoal = async (id: string, savingsGoal: SavingsGoal | null) => {
@@ -376,7 +376,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
 
-      await loadData();
+      await loadData(true);
     } catch (e: any) {
       console.error('Exception in updateSavingsGoal:', e);
       if (!e.message?.includes('Database Error')) {
@@ -415,7 +415,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       .update({ balance: Math.round(newBalance * 100) / 100 })
       .eq('id', kidId);
 
-    await loadData();
+    await loadData(true);
 
     try {
       const kidName = kid?.name ?? 'Unknown';
@@ -465,7 +465,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }, 0);
 
     await supabase.from('kids').update({ balance: newBalance }).eq('id', kidId);
-    await loadData();
+    await loadData(true);
 
     try {
       const kidName = kid?.name ?? 'Unknown';
@@ -503,7 +503,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }, 0);
 
     await supabase.from('kids').update({ balance: newBalance }).eq('id', kidId);
-    await loadData();
+    await loadData(true);
 
     try {
       const kidName = kid?.name ?? 'Unknown';
@@ -555,7 +555,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: rpcError?.message || 'Transfer failed' };
     }
 
-    await loadData();
+    await loadData(true);
 
     // Notifications and milestone checks run in background so the UI is never blocked
     (async () => {
