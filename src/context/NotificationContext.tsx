@@ -28,7 +28,7 @@ interface NotificationContextType {
   notifications: AppNotification[];
   preferences: NotificationPreferences;
   unreadCount: number;
-  addNotification: (notification: Omit<AppNotification, 'id' | 'read' | 'date'>) => Promise<void>;
+  addNotification: (notification: Omit<AppNotification, 'id' | 'read' | 'date'>, options?: { skipLocalPush?: boolean }) => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: (kidId?: string) => Promise<void>;
   clearAll: (kidId?: string) => Promise<void>;
@@ -303,7 +303,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const addNotification = useCallback(async (
-    notification: Omit<AppNotification, 'id' | 'read' | 'date'>
+    notification: Omit<AppNotification, 'id' | 'read' | 'date'>,
+    options?: { skipLocalPush?: boolean }
   ) => {
     if (!isNotificationEnabled(notification.type)) return;
     if (!currentFamilyId) return;
@@ -326,7 +327,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       setNotifications((prev) => [newNotif, ...prev].slice(0, MAX_NOTIFICATIONS));
     }
 
-    await scheduleLocalPush(notification.title, notification.message);
+    if (!options?.skipLocalPush) {
+      await scheduleLocalPush(notification.title, notification.message);
+    }
     sendRemotePush(notification.title, notification.message);
   }, [isNotificationEnabled, currentFamilyId, scheduleLocalPush, sendRemotePush]);
 

@@ -566,7 +566,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           message: `${receiver.name} received $${amount.toFixed(2)} from ${sender.name}: ${description || ''}`,
           kidId: toKidId,
           data: { amount },
-        });
+        }, { skipLocalPush: true });
 
         const updatedReceiver = { ...receiver, balance: Math.round((receiver.balance + amount) * 100) / 100 };
         const updatedSender = { ...sender, balance: Math.round((sender.balance - amount) * 100) / 100 };

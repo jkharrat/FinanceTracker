@@ -26,8 +26,11 @@ function PushTokenSync() {
     const userId = session?.user?.id;
     if (userId && familyId && pushPermissionStatus === 'granted') {
       if (registeredRef.current !== userId) {
-        registeredRef.current = userId;
-        registerPushToken(userId, familyId);
+        registerPushToken(userId, familyId).then(() => {
+          registeredRef.current = userId;
+        }).catch(() => {
+          registeredRef.current = null;
+        });
       }
     } else if (registeredRef.current) {
       const prevUserId = registeredRef.current;
