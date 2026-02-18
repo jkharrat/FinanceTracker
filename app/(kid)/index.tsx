@@ -16,6 +16,7 @@ import { useTheme, useColors } from '../../src/context/ThemeContext';
 import { TransactionItem } from '../../src/components/TransactionItem';
 import { EmptyState } from '../../src/components/EmptyState';
 import NotificationBell from '../../src/components/NotificationBell';
+import NotificationPrompt from '../../src/components/NotificationPrompt';
 import AnimatedPressable from '../../src/components/AnimatedPressable';
 import { ThemeColors } from '../../src/constants/colors';
 import { AllowanceFrequency, TransactionCategory, CATEGORIES, SavingsGoal } from '../../src/types';
@@ -194,6 +195,7 @@ export default function KidDashboardScreen() {
 
   const renderListHeader = () => (
     <View>
+      <NotificationPrompt />
       <View style={styles.profileSection}>
         <TouchableOpacity
           style={styles.avatarLarge}

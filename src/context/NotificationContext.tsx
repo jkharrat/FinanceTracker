@@ -39,6 +39,8 @@ interface NotificationContextType {
   setFamilyId: (id: string | null) => void;
   registerPushToken: (userId: string, familyId: string) => Promise<void>;
   unregisterPushToken: (userId: string) => Promise<void>;
+  pushPermissionStatus: 'undetermined' | 'granted' | 'denied';
+  enablePushNotifications: () => Promise<boolean>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -70,12 +72,41 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [reachedMilestones, setReachedMilestones] = useState<Record<string, number[]>>({});
   const [currentFamilyId, setCurrentFamilyId] = useState<string | null>(null);
 
+  const [pushPermissionStatus, setPushPermissionStatus] = useState<'undetermined' | 'granted' | 'denied'>('undetermined');
   const prefsRef = useRef<NotificationPreferences>(DEFAULT_PREFS);
   const currentPushTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     prefsRef.current = preferences;
   }, [preferences]);
+
+  useEffect(() => {
+    (async () => {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+          const perm = Notification.permission;
+          setPushPermissionStatus(perm === 'granted' ? 'granted' : perm === 'denied' ? 'denied' : 'undetermined');
+        }
+      } else {
+        const { status } = await Notifications.getPermissionsAsync();
+        setPushPermissionStatus(status === 'granted' ? 'granted' : status === 'denied' ? 'denied' : 'undetermined');
+      }
+    })();
+  }, []);
+
+  const enablePushNotifications = useCallback(async (): Promise<boolean> => {
+    let granted = false;
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        const permission = await Notification.requestPermission();
+        granted = permission === 'granted';
+      }
+    } else {
+      granted = await requestPermissions();
+    }
+    setPushPermissionStatus(granted ? 'granted' : 'denied');
+    return granted;
+  }, []);
 
   const setFamilyId = useCallback((id: string | null) => {
     setCurrentFamilyId(id);
@@ -173,7 +204,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     loadData();
     if (Platform.OS !== 'web') {
       setupAndroidChannel();
-      requestPermissions();
     }
   }, [loadData]);
 
@@ -181,15 +211,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     if (!prefsRef.current.pushEnabled) return;
     if (Platform.OS === 'web') {
       try {
-        if (typeof window !== 'undefined' && 'Notification' in window) {
-          if (Notification.permission === 'granted') {
-            new Notification(title, { body, icon: '/assets/icon.png' });
-          } else if (Notification.permission !== 'denied') {
-            const permission = await Notification.requestPermission();
-            if (permission === 'granted') {
-              new Notification(title, { body, icon: '/assets/icon.png' });
-            }
-          }
+        if (
+          typeof window !== 'undefined' &&
+          'Notification' in window &&
+          Notification.permission === 'granted'
+        ) {
+          new Notification(title, { body, icon: '/assets/icon.png' });
         }
       } catch (error) {
         console.error('Failed to show web notification:', error);
@@ -400,6 +427,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         setFamilyId,
         registerPushToken,
         unregisterPushToken,
+        pushPermissionStatus,
+        enablePushNotifications,
       }}
     >
       {children}

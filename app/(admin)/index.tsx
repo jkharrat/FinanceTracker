@@ -15,6 +15,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import { KidCard } from '../../src/components/KidCard';
 import { EmptyState } from '../../src/components/EmptyState';
 import NotificationBell from '../../src/components/NotificationBell';
+import NotificationPrompt from '../../src/components/NotificationPrompt';
 import AnimatedPressable from '../../src/components/AnimatedPressable';
 import { ThemeColors } from '../../src/constants/colors';
 import type { ThemeMode } from '../../src/context/ThemeContext';
@@ -104,15 +105,18 @@ export default function AdminHomeScreen() {
           />
         )}
         ListHeaderComponent={
-          <AnimatedPressable
-            variant="row"
-            style={styles.addParentButton}
-            onPress={() => router.push('/(admin)/add-admin')}
-          >
-            <Ionicons name="person-add-outline" size={18} color={colors.primary} />
-            <Text style={styles.addParentText}>Add Parent</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
-          </AnimatedPressable>
+          <>
+            <NotificationPrompt />
+            <AnimatedPressable
+              variant="row"
+              style={styles.addParentButton}
+              onPress={() => router.push('/(admin)/add-admin')}
+            >
+              <Ionicons name="person-add-outline" size={18} color={colors.primary} />
+              <Text style={styles.addParentText}>Add Parent</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
+            </AnimatedPressable>
+          </>
         }
         contentContainerStyle={[
           styles.listContent,

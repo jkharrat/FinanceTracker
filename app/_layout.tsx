@@ -19,12 +19,12 @@ function FamilySync() {
 
 function PushTokenSync() {
   const { session, familyId } = useAuth();
-  const { registerPushToken, unregisterPushToken } = useNotifications();
+  const { registerPushToken, unregisterPushToken, pushPermissionStatus } = useNotifications();
   const registeredRef = useRef<string | null>(null);
 
   useEffect(() => {
     const userId = session?.user?.id;
-    if (userId && familyId) {
+    if (userId && familyId && pushPermissionStatus === 'granted') {
       if (registeredRef.current !== userId) {
         registeredRef.current = userId;
         registerPushToken(userId, familyId);
@@ -34,7 +34,7 @@ function PushTokenSync() {
       registeredRef.current = null;
       unregisterPushToken(prevUserId);
     }
-  }, [session, familyId, registerPushToken, unregisterPushToken]);
+  }, [session, familyId, registerPushToken, unregisterPushToken, pushPermissionStatus]);
 
   return null;
 }
