@@ -153,12 +153,14 @@ const createStyles = (colors: ThemeColors) =>
     logoutButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: 8,
+      gap: 6,
+      paddingHorizontal: 12,
       paddingVertical: 6,
+      borderRadius: 20,
+      backgroundColor: colors.dangerLight,
     },
     logoutLabel: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '600',
       color: colors.danger,
     },

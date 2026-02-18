@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
+import PageTransition from '../../src/components/PageTransition';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -86,6 +87,7 @@ export default function OnboardingScreen() {
   );
 
   return (
+    <PageTransition>
     <View style={styles.container}>
       <View style={styles.skipContainer}>
         {!isLastSlide ? (
@@ -138,6 +140,7 @@ export default function OnboardingScreen() {
         </TouchableOpacity>
       </View>
     </View>
+    </PageTransition>
   );
 }
 

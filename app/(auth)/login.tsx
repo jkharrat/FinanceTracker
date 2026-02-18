@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
+import PageTransition from '../../src/components/PageTransition';
 
 type LoginMode = 'parent' | 'kid';
 
@@ -113,6 +114,7 @@ export default function LoginScreen() {
   }, [mode, slideAnim, formFade, formSlide]);
 
   return (
+    <PageTransition variant="fade">
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -280,6 +282,7 @@ export default function LoginScreen() {
         )}
       </View>
     </KeyboardAvoidingView>
+    </PageTransition>
   );
 }
 
