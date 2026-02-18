@@ -555,7 +555,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: rpcError?.message || 'Transfer failed' };
     }
 
+    console.log('[push-debug] Transfer RPC succeeded, calling loadData');
     await loadData(true);
+    console.log('[push-debug] loadData completed, starting notification');
 
     // Notifications and milestone checks run in background so the UI is never blocked
     (async () => {
