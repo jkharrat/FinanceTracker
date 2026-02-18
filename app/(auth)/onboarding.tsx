@@ -61,7 +61,9 @@ export default function OnboardingScreen() {
     if (isLastSlide) {
       handleFinish();
     } else {
-      flatListRef.current?.scrollToIndex({ index: currentIndex + 1, animated: true });
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
+      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
     }
   };
 
