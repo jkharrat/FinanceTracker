@@ -34,6 +34,8 @@ export default function LoginScreen() {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const formFade = useRef(new Animated.Value(1)).current;
   const formSlide = useRef(new Animated.Value(0)).current;
+  const exitOpacity = useRef(new Animated.Value(1)).current;
+  const exitScale = useRef(new Animated.Value(1)).current;
 
   const { loginAdmin, loginKid } = useAuth();
   const router = useRouter();
@@ -44,6 +46,26 @@ export default function LoginScreen() {
     mode === 'parent'
       ? email.trim().length > 0 && password.length > 0
       : name.trim().length > 0 && password.length > 0;
+
+  const animateOut = useCallback(
+    (onComplete: () => void) => {
+      Keyboard.dismiss();
+      Animated.parallel([
+        Animated.timing(exitOpacity, {
+          toValue: 0,
+          duration: 280,
+          useNativeDriver: true,
+        }),
+        Animated.spring(exitScale, {
+          toValue: 1.04,
+          useNativeDriver: true,
+          tension: 80,
+          friction: 14,
+        }),
+      ]).start(() => onComplete());
+    },
+    [exitOpacity, exitScale],
+  );
 
   const handleLogin = async () => {
     if (!isValid || loggingIn) return;
@@ -57,11 +79,8 @@ export default function LoginScreen() {
           : await loginKid(name.trim(), password);
 
       if (result.success) {
-        if (result.role === 'admin') {
-          router.replace('/(admin)');
-        } else {
-          router.replace('/(kid)');
-        }
+        const route = result.role === 'admin' ? '/(admin)' : '/(kid)';
+        animateOut(() => router.replace(route));
       } else {
         Keyboard.dismiss();
         setError(result.error || 'Invalid credentials');
@@ -115,6 +134,7 @@ export default function LoginScreen() {
 
   return (
     <PageTransition variant="fade">
+    <Animated.View style={{ flex: 1, opacity: exitOpacity, transform: [{ scale: exitScale }] }}>
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -142,7 +162,7 @@ export default function LoginScreen() {
               {
                 left: slideAnim.interpolate({
                   inputRange: [0, 1],
-                  outputRange: ['1%', '50%'],
+                  outputRange: ['1%', '51%'],
                 }),
               },
             ]}
@@ -272,7 +292,7 @@ export default function LoginScreen() {
         {mode === 'parent' && (
           <TouchableOpacity
             style={styles.createAccountLink}
-            onPress={() => router.push('/(auth)/onboarding')}
+            onPress={() => animateOut(() => router.push('/(auth)/onboarding'))}
             activeOpacity={0.7}
           >
             <Text style={styles.createAccountText}>
@@ -282,6 +302,7 @@ export default function LoginScreen() {
         )}
       </View>
     </KeyboardAvoidingView>
+    </Animated.View>
     </PageTransition>
   );
 }
