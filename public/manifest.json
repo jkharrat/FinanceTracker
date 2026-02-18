@@ -1,0 +1,22 @@
+{
+  "name": "Finance Tracker",
+  "short_name": "FinTracker",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F8F9FD",
+  "theme_color": "#6C63FF",
+  "icons": [
+    {
+      "src": "/assets/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/favicon.png",
+      "sizes": "48x48",
+      "type": "image/png"
+    }
+  ]
+}
