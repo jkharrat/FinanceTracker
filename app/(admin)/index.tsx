@@ -66,16 +66,14 @@ export default function AdminHomeScreen() {
       <Stack.Screen
         options={{
           headerLeft: () => (
-            <AnimatedPressable variant="button" onPress={handleLogout} style={styles.logoutButton}>
-              <Ionicons name="log-out-outline" size={20} color={colors.dangerDark} />
-              <Text style={styles.logoutLabel}>Logout</Text>
+            <AnimatedPressable variant="button" onPress={handleLogout} style={styles.logoutButton} accessibilityLabel="Logout">
+              <Ionicons name="log-out-outline" size={22} color={colors.dangerDark} />
             </AnimatedPressable>
           ),
           headerRight: () => (
             <View style={styles.headerRight}>
-              <AnimatedPressable variant="button" onPress={cycleTheme} style={styles.themeButton}>
-                <Ionicons name={THEME_ICONS[mode]} size={20} color={colors.primary} />
-                <Text style={styles.themeLabel}>{THEME_LABELS[mode]}</Text>
+              <AnimatedPressable variant="button" onPress={cycleTheme} style={styles.themeButton} accessibilityLabel={THEME_LABELS[mode]}>
+                <Ionicons name={THEME_ICONS[mode]} size={22} color={colors.primary} />
               </AnimatedPressable>
               <NotificationBell />
             </View>
@@ -156,39 +154,27 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.background,
     },
     logoutButton: {
-      flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 20,
+      justifyContent: 'center',
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       backgroundColor: colors.surfaceAlt,
       marginLeft: 8,
-    },
-    logoutLabel: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: colors.textSecondary,
     },
     headerRight: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      gap: 6,
       marginRight: 8,
     },
     themeButton: {
-      flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 20,
+      justifyContent: 'center',
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       backgroundColor: colors.surfaceAlt,
-    },
-    themeLabel: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: colors.primary,
     },
     summaryCard: {
       backgroundColor: colors.primary,
