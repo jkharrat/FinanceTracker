@@ -426,7 +426,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         message: `$${amount.toFixed(2)} ${action} ${kidName}'s account: ${description}`,
         kidId,
         data: { transactionId: txRow?.id, amount },
-      });
+      }, { skipLocalPush: true });
 
       const updatedKid = kids.find((k) => k.id === kidId);
       if (updatedKid) {
@@ -475,7 +475,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         message: `A transaction was updated for ${kidName}: ${updates.description}`,
         kidId,
         data: { transactionId, amount: updates.amount },
-      });
+      }, { skipLocalPush: true });
 
       if (kid) {
         await checkGoalMilestones({ ...kid, balance: newBalance }, previousBalance);
@@ -513,7 +513,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         message: `A $${deletedTx?.amount.toFixed(2) ?? '0.00'} transaction was removed from ${kidName}'s account.`,
         kidId,
         data: { transactionId, amount: deletedTx?.amount },
-      });
+      }, { skipLocalPush: true });
 
       if (kid) {
         await checkGoalMilestones({ ...kid, balance: newBalance }, previousBalance);
