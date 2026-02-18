@@ -12,7 +12,7 @@ import {
   Keyboard,
   Animated,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { Redirect, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import { useColors } from '../../src/context/ThemeContext';
@@ -38,9 +38,14 @@ export default function LoginScreen() {
   const exitOpacity = useRef(new Animated.Value(1)).current;
   const exitScale = useRef(new Animated.Value(1)).current;
 
-  const { loginAdmin, loginKid } = useAuth();
+  const { user, session, loading, loginAdmin, loginKid } = useAuth();
   const router = useRouter();
   const colors = useColors();
+
+  if (!loading && session && user) {
+    const route = user.role === 'admin' ? '/(admin)' : '/(kid)';
+    return <Redirect href={route} />;
+  }
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   useFocusEffect(
