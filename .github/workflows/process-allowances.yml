@@ -1,0 +1,20 @@
+name: Process Allowances
+
+on:
+  schedule:
+    # Runs every hour at minute 0
+    - cron: '0 * * * *'
+  workflow_dispatch: # Allow manual triggering from GitHub UI
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger allowance processing
+        run: |
+          curl -s -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/process-allowances" \
+            -H "Content-Type: application/json" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            --fail-with-body
