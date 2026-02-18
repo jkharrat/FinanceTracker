@@ -358,7 +358,7 @@ export default function KidDetailScreen() {
       <FlatList
         data={filteredTransactions}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={renderListHeader}
+        ListHeaderComponent={renderListHeader()}
         renderItem={({ item }) => (
           <TransactionItem
             transaction={item}
