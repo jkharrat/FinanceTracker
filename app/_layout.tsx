@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Slot } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { NotificationProvider, useNotifications } from '../src/context/NotificationContext';
@@ -13,6 +13,28 @@ function FamilySync() {
   useEffect(() => {
     setFamilyId(familyId);
   }, [familyId, setFamilyId]);
+
+  return null;
+}
+
+function PushTokenSync() {
+  const { session, familyId } = useAuth();
+  const { registerPushToken, unregisterPushToken } = useNotifications();
+  const registeredRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (userId && familyId) {
+      if (registeredRef.current !== userId) {
+        registeredRef.current = userId;
+        registerPushToken(userId, familyId);
+      }
+    } else if (registeredRef.current) {
+      const prevUserId = registeredRef.current;
+      registeredRef.current = null;
+      unregisterPushToken(prevUserId);
+    }
+  }, [session, familyId, registerPushToken, unregisterPushToken]);
 
   return null;
 }
@@ -34,6 +56,7 @@ export default function RootLayout() {
       <NotificationProvider>
         <AuthProvider>
           <FamilySync />
+          <PushTokenSync />
           <DataProvider>
             <AppContent />
           </DataProvider>

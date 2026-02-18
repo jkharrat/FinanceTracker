@@ -5,6 +5,10 @@ import { supabase } from '../lib/supabase';
 import { AppNotification, NotificationPreferences, NotificationType, Kid, NotificationRow } from '../types';
 import { MILESTONE_THRESHOLDS, DEFAULT_PREFS } from '../utils/notifications';
 import { rowToNotification } from '../utils/transforms';
+import {
+  registerPushToken as registerToken,
+  unregisterPushToken as unregisterToken,
+} from '../utils/pushTokens';
 
 const MAX_NOTIFICATIONS = 200;
 
@@ -33,6 +37,8 @@ interface NotificationContextType {
   getUnreadCountForKid: (kidId: string) => number;
   checkGoalMilestones: (kid: Kid, previousBalance: number) => Promise<void>;
   setFamilyId: (id: string | null) => void;
+  registerPushToken: (userId: string, familyId: string) => Promise<void>;
+  unregisterPushToken: (userId: string) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -65,6 +71,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [currentFamilyId, setCurrentFamilyId] = useState<string | null>(null);
 
   const prefsRef = useRef<NotificationPreferences>(DEFAULT_PREFS);
+  const currentPushTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     prefsRef.current = preferences;
@@ -73,6 +80,32 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const setFamilyId = useCallback((id: string | null) => {
     setCurrentFamilyId(id);
   }, []);
+
+  const registerPushToken = useCallback(async (userId: string, familyId: string) => {
+    const token = await registerToken(userId, familyId);
+    currentPushTokenRef.current = token;
+  }, []);
+
+  const unregisterPushToken = useCallback(async (userId: string) => {
+    await unregisterToken(userId);
+    currentPushTokenRef.current = null;
+  }, []);
+
+  const sendRemotePush = useCallback(async (title: string, message: string) => {
+    if (!currentFamilyId) return;
+    if (!prefsRef.current.pushEnabled) return;
+    try {
+      await supabase.functions.invoke('send-push', {
+        body: {
+          family_id: currentFamilyId,
+          sender_token: currentPushTokenRef.current,
+          notification: { title, message },
+        },
+      });
+    } catch (error) {
+      console.error('Failed to send remote push:', error);
+    }
+  }, [currentFamilyId]);
 
   const loadData = useCallback(async () => {
     if (!currentFamilyId) {
@@ -146,7 +179,23 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const scheduleLocalPush = useCallback(async (title: string, body: string) => {
     if (!prefsRef.current.pushEnabled) return;
-    if (Platform.OS === 'web') return; // Push notifications not available on web
+    if (Platform.OS === 'web') {
+      try {
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+          if (Notification.permission === 'granted') {
+            new Notification(title, { body, icon: '/assets/icon.png' });
+          } else if (Notification.permission !== 'denied') {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+              new Notification(title, { body, icon: '/assets/icon.png' });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to show web notification:', error);
+      }
+      return;
+    }
     try {
       await Notifications.scheduleNotificationAsync({
         content: { title, body, sound: true },
@@ -200,7 +249,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
 
     await scheduleLocalPush(notification.title, notification.message);
-  }, [isNotificationEnabled, currentFamilyId, scheduleLocalPush]);
+    await sendRemotePush(notification.title, notification.message);
+  }, [isNotificationEnabled, currentFamilyId, scheduleLocalPush, sendRemotePush]);
 
   const markAsRead = useCallback(async (id: string) => {
     await supabase.from('notifications').update({ read: true }).eq('id', id);
@@ -255,8 +305,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         push_enabled: updated.pushEnabled,
       });
 
-    if (prefs.pushEnabled === true && Platform.OS !== 'web') {
-      await requestPermissions();
+    if (prefs.pushEnabled === true) {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+          await Notification.requestPermission();
+        }
+      } else {
+        await requestPermissions();
+      }
     }
   }, [currentFamilyId]);
 
@@ -312,6 +368,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         }
 
         await scheduleLocalPush(title, message);
+        await sendRemotePush(title, message);
 
         await supabase.from('reached_milestones').insert({
           kid_id: kid.id,
@@ -324,7 +381,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         }));
       }
     }
-  }, [reachedMilestones, currentFamilyId, scheduleLocalPush]);
+  }, [reachedMilestones, currentFamilyId, scheduleLocalPush, sendRemotePush]);
 
   return (
     <NotificationContext.Provider
@@ -341,6 +398,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         getUnreadCountForKid,
         checkGoalMilestones,
         setFamilyId,
+        registerPushToken,
+        unregisterPushToken,
       }}
     >
       {children}

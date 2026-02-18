@@ -66,7 +66,7 @@ export default function AdminHomeScreen() {
         options={{
           headerLeft: () => (
             <AnimatedPressable variant="button" onPress={handleLogout} style={styles.logoutButton}>
-              <Ionicons name="log-out-outline" size={20} color={colors.danger} />
+              <Ionicons name="log-out-outline" size={20} color={colors.dangerDark} />
               <Text style={styles.logoutLabel}>Logout</Text>
             </AnimatedPressable>
           ),
