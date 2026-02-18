@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { AppNotification, NotificationPreferences, NotificationType, Kid, NotificationRow } from '../types';
 import { MILESTONE_THRESHOLDS, DEFAULT_PREFS } from '../utils/notifications';
@@ -200,12 +200,63 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, [currentFamilyId]);
 
+  const loadDataRef = useRef(loadData);
+  useEffect(() => {
+    loadDataRef.current = loadData;
+  }, [loadData]);
+
   useEffect(() => {
     loadData();
     if (Platform.OS !== 'web') {
       setupAndroidChannel();
     }
   }, [loadData]);
+
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedReload = useCallback(() => {
+    if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+    realtimeTimerRef.current = setTimeout(() => {
+      loadDataRef.current();
+    }, 500);
+  }, []);
+
+  useEffect(() => {
+    if (!currentFamilyId) return;
+
+    const channel = supabase
+      .channel(`family-notifs-${currentFamilyId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `family_id=eq.${currentFamilyId}` },
+        debouncedReload,
+      )
+      .subscribe();
+
+    return () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [currentFamilyId, debouncedReload]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleVisibility = () => {
+        if (document.visibilityState === 'visible') {
+          loadDataRef.current();
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibility);
+      return () => document.removeEventListener('visibilitychange', handleVisibility);
+    }
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        loadDataRef.current();
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   const scheduleLocalPush = useCallback(async (title: string, body: string) => {
     if (!prefsRef.current.pushEnabled) return;

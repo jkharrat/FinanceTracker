@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Alert } from 'react-native';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { Alert, AppState, Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { Kid, Transaction, TransferInfo, AllowanceFrequency, TransactionCategory, SavingsGoal, KidRow, TransactionRow } from '../types';
 import { useNotifications } from './NotificationContext';
@@ -139,6 +139,62 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }
   }, [session, familyId, loadData]);
+
+  const loadDataRef = useRef(loadData);
+  useEffect(() => {
+    loadDataRef.current = loadData;
+  }, [loadData]);
+
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedReload = useCallback(() => {
+    if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+    realtimeTimerRef.current = setTimeout(() => {
+      loadDataRef.current();
+    }, 500);
+  }, []);
+
+  useEffect(() => {
+    if (!familyId) return;
+
+    const channel = supabase
+      .channel(`family-data-${familyId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'kids', filter: `family_id=eq.${familyId}` },
+        debouncedReload,
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'transactions' },
+        debouncedReload,
+      )
+      .subscribe();
+
+    return () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [familyId, debouncedReload]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleVisibility = () => {
+        if (document.visibilityState === 'visible') {
+          loadDataRef.current();
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibility);
+      return () => document.removeEventListener('visibilitychange', handleVisibility);
+    }
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        loadDataRef.current();
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   const refreshData = useCallback(async () => {
     await loadData();
