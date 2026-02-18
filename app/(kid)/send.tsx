@@ -55,7 +55,6 @@ export default function SendMoneyScreen() {
 
       if (result.success) {
         if (Platform.OS === 'web') {
-          window.alert(`$${parsedAmount.toFixed(2)} sent to ${selectedKid?.name ?? 'friend'}`);
           router.back();
         } else {
           Alert.alert(
