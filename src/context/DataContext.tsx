@@ -555,24 +555,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: rpcError?.message || 'Transfer failed' };
     }
 
-    await loadData();
+    loadData();
 
-    try {
-      await addNotification({
-        type: 'transfer_received',
-        title: `Transfer from ${sender.name}`,
-        message: `${receiver.name} received $${amount.toFixed(2)} from ${sender.name}: ${description || ''}`,
-        kidId: toKidId,
-        data: { amount },
-      });
+    // Notifications and milestone checks run in background so the UI is never blocked
+    (async () => {
+      try {
+        await addNotification({
+          type: 'transfer_received',
+          title: `Transfer from ${sender.name}`,
+          message: `${receiver.name} received $${amount.toFixed(2)} from ${sender.name}: ${description || ''}`,
+          kidId: toKidId,
+          data: { amount },
+        });
 
-      const updatedReceiver = { ...receiver, balance: Math.round((receiver.balance + amount) * 100) / 100 };
-      const updatedSender = { ...sender, balance: Math.round((sender.balance - amount) * 100) / 100 };
-      await checkGoalMilestones(updatedReceiver, receiver.balance);
-      await checkGoalMilestones(updatedSender, sender.balance);
-    } catch (notifError) {
-      console.error('Post-transfer notification error (transfer succeeded):', notifError);
-    }
+        const updatedReceiver = { ...receiver, balance: Math.round((receiver.balance + amount) * 100) / 100 };
+        const updatedSender = { ...sender, balance: Math.round((sender.balance - amount) * 100) / 100 };
+        await checkGoalMilestones(updatedReceiver, receiver.balance);
+        await checkGoalMilestones(updatedSender, sender.balance);
+      } catch (notifError) {
+        console.error('Post-transfer notification error (transfer succeeded):', notifError);
+      }
+    })();
 
     return { success: true };
   };
