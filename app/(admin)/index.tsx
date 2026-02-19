@@ -8,13 +8,13 @@ import {
   Platform,
   useWindowDimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../../src/context/DataContext';
 import { useColors } from '../../src/context/ThemeContext';
 import { useAuth } from '../../src/context/AuthContext';
 import { KidCard } from '../../src/components/KidCard';
-import { EmptyState } from '../../src/components/EmptyState';
 import NotificationBell from '../../src/components/NotificationBell';
 import NotificationPrompt from '../../src/components/NotificationPrompt';
 import AnimatedPressable from '../../src/components/AnimatedPressable';
@@ -129,11 +129,56 @@ export default function AdminHomeScreen() {
           kids.length === 0 && styles.emptyListContent,
         ]}
         ListEmptyComponent={
-          <EmptyState
-            icon="💰"
-            title="No one here yet"
-            subtitle="Tap the button below to add someone and start tracking their finances."
-          />
+          <View style={styles.welcomeContainer}>
+            <LinearGradient
+              colors={[colors.primary, colors.primaryDark]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.welcomeCard}
+            >
+              <View style={styles.welcomeDecorCircle} />
+              <Text style={styles.welcomeEmoji}>👋</Text>
+              <Text style={styles.welcomeTitle}>
+                Welcome{displayName ? `, ${displayName}` : ''}!
+              </Text>
+              <Text style={styles.welcomeSubtitle}>
+                Let's get you set up in three easy steps
+              </Text>
+            </LinearGradient>
+
+            <View style={styles.stepsContainer}>
+              {[
+                { num: '1', icon: 'person-add-outline' as const, label: 'Add a kid', desc: 'Create their profile and avatar' },
+                { num: '2', icon: 'calendar-outline' as const, label: 'Set their allowance', desc: 'Choose an amount and frequency' },
+                { num: '3', icon: 'bar-chart-outline' as const, label: 'Track spending', desc: 'Monitor balances and insights' },
+              ].map((step, i) => (
+                <View key={step.num} style={styles.stepRow}>
+                  <View style={[styles.stepBadge, i === 0 && styles.stepBadgeActive]}>
+                    <Ionicons
+                      name={step.icon}
+                      size={18}
+                      color={i === 0 ? colors.textWhite : colors.primary}
+                    />
+                  </View>
+                  <View style={styles.stepText}>
+                    <Text style={[styles.stepLabel, i === 0 && styles.stepLabelActive]}>
+                      {step.label}
+                    </Text>
+                    <Text style={styles.stepDesc}>{step.desc}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            <AnimatedPressable
+              variant="button"
+              style={styles.welcomeCta}
+              onPress={() => router.push('/(admin)/add-kid')}
+            >
+              <Ionicons name="add-circle-outline" size={22} color={colors.textWhite} />
+              <Text style={styles.welcomeCtaText}>Add Your First Kid</Text>
+            </AnimatedPressable>
+          </View>
         }
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -245,5 +290,107 @@ const createStyles = (colors: ThemeColors) =>
       shadowOpacity: 0.35,
       shadowRadius: 16,
       elevation: 8,
+    },
+
+    welcomeContainer: {
+      gap: Spacing.xl,
+    },
+    welcomeCard: {
+      borderRadius: 20,
+      padding: Spacing.xxl,
+      alignItems: 'center',
+      overflow: 'hidden',
+    },
+    welcomeDecorCircle: {
+      position: 'absolute',
+      top: -30,
+      right: -20,
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    welcomeEmoji: {
+      fontSize: 48,
+      marginBottom: Spacing.md,
+    },
+    welcomeTitle: {
+      fontSize: 24,
+      fontFamily: FontFamily.extraBold,
+      fontWeight: '800',
+      color: colors.textWhite,
+      textAlign: 'center',
+      marginBottom: Spacing.xs,
+    },
+    welcomeSubtitle: {
+      fontSize: 15,
+      color: 'rgba(255,255,255,0.8)',
+      textAlign: 'center',
+    },
+
+    stepsContainer: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: Spacing.xl,
+      gap: Spacing.lg,
+      shadowColor: colors.primaryDark,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    stepRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+    },
+    stepBadge: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: colors.shadow,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepBadgeActive: {
+      backgroundColor: colors.primary,
+    },
+    stepText: {
+      flex: 1,
+      gap: 2,
+    },
+    stepLabel: {
+      fontSize: 15,
+      fontFamily: FontFamily.semiBold,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    stepLabelActive: {
+      color: colors.primary,
+    },
+    stepDesc: {
+      fontSize: 13,
+      color: colors.textSecondary,
+    },
+
+    welcomeCta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.sm,
+      backgroundColor: colors.primary,
+      borderRadius: 16,
+      paddingVertical: 18,
+      shadowColor: colors.primaryDark,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.25,
+      shadowRadius: 12,
+      elevation: 4,
+    },
+    welcomeCtaText: {
+      fontSize: 17,
+      fontFamily: FontFamily.bold,
+      fontWeight: '700',
+      color: colors.textWhite,
     },
   });

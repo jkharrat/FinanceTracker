@@ -15,6 +15,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../src/context/AuthContext';
 import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
@@ -380,7 +381,16 @@ export default function LoginScreen() {
           <AnimatedPressable
             variant="button"
             style={styles.createAccountLink}
-            onPress={() => animateOut(() => router.push('/(auth)/onboarding'))}
+            onPress={() => {
+              animateOut(async () => {
+                try {
+                  const seen = await AsyncStorage.getItem('@onboarding_seen');
+                  router.push(seen ? '/(auth)/setup' : '/(auth)/onboarding');
+                } catch {
+                  router.push('/(auth)/onboarding');
+                }
+              });
+            }}
           >
             <Text style={styles.createAccountText}>
               Don't have an account? <Text style={styles.createAccountBold}>Create one</Text>
