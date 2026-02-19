@@ -54,9 +54,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const { familyId, session } = useAuth();
   const isLoadingRef = useRef(false);
   const pendingReloadRef = useRef(false);
+  const kidsRef = useRef<Kid[]>([]);
 
   const loadData = useCallback(async (force = false) => {
     if (!familyId) {
+      kidsRef.current = [];
       setKids([]);
       setLoading(false);
       return;
@@ -77,6 +79,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       if (kidError) throw kidError;
       if (!kidRows || kidRows.length === 0) {
+        kidsRef.current = [];
         setKids([]);
         return;
       }
@@ -103,7 +106,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       const { updated, changed, allowanceInfos } = processAllowances(loadedKids);
 
-      setKids(changed ? updated : loadedKids);
+      const freshKids = changed ? updated : loadedKids;
+      kidsRef.current = freshKids;
+      setKids(freshKids);
 
       if (changed) {
         try {
@@ -171,6 +176,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (session && familyId) {
       loadData();
     } else {
+      kidsRef.current = [];
       setKids([]);
       setLoading(false);
     }
@@ -437,9 +443,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         data: { amount },
       }, { skipLocalPush: true });
 
-      const updatedKid = kids.find((k) => k.id === kidId);
+      const updatedKid = kidsRef.current.find((k) => k.id === kidId);
       if (updatedKid) {
-        await checkGoalMilestones({ ...updatedKid, balance: roundedBalance }, previousBalance);
+        await checkGoalMilestones(updatedKid, previousBalance);
       }
     } catch (notifError) {
       console.error('Post-transaction notification error:', notifError);
@@ -476,7 +482,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         data: { transactionId, amount: updates.amount },
       }, { skipLocalPush: true });
 
-      const updatedKid = kids.find((k) => k.id === kidId);
+      const updatedKid = kidsRef.current.find((k) => k.id === kidId);
       if (updatedKid) {
         await checkGoalMilestones(updatedKid, previousBalance);
       }
@@ -509,7 +515,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         data: { transactionId, amount: deletedTx?.amount },
       }, { skipLocalPush: true });
 
-      const updatedKid = kids.find((k) => k.id === kidId);
+      const updatedKid = kidsRef.current.find((k) => k.id === kidId);
       if (updatedKid) {
         await checkGoalMilestones(updatedKid, previousBalance);
       }

@@ -57,7 +57,7 @@ export function TransactionModal({
       setDescription('');
       setCategory(isAdd ? 'allowance' : 'other');
     }
-  }, [visible, editTransaction]);
+  }, [visible, editTransaction, type]);
 
   const [submitting, setSubmitting] = useState(false);
 

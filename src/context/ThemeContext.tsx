@@ -22,12 +22,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem(THEME_STORAGE_KEY).then((stored) => {
-      if (stored === 'light' || stored === 'dark' || stored === 'system') {
-        setModeState(stored);
-      }
-      setLoaded(true);
-    });
+    AsyncStorage.getItem(THEME_STORAGE_KEY)
+      .then((stored) => {
+        if (stored === 'light' || stored === 'dark' || stored === 'system') {
+          setModeState(stored);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load theme preference:', err);
+      })
+      .finally(() => {
+        setLoaded(true);
+      });
   }, []);
 
   const setMode = useCallback((newMode: ThemeMode) => {
