@@ -65,8 +65,8 @@ export const DarkColors: ThemeColors = {
   textSecondary: '#94A3B8',
   textLight: '#64748B',
   textWhite: '#FFFFFF',
-  border: '#334155',
-  borderLight: '#1E293B',
+  border: '#475569',
+  borderLight: '#2D3B50',
   shadow: 'rgba(0, 0, 0, 0.3)',
 };
 
