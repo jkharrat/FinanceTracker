@@ -318,11 +318,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (signUpError || !signUpData.user) continue;
 
-        // Link the auth user to the kid row
-        await supabase.rpc('link_kid_user', {
+        const { data: linkResult, error: linkError } = await supabase.rpc('link_kid_user', {
           p_kid_id: kid.kid_id,
           p_user_id: signUpData.user.id,
         });
+
+        if (linkError || (linkResult && linkResult !== 'OK')) {
+          continue;
+        }
 
         await loadProfile(signUpData.user.id);
         return { success: true, role: 'kid' };
@@ -368,11 +371,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // Link auth user to kid row
-        await supabase.rpc('link_kid_user', {
+        const { data: linkResult, error: linkError } = await supabase.rpc('link_kid_user', {
           p_kid_id: kidId,
           p_user_id: data.user.id,
         });
+
+        if (linkError) {
+          return { success: false, error: linkError.message || 'Failed to link kid account' };
+        }
+        if (linkResult && linkResult !== 'OK') {
+          return { success: false, error: String(linkResult) };
+        }
 
         // Reload own profile so deferred auth events from signUp/setSession
         // cannot leave the current admin's state stale

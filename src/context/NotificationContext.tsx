@@ -453,11 +453,23 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       const kidMilestones = reachedMilestonesRef.current[kid.id] || [];
       if (kidMilestones.includes(threshold)) continue;
       if (currPercent >= threshold && prevPercent < threshold) {
-        // Claim the milestone synchronously so concurrent calls skip it
         reachedMilestonesRef.current = {
           ...reachedMilestonesRef.current,
           [kid.id]: [...kidMilestones, threshold],
         };
+
+        // Atomically claim via DB unique constraint; skip if another device already fired
+        const { error: milestoneError } = await supabase.from('reached_milestones').insert({
+          kid_id: kid.id,
+          threshold,
+        });
+
+        if (milestoneError) {
+          // UNIQUE violation (23505) means another device already claimed it
+          if (milestoneError.code === '23505') continue;
+          console.error('Milestone insert error:', milestoneError);
+          continue;
+        }
 
         let title: string;
         let message: string;
@@ -496,11 +508,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
         await scheduleLocalPush(title, message);
         await sendRemotePush(title, message);
-
-        await supabase.from('reached_milestones').insert({
-          kid_id: kid.id,
-          threshold,
-        });
 
         setReachedMilestones((prev) => ({
           ...prev,

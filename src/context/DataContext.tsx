@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabase';
 import { Kid, Transaction, TransferInfo, AllowanceFrequency, TransactionCategory, SavingsGoal, KidRow, TransactionRow } from '../types';
 import { useNotifications } from './NotificationContext';
 import { useAuth } from './AuthContext';
-import { processAllowances } from '../utils/allowance';
 import { rowToKid, txRowToTransaction } from '../utils/transforms';
 
 const TRANSFER_FLAVORS = [
@@ -104,62 +103,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         rowToKid(row, txByKid[row.id] ?? [])
       );
 
-      const { updated, changed, allowanceInfos } = processAllowances(loadedKids);
-
-      const freshKids = changed ? updated : loadedKids;
-      kidsRef.current = freshKids;
-      setKids(freshKids);
-
-      if (changed) {
-        try {
-          for (const kid of updated) {
-            const original = loadedKids.find((k) => k.id === kid.id);
-            if (original && kid.balance !== original.balance) {
-              await supabase
-                .from('kids')
-                .update({
-                  balance: kid.balance,
-                  last_allowance_date: kid.lastAllowanceDate,
-                })
-                .eq('id', kid.id);
-
-              const newTxs = kid.transactions.filter(
-                (t) => !original.transactions.some((ot) => ot.id === t.id)
-              );
-              if (newTxs.length > 0) {
-                await supabase.from('transactions').insert(
-                  newTxs.map((t) => ({
-                    id: t.id,
-                    kid_id: kid.id,
-                    type: t.type,
-                    amount: t.amount,
-                    description: t.description,
-                    category: t.category,
-                    date: t.date,
-                  }))
-                );
-              }
-            }
-          }
-
-          for (const info of allowanceInfos) {
-            const updatedKid = updated.find((k) => k.id === info.kidId);
-            const balanceLine = updatedKid ? ` New balance: $${updatedKid.balance.toFixed(2)}` : '';
-            await addNotification({
-              type: 'allowance_received',
-              title: `Allowance for ${info.kidName}`,
-              message: `${info.kidName} received $${info.totalAmount.toFixed(2)} in allowance.${balanceLine}`,
-              kidId: info.kidId,
-              data: { amount: info.totalAmount },
-            });
-            if (updatedKid) {
-              await checkGoalMilestones(updatedKid, info.previousBalance);
-            }
-          }
-        } catch (allowanceError) {
-          console.error('Allowance processing error (UI already updated):', allowanceError);
-        }
-      }
+      kidsRef.current = loadedKids;
+      setKids(loadedKids);
     } catch (error: any) {
       console.error('Failed to load data:', error);
     } finally {
@@ -170,7 +115,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         loadData();
       }
     }
-  }, [familyId, addNotification, checkGoalMilestones]);
+  }, [familyId]);
 
   useEffect(() => {
     if (session && familyId) {
@@ -257,37 +202,29 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     const balance = initialBalance && initialBalance > 0 ? initialBalance : 0;
 
-    const { data: newKidRow, error } = await supabase
-      .from('kids')
-      .insert({
-        family_id: familyId,
-        name,
-        avatar,
-        allowance_amount: allowanceAmount,
-        allowance_frequency: allowanceFrequency,
-        balance,
-      })
-      .select()
-      .single();
+    const { data, error } = await supabase.rpc('add_kid_safe', {
+      p_family_id: familyId,
+      p_name: name,
+      p_avatar: avatar,
+      p_allowance_amount: allowanceAmount,
+      p_allowance_frequency: allowanceFrequency,
+      p_initial_balance: balance,
+    });
 
-    if (error || !newKidRow) {
-      console.error('Failed to add kid:', error?.message, error?.details, error?.hint);
+    if (error) {
+      console.error('Failed to add kid:', error.message, error.details, error.hint);
       return null;
     }
 
-    if (balance > 0) {
-      await supabase.from('transactions').insert({
-        kid_id: newKidRow.id,
-        type: 'add',
-        amount: balance,
-        description: 'Initial balance',
-        category: 'other',
-        date: new Date().toISOString(),
-      });
+    if (!data || data === 'Profile not found. Please log out and log back in.' ||
+        data === 'Only parents can add kids' || data === 'Family mismatch') {
+      console.error('add_kid_safe returned:', data);
+      return null;
     }
 
+    const kidId = data as string;
     await loadData(true);
-    return newKidRow.id as string;
+    return kidId;
   };
 
   const updateKid = async (
@@ -556,12 +493,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: rpcError?.message || 'Transfer failed' };
     }
 
+    const previousSenderBalance = sender.balance;
+    const previousReceiverBalance = receiver.balance;
     await loadData(true);
 
-    // Notifications and milestone checks run in background so the UI is never blocked
     (async () => {
       try {
-        const receiverBalance = Math.round((receiver.balance + amount) * 100) / 100;
+        const freshReceiver = kidsRef.current.find((k) => k.id === toKidId);
+        const freshSender = kidsRef.current.find((k) => k.id === fromKidId);
+        const receiverBalance = freshReceiver?.balance ?? Math.round((previousReceiverBalance + amount) * 100) / 100;
         const flavorOrDesc = description ? `"${description}"` : randomFlavor();
         await addNotification({
           type: 'transfer_received',
@@ -571,10 +511,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           data: { amount },
         }, { skipLocalPush: true });
 
-        const updatedReceiver = { ...receiver, balance: receiverBalance };
-        const updatedSender = { ...sender, balance: Math.round((sender.balance - amount) * 100) / 100 };
-        await checkGoalMilestones(updatedReceiver, receiver.balance);
-        await checkGoalMilestones(updatedSender, sender.balance);
+        if (freshReceiver) {
+          await checkGoalMilestones(freshReceiver, previousReceiverBalance);
+        }
+        if (freshSender) {
+          await checkGoalMilestones(freshSender, previousSenderBalance);
+        }
       } catch (notifError) {
         console.error('Post-transfer notification error (transfer succeeded):', notifError);
       }
