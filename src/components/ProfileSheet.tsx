@@ -1,11 +1,13 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
+  TextInput,
   StyleSheet,
   Modal,
   Pressable,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -29,13 +31,27 @@ interface ProfileSheetProps {
 }
 
 export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
-  const { user, logout } = useAuth();
+  const { user, session, updateProfile, logout } = useAuth();
   const { mode, setMode } = useTheme();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
 
   const displayName = user?.role === 'admin' ? user.displayName : user?.role === 'kid' ? user.name : '';
+  const email = session?.user?.email ?? '';
+
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(displayName);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (visible) {
+      setEditName(displayName);
+      setEditing(false);
+      setError('');
+    }
+  }, [visible, displayName]);
 
   const handleLogout = async () => {
     onClose();
@@ -43,13 +59,90 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
     router.replace('/(auth)/login');
   };
 
+  const handleSave = async () => {
+    const trimmed = editName.trim();
+    if (!trimmed) {
+      setError('Name cannot be empty');
+      return;
+    }
+    if (trimmed === displayName) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    setError('');
+    const result = await updateProfile(trimmed);
+    setSaving(false);
+    if (result.success) {
+      setEditing(false);
+    } else {
+      setError(result.error ?? 'Failed to save');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditName(displayName);
+    setEditing(false);
+    setError('');
+  };
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
           <View style={styles.profileSection}>
-            <ProfileAvatar name={displayName || '?'} size={56} />
-            <Text style={styles.name}>{displayName}</Text>
+            <ProfileAvatar name={editName || '?'} size={56} />
+
+            {editing ? (
+              <View style={styles.editNameContainer}>
+                <TextInput
+                  style={styles.nameInput}
+                  value={editName}
+                  onChangeText={(t) => { setEditName(t); setError(''); }}
+                  placeholder="Your name"
+                  placeholderTextColor={colors.textLight}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={handleSave}
+                  editable={!saving}
+                  selectTextOnFocus
+                />
+                <View style={styles.editActions}>
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={handleCancelEdit}
+                    disabled={saving}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+                    onPress={handleSave}
+                    disabled={saving}
+                    activeOpacity={0.7}
+                  >
+                    {saving ? (
+                      <ActivityIndicator size="small" color={colors.textWhite} />
+                    ) : (
+                      <Text style={styles.saveButtonText}>Save</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+                {error !== '' && <Text style={styles.errorText}>{error}</Text>}
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.nameRow}
+                onPress={() => setEditing(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.name}>{displayName}</Text>
+                <Ionicons name="pencil" size={14} color={colors.textLight} />
+              </TouchableOpacity>
+            )}
+
+            {email !== '' && <Text style={styles.email}>{email}</Text>}
             <Text style={styles.role}>Parent</Text>
           </View>
 
@@ -116,12 +209,24 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       paddingBottom: Spacing.xl,
     },
+    nameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: Spacing.md,
+    },
     name: {
       fontSize: 20,
       fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.text,
-      marginTop: Spacing.md,
+    },
+    email: {
+      fontSize: 13,
+      fontFamily: FontFamily.medium,
+      fontWeight: '500',
+      color: colors.textLight,
+      marginTop: 4,
     },
     role: {
       fontSize: 13,
@@ -129,6 +234,62 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '500',
       color: colors.textSecondary,
       marginTop: 2,
+    },
+    editNameContainer: {
+      width: '100%',
+      marginTop: Spacing.md,
+      alignItems: 'center',
+    },
+    nameInput: {
+      width: '100%',
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      fontSize: 16,
+      fontFamily: FontFamily.semiBold,
+      fontWeight: '600',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    editActions: {
+      flexDirection: 'row',
+      gap: Spacing.sm,
+      marginTop: Spacing.md,
+    },
+    cancelButton: {
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: 8,
+      borderRadius: 10,
+      backgroundColor: colors.surfaceAlt,
+    },
+    cancelButtonText: {
+      fontSize: 14,
+      fontFamily: FontFamily.semiBold,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    saveButton: {
+      paddingHorizontal: Spacing.xl,
+      paddingVertical: 8,
+      borderRadius: 10,
+      backgroundColor: colors.primary,
+      minWidth: 70,
+      alignItems: 'center',
+    },
+    saveButtonDisabled: {
+      opacity: 0.6,
+    },
+    saveButtonText: {
+      fontSize: 14,
+      fontFamily: FontFamily.semiBold,
+      fontWeight: '600',
+      color: colors.textWhite,
+    },
+    errorText: {
+      fontSize: 13,
+      color: colors.danger,
+      marginTop: Spacing.sm,
     },
     divider: {
       height: 1,

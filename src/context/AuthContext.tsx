@@ -32,6 +32,7 @@ interface AuthContextType {
   updateKidPassword: (kidId: string, name: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  updateProfile: (displayName: string) => Promise<{ success: boolean; error?: string }>;
   clearPasswordRecovery: () => void;
   logout: () => Promise<void>;
 }
@@ -382,6 +383,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const updateProfile = useCallback(
+    async (displayName: string) => {
+      const trimmed = displayName.trim();
+      if (!trimmed) return { success: false, error: 'Name cannot be empty' };
+      if (!session?.user) return { success: false, error: 'Not authenticated' };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ display_name: trimmed })
+        .eq('id', session.user.id);
+
+      if (error) return { success: false, error: error.message };
+
+      setProfile((prev) => prev ? { ...prev, display_name: trimmed } : prev);
+      setUser((prev) =>
+        prev?.role === 'admin' ? { ...prev, displayName: trimmed } : prev,
+      );
+      return { success: true };
+    },
+    [session],
+  );
+
   const clearPasswordRecovery = useCallback(() => {
     setIsPasswordRecovery(false);
   }, []);
@@ -412,6 +435,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         updateKidPassword,
         resetPassword,
         updatePassword,
+        updateProfile,
         clearPasswordRecovery,
         logout,
       }}
