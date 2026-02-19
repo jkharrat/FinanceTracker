@@ -4,8 +4,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
   Platform,
   useWindowDimensions,
@@ -13,7 +11,7 @@ import {
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../../src/context/DataContext';
-import { useTheme, useColors } from '../../src/context/ThemeContext';
+import { useColors } from '../../src/context/ThemeContext';
 import { useAuth } from '../../src/context/AuthContext';
 import { KidCard } from '../../src/components/KidCard';
 import { EmptyState } from '../../src/components/EmptyState';
@@ -22,53 +20,32 @@ import NotificationPrompt from '../../src/components/NotificationPrompt';
 import AnimatedPressable from '../../src/components/AnimatedPressable';
 import GradientCard from '../../src/components/GradientCard';
 import AnimatedNumber from '../../src/components/AnimatedNumber';
+import ProfileAvatar from '../../src/components/ProfileAvatar';
+import ProfileSheet from '../../src/components/ProfileSheet';
 import { AdminDashboardSkeleton } from '../../src/components/Skeleton';
 import { ThemeColors } from '../../src/constants/colors';
-import type { ThemeMode } from '../../src/context/ThemeContext';
 import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
 import { SIDEBAR_BREAKPOINT } from '../../src/components/WebSidebar';
 
-const THEME_CYCLE: ThemeMode[] = ['light', 'dark', 'system'];
-const THEME_ICONS: Record<ThemeMode, keyof typeof Ionicons.glyphMap> = {
-  light: 'sunny',
-  dark: 'moon',
-  system: 'phone-portrait-outline',
-};
-const THEME_LABELS: Record<ThemeMode, string> = {
-  light: 'Light',
-  dark: 'Dark',
-  system: 'Auto',
-};
-
 export default function AdminHomeScreen() {
   const { kids, loading, refreshData } = useData();
   const [refreshing, setRefreshing] = useState(false);
-  const { mode, setMode } = useTheme();
-  const { logout } = useAuth();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const { user } = useAuth();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { width } = useWindowDimensions();
   const showHeaderBell = Platform.OS !== 'web' || width < SIDEBAR_BREAKPOINT;
 
+  const displayName = user?.role === 'admin' ? user.displayName : '';
   const totalBalance = kids.reduce((sum, kid) => sum + kid.balance, 0);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try { await refreshData(); } finally { setRefreshing(false); }
   }, [refreshData]);
-
-  const cycleTheme = () => {
-    const currentIndex = THEME_CYCLE.indexOf(mode);
-    const nextIndex = (currentIndex + 1) % THEME_CYCLE.length;
-    setMode(THEME_CYCLE[nextIndex]);
-  };
-
-  const handleLogout = async () => {
-    await logout();
-    router.replace('/(auth)/login');
-  };
 
   if (loading) {
     return (
@@ -83,20 +60,24 @@ export default function AdminHomeScreen() {
       <Stack.Screen
         options={{
           headerLeft: () => (
-            <AnimatedPressable variant="button" onPress={handleLogout} style={styles.logoutButton} accessibilityLabel="Logout">
-              <Ionicons name="log-out-outline" size={22} color={colors.dangerDark} />
+            <AnimatedPressable
+              variant="button"
+              onPress={() => setProfileOpen(true)}
+              style={styles.avatarButton}
+              accessibilityLabel="Profile"
+            >
+              <ProfileAvatar name={displayName || '?'} size={34} />
             </AnimatedPressable>
           ),
           headerRight: () => (
             <View style={styles.headerRight}>
-              <AnimatedPressable variant="button" onPress={cycleTheme} style={styles.themeButton} accessibilityLabel={THEME_LABELS[mode]}>
-                <Ionicons name={THEME_ICONS[mode]} size={22} color={colors.primary} />
-              </AnimatedPressable>
               {showHeaderBell && <NotificationBell />}
             </View>
           ),
         }}
       />
+
+      <ProfileSheet visible={profileOpen} onClose={() => setProfileOpen(false)} />
 
       {kids.length > 0 && (
         <GradientCard
@@ -178,13 +159,7 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: 'center',
       backgroundColor: colors.background,
     },
-    logoutButton: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: colors.surfaceAlt,
+    avatarButton: {
       marginLeft: Spacing.sm,
     },
     headerRight: {
@@ -192,14 +167,6 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       gap: 6,
       marginRight: Spacing.sm,
-    },
-    themeButton: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: colors.surfaceAlt,
     },
     summaryCard: {
       marginHorizontal: Spacing.xl,
