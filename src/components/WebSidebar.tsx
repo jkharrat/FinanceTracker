@@ -125,14 +125,16 @@ function Sidebar({ role }: { role: 'admin' | 'kid' }) {
         <AnimatedPressable
           variant="row"
           style={styles.profileInfo}
-          onPress={() => setProfileOpen(true)}
-          accessibilityLabel="Edit profile"
+          onPress={role === 'admin' ? () => setProfileOpen(true) : undefined}
+          accessibilityLabel={role === 'admin' ? 'Edit profile' : undefined}
         >
           <ProfileAvatar name={displayName || '?'} size={32} />
           <Text style={[styles.profileName, { color: colors.text }]} numberOfLines={1}>
             {displayName}
           </Text>
-          <Ionicons name="pencil" size={13} color={colors.textLight} />
+          {role === 'admin' && (
+            <Ionicons name="pencil" size={13} color={colors.textLight} />
+          )}
         </AnimatedPressable>
         <AnimatedPressable
           variant="button"
