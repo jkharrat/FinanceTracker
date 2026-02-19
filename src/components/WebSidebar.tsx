@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { FontFamily } from '../constants/fonts';
 import { Spacing } from '../constants/spacing';
 import AnimatedPressable from './AnimatedPressable';
 import ProfileAvatar from './ProfileAvatar';
+import ProfileSheet from './ProfileSheet';
 
 const appIcon = require('../../assets/icon.png');
 
@@ -60,6 +61,7 @@ function Sidebar({ role }: { role: 'admin' | 'kid' }) {
   const { user, logout } = useAuth();
   const { unreadCount, getUnreadCountForKid } = useNotifications();
   const navItems = role === 'admin' ? ADMIN_NAV : KID_NAV;
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const notificationCount =
     user?.role === 'kid' ? getUnreadCountForKid(user.kidId) : unreadCount;
@@ -120,12 +122,18 @@ function Sidebar({ role }: { role: 'admin' | 'kid' }) {
       </View>
 
       <View style={[styles.profileFooter, { borderTopColor: colors.borderLight }]}>
-        <View style={styles.profileInfo}>
+        <AnimatedPressable
+          variant="row"
+          style={styles.profileInfo}
+          onPress={() => setProfileOpen(true)}
+          accessibilityLabel="Edit profile"
+        >
           <ProfileAvatar name={displayName || '?'} size={32} />
           <Text style={[styles.profileName, { color: colors.text }]} numberOfLines={1}>
             {displayName}
           </Text>
-        </View>
+          <Ionicons name="pencil" size={13} color={colors.textLight} />
+        </AnimatedPressable>
         <AnimatedPressable
           variant="button"
           onPress={handleLogout}
@@ -136,6 +144,10 @@ function Sidebar({ role }: { role: 'admin' | 'kid' }) {
           <Text style={[styles.logoutButtonText, { color: colors.danger }]}>Log out</Text>
         </AnimatedPressable>
       </View>
+
+      {role === 'admin' && (
+        <ProfileSheet visible={profileOpen} onClose={() => setProfileOpen(false)} />
+      )}
     </View>
   );
 }
