@@ -12,6 +12,7 @@ import {
   Keyboard,
   Animated,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
@@ -23,6 +24,7 @@ import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
 
 type LoginMode = 'parent' | 'kid';
+type FocusedField = 'email' | 'name' | 'password' | null;
 
 export default function LoginScreen() {
   const [mode, setMode] = useState<LoginMode>('parent');
@@ -32,6 +34,7 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [focusedField, setFocusedField] = useState<FocusedField>(null);
   const scrollRef = useRef<ScrollView>(null);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -140,6 +143,7 @@ export default function LoginScreen() {
       setEmail('');
       setName('');
       setPassword('');
+      setFocusedField(null);
     }, 120);
   }, [mode, slideAnim, formFade, formSlide]);
 
@@ -161,134 +165,188 @@ export default function LoginScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
-          <Text style={styles.lockEmoji}>🔐</Text>
+        <LinearGradient
+          colors={[colors.primary, colors.primaryDark]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradientHeader}
+        >
+          <View style={styles.decorCircle1} />
+          <View style={styles.decorCircle2} />
+          <View style={styles.decorCircle3} />
+
+          <View style={styles.iconBadge}>
+            <Ionicons name="wallet-outline" size={32} color={colors.textWhite} />
+          </View>
           <Text style={styles.title}>Sign In</Text>
           <Text style={styles.subtitle}>
             {mode === 'parent'
               ? 'Sign in with your email and password'
               : 'Sign in with your name and password'}
           </Text>
-        </View>
+        </LinearGradient>
 
-        <View style={styles.toggleContainer}>
-          <Animated.View
-            style={[
-              styles.toggleIndicator,
-              {
-                left: slideAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['1%', '51%'],
-                }),
-              },
-            ]}
-          />
-          <TouchableOpacity
-            style={styles.toggleButton}
-            onPress={() => switchMode('parent')}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name="shield-checkmark-outline"
-              size={18}
-              color={mode === 'parent' ? colors.textWhite : colors.textSecondary}
+        <View style={styles.card}>
+          <View style={styles.toggleContainer}>
+            <Animated.View
+              style={[
+                styles.toggleIndicator,
+                {
+                  left: slideAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['1%', '51%'],
+                  }),
+                },
+              ]}
             />
-            <Text style={[styles.toggleText, mode === 'parent' && styles.toggleTextActive]}>
-              Parent
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.toggleButton}
-            onPress={() => switchMode('kid')}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name="person-outline"
-              size={18}
-              color={mode === 'kid' ? colors.textWhite : colors.textSecondary}
-            />
-            <Text style={[styles.toggleText, mode === 'kid' && styles.toggleTextActive]}>
-              Kid
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <Animated.View style={[styles.form, { opacity: formFade, transform: [{ translateX: formSlide }] }]}>
-          {mode === 'parent' ? (
-            <View style={styles.field}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.textInput}
-                value={email}
-                onChangeText={(text) => {
-                  setEmail(text);
-                  setError('');
-                }}
-                placeholder="your@email.com"
-                placeholderTextColor={colors.textLight}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                textContentType="emailAddress"
-                autoFocus
+            <TouchableOpacity
+              style={styles.toggleButton}
+              onPress={() => switchMode('parent')}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={18}
+                color={mode === 'parent' ? colors.textWhite : colors.textSecondary}
               />
-            </View>
-          ) : (
-            <View style={styles.field}>
-              <Text style={styles.label}>Name</Text>
-              <TextInput
-                style={styles.textInput}
-                value={name}
-                onChangeText={(text) => {
-                  setName(text);
-                  setError('');
-                }}
-                placeholder="Enter your name"
-                placeholderTextColor={colors.textLight}
-                autoCapitalize="words"
-                autoCorrect={false}
-                autoFocus
+              <Text style={[styles.toggleText, mode === 'parent' && styles.toggleTextActive]}>
+                Parent
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.toggleButton}
+              onPress={() => switchMode('kid')}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="person-outline"
+                size={18}
+                color={mode === 'kid' ? colors.textWhite : colors.textSecondary}
               />
-            </View>
-          )}
-
-          <View style={styles.field}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={styles.passwordInput}
-                value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  setError('');
-                }}
-                placeholder="Enter your password"
-                placeholderTextColor={colors.textLight}
-                secureTextEntry={!showPassword}
-                onSubmitEditing={handleLogin}
-                returnKeyType="go"
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeButton}
-                activeOpacity={0.6}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={22}
-                  color={colors.textLight}
-                />
-              </TouchableOpacity>
-            </View>
+              <Text style={[styles.toggleText, mode === 'kid' && styles.toggleTextActive]}>
+                Kid
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {error.length > 0 && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
+          <Animated.View style={[styles.form, { opacity: formFade, transform: [{ translateX: formSlide }] }]}>
+            {mode === 'parent' ? (
+              <View style={styles.field}>
+                <Text style={styles.label}>Email</Text>
+                <View style={[
+                  styles.inputContainer,
+                  focusedField === 'email' && styles.inputContainerFocused,
+                ]}>
+                  <View style={styles.inputIconWrap}>
+                    <Ionicons
+                      name="mail-outline"
+                      size={20}
+                      color={focusedField === 'email' ? colors.primary : colors.textLight}
+                    />
+                  </View>
+                  <TextInput
+                    style={styles.textInput}
+                    value={email}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      setError('');
+                    }}
+                    placeholder="your@email.com"
+                    placeholderTextColor={colors.textLight}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    textContentType="emailAddress"
+                    onFocus={() => setFocusedField('email')}
+                    onBlur={() => setFocusedField(null)}
+                    autoFocus
+                  />
+                </View>
+              </View>
+            ) : (
+              <View style={styles.field}>
+                <Text style={styles.label}>Name</Text>
+                <View style={[
+                  styles.inputContainer,
+                  focusedField === 'name' && styles.inputContainerFocused,
+                ]}>
+                  <View style={styles.inputIconWrap}>
+                    <Ionicons
+                      name="person-outline"
+                      size={20}
+                      color={focusedField === 'name' ? colors.primary : colors.textLight}
+                    />
+                  </View>
+                  <TextInput
+                    style={styles.textInput}
+                    value={name}
+                    onChangeText={(text) => {
+                      setName(text);
+                      setError('');
+                    }}
+                    placeholder="Enter your name"
+                    placeholderTextColor={colors.textLight}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    onFocus={() => setFocusedField('name')}
+                    onBlur={() => setFocusedField(null)}
+                    autoFocus
+                  />
+                </View>
+              </View>
+            )}
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Password</Text>
+              <View style={[
+                styles.inputContainer,
+                focusedField === 'password' && styles.inputContainerFocused,
+              ]}>
+                <View style={styles.inputIconWrap}>
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={20}
+                    color={focusedField === 'password' ? colors.primary : colors.textLight}
+                  />
+                </View>
+                <TextInput
+                  style={[styles.textInput, { flex: 1 }]}
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    setError('');
+                  }}
+                  placeholder="Enter your password"
+                  placeholderTextColor={colors.textLight}
+                  secureTextEntry={!showPassword}
+                  onSubmitEditing={handleLogin}
+                  returnKeyType="go"
+                  onFocus={() => setFocusedField('password')}
+                  onBlur={() => setFocusedField(null)}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeButton}
+                  activeOpacity={0.6}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={22}
+                    color={colors.textLight}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
-          )}
-        </Animated.View>
+
+            {error.length > 0 && (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle-outline" size={18} color={colors.danger} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+          </Animated.View>
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -301,7 +359,10 @@ export default function LoginScreen() {
           {loggingIn ? (
             <ActivityIndicator color={colors.textWhite} />
           ) : (
-            <Text style={styles.buttonText}>Sign In</Text>
+            <View style={styles.buttonInner}>
+              <Text style={styles.buttonText}>Sign In</Text>
+              <Ionicons name="arrow-forward" size={20} color={colors.textWhite} />
+            </View>
           )}
         </AnimatedPressable>
 
@@ -331,36 +392,87 @@ const createStyles = (colors: ThemeColors) =>
     },
     scrollContent: {
       flexGrow: 1,
-      padding: Spacing.xxl,
-      paddingTop: 100,
     },
-    header: {
+
+    gradientHeader: {
+      paddingTop: 80,
+      paddingBottom: 48,
+      paddingHorizontal: Spacing.xxl,
       alignItems: 'center',
-      marginBottom: 28,
+      overflow: 'hidden',
     },
-    lockEmoji: {
-      fontSize: 56,
-      marginBottom: Spacing.xl,
+    decorCircle1: {
+      position: 'absolute',
+      top: -40,
+      right: -30,
+      width: 160,
+      height: 160,
+      borderRadius: 80,
+      backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    decorCircle2: {
+      position: 'absolute',
+      top: 60,
+      left: -50,
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      backgroundColor: 'rgba(255,255,255,0.07)',
+    },
+    decorCircle3: {
+      position: 'absolute',
+      bottom: -20,
+      right: 60,
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: 'rgba(255,255,255,0.05)',
+    },
+    iconBadge: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: Spacing.lg,
     },
     title: {
       fontSize: 30,
       fontFamily: FontFamily.extraBold,
       fontWeight: '800',
-      color: colors.text,
+      color: colors.textWhite,
       textAlign: 'center',
       marginBottom: Spacing.sm,
     },
     subtitle: {
       fontSize: 15,
-      color: colors.textSecondary,
+      color: 'rgba(255,255,255,0.8)',
       textAlign: 'center',
     },
+
+    card: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      marginTop: -20,
+      paddingTop: Spacing.xxl,
+      paddingHorizontal: Spacing.xxl,
+      paddingBottom: Spacing.lg,
+      flex: 1,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+
     toggleContainer: {
       flexDirection: 'row',
       backgroundColor: colors.surfaceAlt,
       borderRadius: 14,
       padding: Spacing.xs,
-      marginBottom: 28,
+      marginBottom: Spacing.xxl,
       position: 'relative',
     },
     toggleIndicator: {
@@ -390,6 +502,7 @@ const createStyles = (colors: ThemeColors) =>
     toggleTextActive: {
       color: colors.textWhite,
     },
+
     form: {
       gap: Spacing.xl,
     },
@@ -404,57 +517,58 @@ const createStyles = (colors: ThemeColors) =>
       textTransform: 'uppercase',
       letterSpacing: 0.5,
     },
-    textInput: {
-      backgroundColor: colors.surface,
-      borderRadius: 14,
-      paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.lg,
-      fontSize: 17,
-      color: colors.text,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
-    },
-    passwordContainer: {
+    inputContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.surface,
+      backgroundColor: colors.surfaceAlt,
       borderRadius: 14,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
+      borderWidth: 1.5,
+      borderColor: 'transparent',
     },
-    passwordInput: {
+    inputContainerFocused: {
+      borderColor: colors.primary,
+      backgroundColor: colors.surface,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    inputIconWrap: {
+      paddingLeft: Spacing.lg,
+    },
+    textInput: {
       flex: 1,
-      paddingHorizontal: Spacing.lg,
+      paddingHorizontal: Spacing.md,
       paddingVertical: Spacing.lg,
-      fontSize: 17,
+      fontSize: 16,
       color: colors.text,
     },
     eyeButton: {
       paddingHorizontal: 14,
       paddingVertical: 14,
     },
+
     errorContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
       backgroundColor: colors.dangerLight,
       borderRadius: 12,
       padding: 14,
     },
     errorText: {
+      flex: 1,
       fontSize: 14,
       color: colors.danger,
-      textAlign: 'center',
       fontFamily: FontFamily.medium,
       fontWeight: '500',
     },
+
     footer: {
       padding: Spacing.xxl,
       paddingBottom: 40,
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface,
     },
     button: {
       backgroundColor: colors.primary,
@@ -463,12 +577,17 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
+      shadowOpacity: 0.25,
       shadowRadius: 12,
       elevation: 4,
     },
     buttonDisabled: {
       opacity: 0.5,
+    },
+    buttonInner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
     },
     buttonText: {
       fontSize: 17,
