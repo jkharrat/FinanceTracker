@@ -111,44 +111,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const setupAdmin = useCallback(
     async (email: string, password: string, displayName: string) => {
-      // Sign up with NO metadata so the trigger (if any) is a no-op
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            role: 'admin',
+            display_name: displayName,
+          },
+        },
       });
 
       if (error) return { success: false, error: error.message };
       if (!data.user) return { success: false, error: 'Signup failed' };
-
-      // Create family and profile from app code (no trigger dependency)
-      const newFamilyId = crypto.randomUUID?.() ?? data.user.id;
-
-      const { error: famError } = await supabase
-        .from('families')
-        .insert({ id: newFamilyId });
-
-      if (famError) {
-        return { success: false, error: 'Failed to create family: ' + famError.message };
-      }
-
-      const { error: profError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          family_id: newFamilyId,
-          role: 'admin',
-          display_name: displayName,
-        });
-
-      if (profError) {
-        return { success: false, error: 'Failed to create profile: ' + profError.message };
-      }
-
-      // Create default notification preferences
-      await supabase
-        .from('notification_preferences')
-        .insert({ family_id: newFamilyId })
-        .then(() => {}); // ignore if already exists
 
       await loadProfile(data.user.id);
       return { success: true };
@@ -167,31 +142,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              family_id: familyId,
+              role: 'admin',
+              display_name: displayName,
+            },
+          },
         });
 
         if (error) return { success: false, error: error.message };
         if (!data.user) return { success: false, error: 'Failed to create admin' };
 
-        // Restore admin session before creating profile
+        // Restore the current admin's session so they stay logged in
         if (adminSession) {
           await supabase.auth.setSession({
             access_token: adminSession.access_token,
             refresh_token: adminSession.refresh_token,
           });
-        }
-
-        // Create profile for the new admin (using the current admin's session)
-        const { error: profError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            family_id: familyId,
-            role: 'admin',
-            display_name: displayName,
-          });
-
-        if (profError) {
-          return { success: false, error: 'Failed to create profile: ' + profError.message };
         }
 
         return { success: true };
@@ -249,21 +217,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              family_id: kid.kid_family_id,
+              role: 'kid',
+              display_name: name,
+            },
+          },
         });
 
         if (signUpError || !signUpData.user) continue;
 
-        // Create profile for this kid
-        await supabase
-          .from('profiles')
-          .insert({
-            id: signUpData.user.id,
-            family_id: kid.kid_family_id,
-            role: 'kid',
-            display_name: name,
-          });
-
-        // Link the auth user to the kid row (need a SECURITY DEFINER function for this too)
+        // Link the auth user to the kid row
         await supabase.rpc('link_kid_user', {
           p_kid_id: kid.kid_id,
           p_user_id: signUpData.user.id,
@@ -290,24 +255,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              family_id: familyId,
+              role: 'kid',
+              display_name: name,
+            },
+          },
         });
 
         if (error) return { success: false, error: error.message };
         if (!data.user) return { success: false, error: 'Failed to create kid account' };
 
-        const kidUserId = data.user.id;
-
-        // Step 1: Create profile while kid session is active (RLS: id = auth.uid())
-        await supabase
-          .from('profiles')
-          .insert({
-            id: kidUserId,
-            family_id: familyId,
-            role: 'kid',
-            display_name: name,
-          });
-
-        // Step 2: Restore admin session BEFORE updating kids row (needs admin role)
+        // Restore admin session before linking the kid row
         if (adminSession) {
           await supabase.auth.setSession({
             access_token: adminSession.access_token,
@@ -315,11 +275,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
         }
 
-        // Step 3: Link auth user to kid row (admin session required for UPDATE)
-        await supabase
-          .from('kids')
-          .update({ user_id: kidUserId })
-          .eq('id', kidId);
+        // Link auth user to kid row
+        await supabase.rpc('link_kid_user', {
+          p_kid_id: kidId,
+          p_user_id: data.user.id,
+        });
 
         return { success: true };
       } finally {
