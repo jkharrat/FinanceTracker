@@ -164,6 +164,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) return { success: false, error: error.message };
       if (!data.user) return { success: false, error: 'Signup failed' };
 
+      // When email confirmation is enabled, signUp returns session: null.
+      // Sign in explicitly so RLS-protected queries in loadProfile succeed.
+      if (!data.session) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) return { success: false, error: signInError.message };
+      }
+
       await loadProfile(data.user.id);
       return { success: true };
     },
@@ -220,12 +230,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { success: false, error: String(rpcResult) };
         }
 
+        // Reload own profile so deferred auth events from signUp/setSession
+        // cannot leave the current admin's state stale
+        if (adminSession?.user) {
+          await loadProfile(adminSession.user.id);
+        }
+
         return { success: true };
       } finally {
         ignoreAuthChanges.current = false;
       }
     },
-    [familyId, session]
+    [familyId, session, loadProfile]
   );
 
   const loginAdmin = useCallback(
@@ -339,12 +355,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           p_user_id: data.user.id,
         });
 
+        // Reload own profile so deferred auth events from signUp/setSession
+        // cannot leave the current admin's state stale
+        if (adminSession?.user) {
+          await loadProfile(adminSession.user.id);
+        }
+
         return { success: true };
       } finally {
         ignoreAuthChanges.current = false;
       }
     },
-    [familyId, session]
+    [familyId, session, loadProfile]
   );
 
   const updateKidPassword = useCallback(
