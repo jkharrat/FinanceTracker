@@ -233,7 +233,11 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.background,
     },
     headerButton: {
-      padding: Spacing.xs,
+      padding: Spacing.sm,
+      minWidth: 36,
+      minHeight: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     content: {
       padding: Spacing.xl,
