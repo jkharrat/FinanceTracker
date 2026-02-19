@@ -359,10 +359,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Restore admin session before linking the kid row
         if (adminSession) {
-          await supabase.auth.setSession({
+          const { error: sessionError } = await supabase.auth.setSession({
             access_token: adminSession.access_token,
             refresh_token: adminSession.refresh_token,
           });
+          if (sessionError) {
+            return { success: false, error: 'Session expired. Please log out and log back in.' };
+          }
         }
 
         // Link auth user to kid row
