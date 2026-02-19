@@ -454,7 +454,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const kid = kids.find((k) => k.id === kidId);
     const previousBalance = kid?.balance ?? 0;
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('transactions')
       .update({
         amount: updates.amount,
@@ -463,17 +463,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       })
       .eq('id', transactionId);
 
-    const { data: allTxs } = await supabase
+    if (updateError) throw new Error(updateError.message || 'Failed to update transaction');
+
+    const { data: allTxs, error: fetchError } = await supabase
       .from('transactions')
       .select('type, amount')
       .eq('kid_id', kidId);
+
+    if (fetchError) throw new Error(fetchError.message || 'Failed to recalculate balance');
 
     const newBalance = (allTxs ?? []).reduce((sum: number, t: { type: string; amount: number }) => {
       const delta = t.type === 'add' ? Number(t.amount) : -Number(t.amount);
       return Math.round((sum + delta) * 100) / 100;
     }, 0);
 
-    await supabase.from('kids').update({ balance: newBalance }).eq('id', kidId);
+    const { error: balanceError } = await supabase.from('kids').update({ balance: newBalance }).eq('id', kidId);
+    if (balanceError) throw new Error(balanceError.message || 'Failed to update balance');
+
     await loadData(true);
 
     try {
@@ -499,19 +505,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const previousBalance = kid?.balance ?? 0;
     const deletedTx = kid?.transactions.find((t) => t.id === transactionId);
 
-    await supabase.from('transactions').delete().eq('id', transactionId);
+    const { error: deleteError } = await supabase.from('transactions').delete().eq('id', transactionId);
+    if (deleteError) throw new Error(deleteError.message || 'Failed to delete transaction');
 
-    const { data: allTxs } = await supabase
+    const { data: allTxs, error: fetchError } = await supabase
       .from('transactions')
       .select('type, amount')
       .eq('kid_id', kidId);
+
+    if (fetchError) throw new Error(fetchError.message || 'Failed to recalculate balance');
 
     const newBalance = (allTxs ?? []).reduce((sum: number, t: { type: string; amount: number }) => {
       const delta = t.type === 'add' ? Number(t.amount) : -Number(t.amount);
       return Math.round((sum + delta) * 100) / 100;
     }, 0);
 
-    await supabase.from('kids').update({ balance: newBalance }).eq('id', kidId);
+    const { error: balanceError } = await supabase.from('kids').update({ balance: newBalance }).eq('id', kidId);
+    if (balanceError) throw new Error(balanceError.message || 'Failed to update balance');
+
     await loadData(true);
 
     try {
