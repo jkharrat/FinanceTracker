@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, PressableProps, StyleProp, ViewStyle, Platform } from 'react-native';
+import { hapticLight } from '../utils/haptics';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -64,6 +65,7 @@ export default function AnimatedPressable({
 
   const handlePressIn: PressableProps['onPressIn'] = (e) => {
     pressed.value = true;
+    if (variant === 'button') hapticLight();
     onPressIn?.(e);
   };
 

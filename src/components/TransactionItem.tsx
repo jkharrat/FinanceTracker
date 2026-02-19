@@ -28,6 +28,8 @@ export function TransactionItem({ transaction, onPress }: TransactionItemProps) 
   });
 
   const category = CATEGORIES.find((c) => c.id === transaction.category);
+  const iconBg = isAdd ? colors.successLight : colors.dangerLight;
+  const iconColor = isAdd ? colors.successDark : colors.dangerDark;
 
   const transferLabel = transaction.transfer
     ? isAdd
@@ -42,7 +44,9 @@ export function TransactionItem({ transaction, onPress }: TransactionItemProps) 
       activeOpacity={onPress ? 0.6 : 1}
       disabled={!onPress}
     >
-      <View style={[styles.indicator, isAdd ? styles.indicatorAdd : styles.indicatorSubtract]} />
+      <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
+        <Text style={styles.iconEmoji}>{category?.emoji ?? (isAdd ? '💰' : '💸')}</Text>
+      </View>
       <View style={styles.content}>
         <View style={styles.topRow}>
           <View style={styles.descriptionRow}>
@@ -54,20 +58,21 @@ export function TransactionItem({ transaction, onPress }: TransactionItemProps) 
                 {transferLabel}
               </Text>
             )}
-            {category && (
-              <View style={styles.categoryBadge}>
-                <Text style={styles.categoryEmoji}>{category.emoji}</Text>
-                <Text style={styles.categoryLabel}>{category.label}</Text>
-              </View>
-            )}
           </View>
           <Text style={[styles.amount, isAdd ? styles.amountAdd : styles.amountSubtract]}>
             {isAdd ? '+' : '-'}${transaction.amount.toFixed(2)}
           </Text>
         </View>
-        <Text style={styles.date}>
-          {formattedDate} at {formattedTime}
-        </Text>
+        <View style={styles.bottomRow}>
+          {category && (
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryLabel}>{category.label}</Text>
+            </View>
+          )}
+          <Text style={styles.date}>
+            {formattedDate} at {formattedTime}
+          </Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -77,22 +82,29 @@ const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     container: {
       flexDirection: 'row',
-      alignItems: 'stretch',
-      marginBottom: 1,
+      alignItems: 'center',
+      marginHorizontal: Spacing.xl,
+      marginBottom: 6,
       backgroundColor: colors.surface,
-      paddingVertical: 14,
+      paddingVertical: Spacing.md,
       paddingHorizontal: Spacing.lg,
+      borderRadius: 12,
+      shadowColor: colors.primaryDark,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.03,
+      shadowRadius: 4,
+      elevation: 1,
     },
-    indicator: {
-      width: 3,
-      borderRadius: 2,
-      marginRight: 14,
+    iconCircle: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: Spacing.md,
     },
-    indicatorAdd: {
-      backgroundColor: colors.success,
-    },
-    indicatorSubtract: {
-      backgroundColor: colors.danger,
+    iconEmoji: {
+      fontSize: 18,
     },
     content: {
       flex: 1,
@@ -109,16 +121,15 @@ const createStyles = (colors: ThemeColors) =>
     },
     description: {
       fontSize: 15,
-      fontFamily: FontFamily.medium,
-      fontWeight: '500',
+      fontFamily: FontFamily.semiBold,
+      fontWeight: '600',
       color: colors.text,
-      marginBottom: Spacing.xs,
     },
     transferLabel: {
       fontSize: 12,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      marginBottom: Spacing.xs,
+      fontFamily: FontFamily.medium,
+      fontWeight: '500',
+      marginTop: 2,
     },
     transferLabelAdd: {
       color: colors.successDark,
@@ -126,18 +137,16 @@ const createStyles = (colors: ThemeColors) =>
     transferLabelSubtract: {
       color: colors.dangerDark,
     },
-    categoryBadge: {
+    bottomRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      gap: Spacing.sm,
+    },
+    categoryBadge: {
       backgroundColor: colors.surfaceAlt,
       paddingHorizontal: Spacing.sm,
       paddingVertical: 2,
-      borderRadius: 8,
-      alignSelf: 'flex-start',
-      gap: Spacing.xs,
-    },
-    categoryEmoji: {
-      fontSize: 11,
+      borderRadius: 6,
     },
     categoryLabel: {
       fontSize: 11,
@@ -159,6 +168,5 @@ const createStyles = (colors: ThemeColors) =>
     date: {
       fontSize: 12,
       color: colors.textLight,
-      marginTop: 2,
     },
   });

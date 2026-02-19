@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,8 @@ import type { ThemeMode } from '../../src/context/ThemeContext';
 import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
 import { SIDEBAR_BREAKPOINT } from '../../src/components/WebSidebar';
+import AnimatedListItem from '../../src/components/AnimatedListItem';
+import ReAnimated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 
 const frequencyLabel: Record<AllowanceFrequency, string> = {
   weekly: '/wk',
@@ -133,6 +135,18 @@ export default function KidDashboardScreen() {
 
   const kidId = user?.role === 'kid' ? user.kidId : null;
   const kid = kidId ? getKid(kidId) : undefined;
+
+  const kidGoalPercent = useMemo(() => {
+    if (!kid?.savingsGoal) return 0;
+    return Math.round(Math.min(Math.max(kid.balance / kid.savingsGoal.targetAmount, 0), 1) * 100);
+  }, [kid?.savingsGoal, kid?.balance]);
+  const kidGoalAnim = useSharedValue(0);
+  useEffect(() => {
+    kidGoalAnim.value = withTiming(kidGoalPercent, { duration: 800, easing: Easing.out(Easing.cubic) });
+  }, [kidGoalPercent]);
+  const kidGoalAnimStyle = useAnimatedStyle(() => ({
+    width: `${kidGoalAnim.value}%`,
+  }));
 
   const filteredTransactions = useMemo(() => {
     if (!kid) return [];
@@ -276,37 +290,32 @@ export default function KidDashboardScreen() {
           styles={styles}
           colors={colors}
         />
-      ) : kid.savingsGoal ? (() => {
-        const goal = kid.savingsGoal!;
-        const progress = Math.min(Math.max(kid.balance / goal.targetAmount, 0), 1);
-        const percent = Math.round(progress * 100);
-        return (
+      ) : kid.savingsGoal ? (
           <AnimatedPressable variant="card" style={styles.goalCard} onPress={openGoalEditor}>
             <View style={styles.goalHeader}>
               <Text style={styles.goalLabel}>Savings Goal</Text>
               <View style={styles.goalHeaderRight}>
-                <Text style={[styles.goalPercent, percent >= 100 && styles.goalPercentComplete]}>
-                  {percent}%
+                <Text style={[styles.goalPercent, kidGoalPercent >= 100 && styles.goalPercentComplete]}>
+                  {kidGoalPercent}%
                 </Text>
                 <Ionicons name="pencil" size={14} color={colors.textLight} style={{ marginLeft: Spacing.sm }} />
               </View>
             </View>
-            <Text style={styles.goalName}>{goal.name}</Text>
+            <Text style={styles.goalName}>{kid.savingsGoal.name}</Text>
             <View style={styles.progressBarBg}>
-              <View
+              <ReAnimated.View
                 style={[
                   styles.progressBarFill,
-                  { width: `${percent}%` },
-                  percent >= 100 && styles.progressBarComplete,
+                  kidGoalAnimStyle,
+                  kidGoalPercent >= 100 && styles.progressBarComplete,
                 ]}
               />
             </View>
             <Text style={styles.goalAmounts}>
-              ${Math.max(kid.balance, 0).toFixed(2)} of ${goal.targetAmount.toFixed(2)}
+              ${Math.max(kid.balance, 0).toFixed(2)} of ${kid.savingsGoal.targetAmount.toFixed(2)}
             </Text>
           </AnimatedPressable>
-        );
-      })() : (
+        ) : (
         <AnimatedPressable variant="row" style={styles.setGoalButton} onPress={openGoalEditor}>
           <Ionicons name="flag-outline" size={20} color={colors.primary} />
           <Text style={styles.setGoalButtonText}>Set a Savings Goal</Text>
@@ -457,8 +466,10 @@ export default function KidDashboardScreen() {
             <Text style={styles.sectionHeaderText}>{title}</Text>
           </View>
         )}
-        renderItem={({ item }) => (
-          <TransactionItem transaction={item} />
+        renderItem={({ item, index }) => (
+          <AnimatedListItem index={index}>
+            <TransactionItem transaction={item} />
+          </AnimatedListItem>
         )}
         ListEmptyComponent={
           kid.transactions.length === 0 ? (

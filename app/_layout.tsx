@@ -15,6 +15,7 @@ import { NotificationProvider, useNotifications } from '../src/context/Notificat
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { DataProvider } from '../src/context/DataContext';
 import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
+import { ToastProvider } from '../src/context/ToastContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -103,15 +104,17 @@ export default function RootLayout() {
   return (
     <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <ThemeProvider>
-        <NotificationProvider>
-          <AuthProvider>
-            <FamilySync />
-            <PushTokenSync />
-            <DataProvider>
-              <AppContent />
-            </DataProvider>
-          </AuthProvider>
-        </NotificationProvider>
+        <ToastProvider>
+          <NotificationProvider>
+            <AuthProvider>
+              <FamilySync />
+              <PushTokenSync />
+              <DataProvider>
+                <AppContent />
+              </DataProvider>
+            </AuthProvider>
+          </NotificationProvider>
+        </ToastProvider>
       </ThemeProvider>
     </View>
   );

@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { useColors } from '../context/ThemeContext';
 import { ThemeColors } from '../constants/colors';
 import { Kid, AllowanceFrequency } from '../types';
@@ -29,6 +30,14 @@ export function KidCard({ kid, onPress }: KidCardProps) {
 
   const accentColor = kid.balance > 0 ? colors.success : kid.balance < 0 ? colors.danger : colors.border;
 
+  const progressAnim = useSharedValue(0);
+  useEffect(() => {
+    progressAnim.value = withTiming(progressPercent, { duration: 800, easing: Easing.out(Easing.cubic) });
+  }, [progressPercent]);
+  const progressStyle = useAnimatedStyle(() => ({
+    width: `${progressAnim.value}%`,
+  }));
+
   return (
     <AnimatedPressable variant="card" style={[styles.card, { borderLeftColor: accentColor }]} onPress={onPress}>
       <View style={styles.leftSection}>
@@ -56,10 +65,10 @@ export function KidCard({ kid, onPress }: KidCardProps) {
             <Text style={styles.goalPercent}>{progressPercent}%</Text>
           </View>
           <View style={styles.progressBarBg}>
-            <View
+            <Animated.View
               style={[
                 styles.progressBarFill,
-                { width: `${progressPercent}%` },
+                progressStyle,
                 progressPercent >= 100 && styles.progressBarComplete,
               ]}
             />

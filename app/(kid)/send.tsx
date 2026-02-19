@@ -6,10 +6,10 @@ import {
   TouchableOpacity,
   TextInput,
   FlatList,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../../src/context/DataContext';
@@ -18,12 +18,15 @@ import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
 import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
+import { useToast } from '../../src/context/ToastContext';
+import { useShake } from '../../src/hooks/useShake';
 
 export default function SendMoneyScreen() {
   const { user } = useAuth();
   const { kids, getKid, transferMoney } = useData();
   const router = useRouter();
   const colors = useColors();
+  const { showToast } = useToast();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [selectedKidId, setSelectedKidId] = useState<string | null>(null);
@@ -31,6 +34,8 @@ export default function SendMoneyScreen() {
   const [description, setDescription] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const { shakeStyle, triggerShake } = useShake();
 
   const kidId = user?.role === 'kid' ? user.kidId : null;
   const sender = kidId ? getKid(kidId) : undefined;
@@ -56,17 +61,11 @@ export default function SendMoneyScreen() {
       const result = await transferMoney(kidId, selectedKidId, parsedAmount, desc);
 
       if (result.success) {
-        if (Platform.OS === 'web') {
-          router.back();
-        } else {
-          Alert.alert(
-            'Transfer Sent',
-            `$${parsedAmount.toFixed(2)} sent to ${selectedKid?.name ?? 'friend'}`,
-            [{ text: 'OK', onPress: () => router.back() }]
-          );
-        }
+        showToast('success', `$${parsedAmount.toFixed(2)} sent to ${selectedKid?.name ?? 'friend'}`);
+        router.back();
       } else {
         setError(result.error ?? 'Transfer failed');
+        showToast('error', result.error ?? 'Transfer failed');
       }
     } catch (e: any) {
       setError(e?.message || 'Something went wrong');
@@ -151,7 +150,7 @@ export default function SendMoneyScreen() {
 
             {/* Amount Input */}
             <Text style={styles.sectionTitle}>Amount</Text>
-            <View style={styles.amountContainer}>
+            <View style={[styles.amountContainer, focusedField === 'amount' && styles.inputFocused]}>
               <Text style={styles.currencySign}>$</Text>
               <TextInput
                 style={styles.amountInput}
@@ -164,6 +163,8 @@ export default function SendMoneyScreen() {
                 placeholderTextColor={colors.textLight}
                 keyboardType="decimal-pad"
                 returnKeyType="done"
+                onFocus={() => setFocusedField('amount')}
+                onBlur={() => setFocusedField(null)}
               />
             </View>
             {hasInsufficientBalance && (
@@ -175,7 +176,7 @@ export default function SendMoneyScreen() {
             {/* Description Input */}
             <Text style={styles.sectionTitle}>Note (optional)</Text>
             <TextInput
-              style={styles.descriptionInput}
+              style={[styles.descriptionInput, focusedField === 'note' && styles.inputFocused]}
               value={description}
               onChangeText={setDescription}
               placeholder={selectedKid ? `Transfer to ${selectedKid.name}` : 'Add a note...'}
@@ -183,6 +184,8 @@ export default function SendMoneyScreen() {
               maxLength={100}
               returnKeyType="done"
               autoCapitalize="sentences"
+              onFocus={() => setFocusedField('note')}
+              onBlur={() => setFocusedField(null)}
             />
 
             {/* Error */}
@@ -194,25 +197,26 @@ export default function SendMoneyScreen() {
             )}
 
             {/* Send Button */}
-            <TouchableOpacity
-              style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
-              onPress={handleSend}
-              disabled={!canSend}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name="send"
-                size={20}
-                color={canSend ? colors.textWhite : colors.textLight}
-              />
-              <Text style={[styles.sendButtonText, !canSend && styles.sendButtonTextDisabled]}>
-                {sending
-                  ? 'Sending...'
-                  : isValidAmount
-                    ? `Send $${parsedAmount.toFixed(2)}`
-                    : 'Send Money'}
-              </Text>
-            </TouchableOpacity>
+            <Animated.View style={shakeStyle}>
+              <TouchableOpacity
+                style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+                onPress={() => { if (!canSend && !sending) { triggerShake(); } else { handleSend(); } }}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="send"
+                  size={20}
+                  color={canSend ? colors.textWhite : colors.textLight}
+                />
+                <Text style={[styles.sendButtonText, !canSend && styles.sendButtonTextDisabled]}>
+                  {sending
+                    ? 'Sending...'
+                    : isValidAmount
+                      ? `Send $${parsedAmount.toFixed(2)}`
+                      : 'Send Money'}
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
           </View>
         }
         keyExtractor={() => 'header'}
@@ -313,6 +317,14 @@ const createStyles = (colors: ThemeColors) =>
     },
     recipientNameSelected: {
       color: colors.primary,
+    },
+    inputFocused: {
+      borderColor: colors.primary,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      elevation: 2,
     },
     amountContainer: {
       flexDirection: 'row',

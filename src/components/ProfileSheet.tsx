@@ -8,6 +8,7 @@ import {
   Pressable,
   TouchableOpacity,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -189,6 +190,7 @@ const createStyles = (colors: ThemeColors) =>
     overlay: {
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.35)',
+      ...(Platform.OS === 'web' ? { backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' } as any : {}),
       justifyContent: 'center',
       alignItems: 'center',
       padding: Spacing.xxl,

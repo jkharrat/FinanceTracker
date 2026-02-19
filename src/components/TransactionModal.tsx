@@ -40,6 +40,7 @@ export function TransactionModal({
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<TransactionCategory>('other');
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const isEditing = !!editTransaction;
   const effectiveType = isEditing ? editTransaction.type : type;
@@ -103,7 +104,7 @@ export function TransactionModal({
 
             <View style={styles.field}>
               <Text style={styles.label}>Amount</Text>
-              <View style={styles.amountInputContainer}>
+              <View style={[styles.amountInputContainer, focusedField === 'amount' && styles.inputFocused]}>
                 <Text style={styles.dollarSign}>$</Text>
                 <TextInput
                   style={styles.amountInput}
@@ -113,6 +114,8 @@ export function TransactionModal({
                   placeholderTextColor={colors.textLight}
                   keyboardType="decimal-pad"
                   autoFocus={!isEditing}
+                  onFocus={() => setFocusedField('amount')}
+                  onBlur={() => setFocusedField(null)}
                 />
               </View>
             </View>
@@ -120,12 +123,14 @@ export function TransactionModal({
             <View style={styles.field}>
               <Text style={styles.label}>Description</Text>
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, focusedField === 'description' && styles.inputFocused]}
                 value={description}
                 onChangeText={setDescription}
                 placeholder={isAdd ? 'e.g. Weekly allowance' : 'e.g. Bought a toy'}
                 autoCapitalize="sentences"
                 placeholderTextColor={colors.textLight}
+                onFocus={() => setFocusedField('description')}
+                onBlur={() => setFocusedField(null)}
               />
             </View>
 
@@ -197,6 +202,7 @@ const createStyles = (colors: ThemeColors) =>
     overlay: {
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.4)',
+      ...(Platform.OS === 'web' ? { backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' } as any : {}),
       justifyContent: 'flex-end',
     },
     keyboardView: {
@@ -234,6 +240,15 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: Spacing.sm,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
+    },
+    inputFocused: {
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      elevation: 2,
     },
     amountInputContainer: {
       flexDirection: 'row',

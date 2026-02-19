@@ -23,6 +23,7 @@ import AnimatedNumber from '../../src/components/AnimatedNumber';
 import ProfileAvatar from '../../src/components/ProfileAvatar';
 import ProfileSheet from '../../src/components/ProfileSheet';
 import { AdminDashboardSkeleton } from '../../src/components/Skeleton';
+import AnimatedListItem from '../../src/components/AnimatedListItem';
 import { ThemeColors } from '../../src/constants/colors';
 import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
@@ -101,11 +102,13 @@ export default function AdminHomeScreen() {
       <FlatList
         data={kids}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <KidCard
-            kid={item}
-            onPress={() => router.push(`/(admin)/kid/${item.id}`)}
-          />
+        renderItem={({ item, index }) => (
+          <AnimatedListItem index={index}>
+            <KidCard
+              kid={item}
+              onPress={() => router.push(`/(admin)/kid/${item.id}`)}
+            />
+          </AnimatedListItem>
         )}
         ListHeaderComponent={
           <>

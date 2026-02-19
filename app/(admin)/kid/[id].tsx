@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,9 @@ import {
   Alert,
   TextInput,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
+import ReAnimated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../../../src/context/DataContext';
@@ -23,6 +25,8 @@ import { AllowanceFrequency, Transaction, TransactionCategory, CATEGORIES } from
 import { groupTransactionsByDate } from '../../../src/utils/dateGrouping';
 import { FontFamily } from '../../../src/constants/fonts';
 import { Spacing } from '../../../src/constants/spacing';
+import { useToast } from '../../../src/context/ToastContext';
+import AnimatedListItem from '../../../src/components/AnimatedListItem';
 
 const frequencyLabel: Record<AllowanceFrequency, string> = {
   weekly: '/wk',
@@ -33,9 +37,10 @@ type TypeFilter = 'all' | 'add' | 'subtract';
 
 export default function KidDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getKid, addTransaction, updateTransaction, deleteTransaction, deleteKid } = useData();
+  const { getKid, addTransaction, updateTransaction, deleteTransaction, deleteKid, refreshData } = useData();
   const router = useRouter();
   const colors = useColors();
+  const { showToast } = useToast();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -43,11 +48,24 @@ export default function KidDetailScreen() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState<TransactionCategory | null>(null);
 
   const kid = getKid(id!);
+
+  const goalPercent = useMemo(() => {
+    if (!kid?.savingsGoal) return 0;
+    return Math.round(Math.min(Math.max(kid.balance / kid.savingsGoal.targetAmount, 0), 1) * 100);
+  }, [kid?.savingsGoal, kid?.balance]);
+  const goalProgressAnim = useSharedValue(0);
+  useEffect(() => {
+    goalProgressAnim.value = withTiming(goalPercent, { duration: 800, easing: Easing.out(Easing.cubic) });
+  }, [goalPercent]);
+  const goalProgressStyle = useAnimatedStyle(() => ({
+    width: `${goalProgressAnim.value}%`,
+  }));
 
   const filteredTransactions = useMemo(() => {
     if (!kid) return [];
@@ -74,6 +92,11 @@ export default function KidDetailScreen() {
   const sections = useMemo(() => groupTransactionsByDate(filteredTransactions), [filteredTransactions]);
   const hasActiveFilters = searchQuery.trim() !== '' || typeFilter !== 'all' || categoryFilter !== null;
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await refreshData(); } finally { setRefreshing(false); }
+  }, [refreshData]);
+
   if (!kid) {
     return (
       <View style={styles.container}>
@@ -99,6 +122,7 @@ export default function KidDetailScreen() {
   const handleNewTransaction = async (amount: number, description: string, category: TransactionCategory) => {
     await addTransaction(kid.id, modalType, amount, description, category);
     setModalVisible(false);
+    showToast('success', `$${amount.toFixed(2)} ${modalType === 'add' ? 'added' : 'subtracted'} successfully`);
   };
 
   const handleEditTransaction = async (amount: number, description: string, category: TransactionCategory) => {
@@ -106,6 +130,7 @@ export default function KidDetailScreen() {
       await updateTransaction(kid.id, editingTransaction.id, { amount, description, category });
       setEditingTransaction(null);
       setModalVisible(false);
+      showToast('success', 'Transaction updated');
     }
   };
 
@@ -123,6 +148,7 @@ export default function KidDetailScreen() {
             await deleteTransaction(kid.id, editingTransaction.id);
             setEditingTransaction(null);
             setModalVisible(false);
+            showToast('success', 'Transaction deleted');
           },
         },
       ]
@@ -197,34 +223,29 @@ export default function KidDetailScreen() {
         <AnimatedNumber value={kid.balance} style={styles.balanceAmount} />
       </GradientCard>
 
-      {kid.savingsGoal && (() => {
-        const goal = kid.savingsGoal!;
-        const progress = Math.min(Math.max(kid.balance / goal.targetAmount, 0), 1);
-        const percent = Math.round(progress * 100);
-        return (
-          <View style={styles.goalCard}>
-            <View style={styles.goalHeader}>
-              <Text style={styles.goalLabel}>Savings Goal</Text>
-              <Text style={[styles.goalPercent, percent >= 100 && styles.goalPercentComplete]}>
-                {percent}%
-              </Text>
-            </View>
-            <Text style={styles.goalName}>{goal.name}</Text>
-            <View style={styles.progressBarBg}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  { width: `${percent}%` },
-                  percent >= 100 && styles.progressBarComplete,
-                ]}
-              />
-            </View>
-            <Text style={styles.goalAmounts}>
-              ${Math.max(kid.balance, 0).toFixed(2)} of ${goal.targetAmount.toFixed(2)}
+      {kid.savingsGoal && (
+        <View style={styles.goalCard}>
+          <View style={styles.goalHeader}>
+            <Text style={styles.goalLabel}>Savings Goal</Text>
+            <Text style={[styles.goalPercent, goalPercent >= 100 && styles.goalPercentComplete]}>
+              {goalPercent}%
             </Text>
           </View>
-        );
-      })()}
+          <Text style={styles.goalName}>{kid.savingsGoal.name}</Text>
+          <View style={styles.progressBarBg}>
+            <ReAnimated.View
+              style={[
+                styles.progressBarFill,
+                goalProgressStyle,
+                goalPercent >= 100 && styles.progressBarComplete,
+              ]}
+            />
+          </View>
+          <Text style={styles.goalAmounts}>
+            ${Math.max(kid.balance, 0).toFixed(2)} of ${kid.savingsGoal.targetAmount.toFixed(2)}
+          </Text>
+        </View>
+      )}
 
       <View style={styles.actionRow}>
         <TouchableOpacity
@@ -371,11 +392,13 @@ export default function KidDetailScreen() {
             <Text style={styles.sectionHeaderText}>{title}</Text>
           </View>
         )}
-        renderItem={({ item }) => (
-          <TransactionItem
-            transaction={item}
-            onPress={() => handleTransactionPress(item)}
-          />
+        renderItem={({ item, index }) => (
+          <AnimatedListItem index={index}>
+            <TransactionItem
+              transaction={item}
+              onPress={() => handleTransactionPress(item)}
+            />
+          </AnimatedListItem>
         )}
         ListEmptyComponent={
           kid.transactions.length === 0 ? (
@@ -395,6 +418,9 @@ export default function KidDetailScreen() {
         stickySectionHeadersEnabled={false}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
+        }
       />
 
       <TransactionModal

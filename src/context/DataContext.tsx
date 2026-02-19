@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { Alert, AppState, Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { Kid, Transaction, TransferInfo, AllowanceFrequency, TransactionCategory, SavingsGoal, KidRow, TransactionRow } from '../types';
 import { useNotifications } from './NotificationContext';
@@ -246,7 +246,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   ): Promise<string | null> => {
     if (!familyId) {
       console.error('addKid: No familyId available');
-      Alert.alert('Debug: No family', 'familyId is not set. Make sure you are logged in.');
       return null;
     }
 
@@ -267,7 +266,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     if (error || !newKidRow) {
       console.error('Failed to add kid:', error?.message, error?.details, error?.hint);
-      Alert.alert('Debug: Insert failed', error?.message ?? 'Unknown error');
       return null;
     }
 
@@ -315,14 +313,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         const errorMsg = `RPC Error: ${error.message || error.code || JSON.stringify(error)}`;
         console.error('UPDATE FAILED:', errorMsg);
-        Alert.alert('Save Failed', errorMsg);
         throw new Error(errorMsg);
       }
 
       if (data && data !== 'OK') {
         const errorMsg = `Update returned: ${data}`;
         console.error('UPDATE FAILED:', errorMsg);
-        Alert.alert('Save Failed', errorMsg);
         throw new Error(errorMsg);
       }
 
@@ -331,7 +327,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } catch (e: any) {
       console.error('EXCEPTION IN UPDATE:', e);
       const errorMsg = e?.message || String(e) || 'Unknown error';
-      Alert.alert('Save Error', errorMsg);
+      console.error('SAVE ERROR:', errorMsg);
       throw e;
     }
   };
@@ -348,7 +344,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('DELETE FAILED:', error);
-        Alert.alert('Delete Failed', error.message || JSON.stringify(error));
         throw new Error(error.message);
       }
 
@@ -356,7 +351,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       await loadData(true);
     } catch (e: any) {
       console.error('EXCEPTION IN DELETE:', e);
-      Alert.alert('Delete Error', e?.message || String(e));
       throw e;
     }
   };
@@ -369,7 +363,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     if (error) {
       console.error('Failed to update avatar:', error);
-      Alert.alert('Error', 'Failed to update avatar: ' + error.message);
       throw error;
     }
 
@@ -388,12 +381,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         console.error('RPC savings goal error:', error);
         if (error.code === '42883' || error.message?.includes('does not exist')) {
-          Alert.alert(
-            'Database Error',
-            'The savings goal function is missing. Please run:\n\nsupabase/migrations/002_admin_functions.sql\n\nin Supabase SQL Editor.'
-          );
-        } else {
-          Alert.alert('Error', 'Failed to update savings goal: ' + (error.message || error.code || 'Unknown error'));
+          console.error('The savings goal function is missing. Run supabase/migrations/002_admin_functions.sql');
         }
         throw error;
       }
@@ -401,9 +389,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       await loadData(true);
     } catch (e: any) {
       console.error('Exception in updateSavingsGoal:', e);
-      if (!e.message?.includes('Database Error')) {
-        Alert.alert('Error', `Failed to update: ${e?.message || String(e)}`);
-      }
       throw e;
     }
   };
@@ -428,14 +413,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     if (error) {
       console.error('add_transaction_safe RPC error:', error);
-      Alert.alert('Transaction Failed', error.message || 'Unknown error');
-      return;
+      throw new Error(error.message || 'Transaction failed');
     }
 
     if (data && data !== 'OK') {
       console.error('add_transaction_safe returned:', data);
-      Alert.alert('Transaction Failed', String(data));
-      return;
+      throw new Error(String(data));
     }
 
     const newBalance = type === 'add' ? previousBalance + amount : previousBalance - amount;

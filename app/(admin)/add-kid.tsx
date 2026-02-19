@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../../src/context/DataContext';
@@ -20,11 +21,28 @@ import { ThemeColors } from '../../src/constants/colors';
 import { AllowanceFrequency } from '../../src/types';
 import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
+import { useToast } from '../../src/context/ToastContext';
+import { useShake } from '../../src/hooks/useShake';
 
 const frequencies: { value: AllowanceFrequency; label: string }[] = [
   { value: 'weekly', label: 'Weekly' },
   { value: 'monthly', label: 'Monthly' },
 ];
+
+type PasswordStrength = { level: number; label: string; color: string; width: string };
+
+function getPasswordStrength(pw: string, colors: ThemeColors): PasswordStrength {
+  if (pw.length === 0) return { level: 0, label: '', color: 'transparent', width: '0%' };
+  if (pw.length < 6) return { level: 1, label: 'Weak', color: colors.danger, width: '25%' };
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  if (score <= 1) return { level: 2, label: 'Fair', color: colors.warning, width: '50%' };
+  if (score <= 2) return { level: 3, label: 'Good', color: colors.success, width: '75%' };
+  return { level: 4, label: 'Strong', color: colors.successDark, width: '100%' };
+}
 
 export default function AddKidScreen() {
   const [name, setName] = useState('');
@@ -37,12 +55,16 @@ export default function AddKidScreen() {
   const [nameError, setNameError] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const { addKid, isNameUnique } = useData();
   const { createKidAuth } = useAuth();
   const router = useRouter();
   const colors = useColors();
+  const { showToast } = useToast();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const strength = useMemo(() => getPasswordStrength(password, colors), [password, colors]);
+  const { shakeStyle, triggerShake } = useShake();
 
   const isValid =
     name.trim().length > 0 &&
@@ -86,9 +108,11 @@ export default function AddKidScreen() {
         console.warn('Kid auth creation issue:', authResult.error);
       }
 
+      showToast('success', `${name.trim()} has been added`);
       router.back();
     } catch (e) {
       setError('Something went wrong. Please try again.');
+      showToast('error', 'Failed to add person');
       setSaving(false);
     }
   };
@@ -124,12 +148,14 @@ export default function AddKidScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Name (used as login username)</Text>
           <TextInput
-            style={[styles.textInput, nameError ? styles.textInputError : null]}
+            style={[styles.textInput, focusedField === 'name' && styles.textInputFocused, nameError ? styles.textInputError : null]}
             value={name}
             onChangeText={handleNameChange}
             placeholder="Enter name"
             autoCapitalize="words"
             placeholderTextColor={colors.textLight}
+            onFocus={() => setFocusedField('name')}
+            onBlur={() => setFocusedField(null)}
             autoFocus
           />
           {nameError.length > 0 && (
@@ -139,7 +165,7 @@ export default function AddKidScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Login Password</Text>
-          <View style={styles.passwordContainer}>
+          <View style={[styles.passwordContainer, focusedField === 'password' && styles.textInputFocused]}>
             <TextInput
               style={styles.passwordInput}
               value={password}
@@ -147,6 +173,8 @@ export default function AddKidScreen() {
               placeholder="At least 6 characters"
               placeholderTextColor={colors.textLight}
               secureTextEntry={!showPassword}
+              onFocus={() => setFocusedField('password')}
+              onBlur={() => setFocusedField(null)}
             />
             <TouchableOpacity
               onPress={() => setShowPassword(!showPassword)}
@@ -161,14 +189,19 @@ export default function AddKidScreen() {
               />
             </TouchableOpacity>
           </View>
-          {password.length > 0 && password.length < 6 && (
-            <Text style={styles.fieldError}>Password must be at least 6 characters</Text>
+          {password.length > 0 && (
+            <View style={styles.strengthContainer}>
+              <View style={styles.strengthTrack}>
+                <View style={[styles.strengthFill, { width: strength.width as any, backgroundColor: strength.color }]} />
+              </View>
+              <Text style={[styles.strengthLabel, { color: strength.color }]}>{strength.label}</Text>
+            </View>
           )}
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Allowance Amount</Text>
-          <View style={styles.amountInputContainer}>
+          <View style={[styles.amountInputContainer, focusedField === 'allowance' && styles.textInputFocused]}>
             <Text style={styles.dollarSign}>$</Text>
             <TextInput
               style={styles.amountInput}
@@ -177,13 +210,15 @@ export default function AddKidScreen() {
               placeholder="0.00"
               placeholderTextColor={colors.textLight}
               keyboardType="decimal-pad"
+              onFocus={() => setFocusedField('allowance')}
+              onBlur={() => setFocusedField(null)}
             />
           </View>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Initial Balance</Text>
-          <View style={styles.amountInputContainer}>
+          <View style={[styles.amountInputContainer, focusedField === 'balance' && styles.textInputFocused]}>
             <Text style={styles.dollarSign}>$</Text>
             <TextInput
               style={styles.amountInput}
@@ -192,6 +227,8 @@ export default function AddKidScreen() {
               placeholder="0.00"
               placeholderTextColor={colors.textLight}
               keyboardType="decimal-pad"
+              onFocus={() => setFocusedField('balance')}
+              onBlur={() => setFocusedField(null)}
             />
           </View>
           <Text style={styles.fieldHint}>Optional starting balance for this account</Text>
@@ -230,18 +267,19 @@ export default function AddKidScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.saveButton, !isValid && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={!isValid}
-          activeOpacity={0.85}
-        >
-          {saving ? (
-            <ActivityIndicator color={colors.textWhite} />
-          ) : (
-            <Text style={styles.saveButtonText}>Add Person</Text>
-          )}
-        </TouchableOpacity>
+        <Animated.View style={shakeStyle}>
+          <TouchableOpacity
+            style={[styles.saveButton, !isValid && styles.saveButtonDisabled]}
+            onPress={() => { if (!isValid) { triggerShake(); } else { handleSave(); } }}
+            activeOpacity={0.85}
+          >
+            {saving ? (
+              <ActivityIndicator color={colors.textWhite} />
+            ) : (
+              <Text style={styles.saveButtonText}>Add Person</Text>
+            )}
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -329,6 +367,15 @@ const createStyles = (colors: ThemeColors) =>
       paddingHorizontal: 14,
       paddingVertical: 14,
     },
+    textInputFocused: {
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      elevation: 2,
+    },
     textInputError: {
       borderWidth: 1,
       borderColor: colors.danger,
@@ -350,6 +397,30 @@ const createStyles = (colors: ThemeColors) =>
       textAlign: 'center',
       fontFamily: FontFamily.medium,
       fontWeight: '500',
+    },
+    strengthContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      marginTop: 6,
+    },
+    strengthTrack: {
+      flex: 1,
+      height: 4,
+      backgroundColor: colors.borderLight,
+      borderRadius: 2,
+      overflow: 'hidden',
+    },
+    strengthFill: {
+      height: '100%',
+      borderRadius: 2,
+    },
+    strengthLabel: {
+      fontSize: 12,
+      fontFamily: FontFamily.semiBold,
+      fontWeight: '600',
+      minWidth: 44,
+      textAlign: 'right',
     },
     fieldHint: {
       fontSize: 13,
