@@ -96,7 +96,7 @@ function Sidebar({ role }: { role: 'admin' | 'kid' }) {
                 styles.navItem,
                 { backgroundColor: isActive ? colors.primaryLight + '18' : 'transparent' },
               ]}
-              onPress={() => router.push(item.href as any)}
+              onPress={() => router.replace(item.href as any)}
             >
               <Ionicons
                 name={isActive ? item.iconActive : item.icon}
