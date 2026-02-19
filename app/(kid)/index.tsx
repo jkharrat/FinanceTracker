@@ -8,6 +8,8 @@ import {
   TextInput,
   ScrollView,
   RefreshControl,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +30,7 @@ import { Avatars } from '../../src/constants/colors';
 import type { ThemeMode } from '../../src/context/ThemeContext';
 import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
+import { SIDEBAR_BREAKPOINT } from '../../src/components/WebSidebar';
 
 const frequencyLabel: Record<AllowanceFrequency, string> = {
   weekly: '/wk',
@@ -119,6 +122,8 @@ export default function KidDashboardScreen() {
   const router = useRouter();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { width } = useWindowDimensions();
+  const showHeaderBell = Platform.OS !== 'web' || width < SIDEBAR_BREAKPOINT;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
@@ -435,7 +440,7 @@ export default function KidDashboardScreen() {
               <AnimatedPressable variant="button" onPress={cycleTheme} style={styles.themeButton} accessibilityLabel={THEME_LABELS[mode]}>
                 <Ionicons name={THEME_ICONS[mode]} size={22} color={colors.primary} />
               </AnimatedPressable>
-              <NotificationBell />
+              {showHeaderBell && <NotificationBell />}
             </View>
           ),
         }}

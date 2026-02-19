@@ -1,14 +1,18 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, Image, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 import { FontFamily } from '../constants/fonts';
 import { Spacing } from '../constants/spacing';
 import AnimatedPressable from './AnimatedPressable';
 
+const appIcon = require('../../assets/icon.png');
+
 const SIDEBAR_WIDTH = 220;
-const SIDEBAR_BREAKPOINT = 768;
+export const SIDEBAR_BREAKPOINT = 768;
 
 interface NavItem {
   label: string;
@@ -52,17 +56,24 @@ function Sidebar({ role }: { role: 'admin' | 'kid' }) {
   const colors = useColors();
   const pathname = usePathname();
   const router = useRouter();
+  const { user } = useAuth();
+  const { unreadCount, getUnreadCountForKid } = useNotifications();
   const navItems = role === 'admin' ? ADMIN_NAV : KID_NAV;
+
+  const notificationCount =
+    user?.role === 'kid' ? getUnreadCountForKid(user.kidId) : unreadCount;
 
   return (
     <View style={[styles.sidebar, { backgroundColor: colors.surface, borderRightColor: colors.borderLight }]}>
       <View style={styles.brand}>
-        <Text style={styles.brandEmoji}>💰</Text>
+        <Image source={appIcon} style={styles.brandIcon} />
         <Text style={[styles.brandText, { color: colors.text }]}>Finance Tracker</Text>
       </View>
       <View style={styles.nav}>
         {navItems.map((item) => {
           const isActive = pathname === item.href || pathname === item.href.replace('/(admin)', '').replace('/(kid)', '') || (item.href.endsWith(')') && pathname === '/');
+          const isNotification = item.label === 'Notifications';
+          const badgeCount = isNotification ? notificationCount : 0;
           return (
             <AnimatedPressable
               key={item.href}
@@ -87,6 +98,13 @@ function Sidebar({ role }: { role: 'admin' | 'kid' }) {
               >
                 {item.label}
               </Text>
+              {badgeCount > 0 && (
+                <View style={[styles.navBadge, { backgroundColor: colors.danger }]}>
+                  <Text style={styles.navBadgeText}>
+                    {badgeCount > 9 ? '9+' : badgeCount}
+                  </Text>
+                </View>
+              )}
             </AnimatedPressable>
           );
         })}
@@ -116,8 +134,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     marginBottom: Spacing.xxxl,
   },
-  brandEmoji: {
-    fontSize: 24,
+  brandIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
   },
   brandText: {
     fontFamily: FontFamily.extraBold,
@@ -143,5 +163,20 @@ const styles = StyleSheet.create({
   navLabelActive: {
     fontFamily: FontFamily.semiBold,
     fontWeight: '600',
+  },
+  navBadge: {
+    marginLeft: 'auto',
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  navBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontFamily: FontFamily.bold,
+    fontWeight: '700',
   },
 });

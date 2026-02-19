@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +27,7 @@ import { ThemeColors } from '../../src/constants/colors';
 import type { ThemeMode } from '../../src/context/ThemeContext';
 import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
+import { SIDEBAR_BREAKPOINT } from '../../src/components/WebSidebar';
 
 const THEME_CYCLE: ThemeMode[] = ['light', 'dark', 'system'];
 const THEME_ICONS: Record<ThemeMode, keyof typeof Ionicons.glyphMap> = {
@@ -46,6 +49,8 @@ export default function AdminHomeScreen() {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const showHeaderBell = Platform.OS !== 'web' || width < SIDEBAR_BREAKPOINT;
 
   const totalBalance = kids.reduce((sum, kid) => sum + kid.balance, 0);
 
@@ -87,7 +92,7 @@ export default function AdminHomeScreen() {
               <AnimatedPressable variant="button" onPress={cycleTheme} style={styles.themeButton} accessibilityLabel={THEME_LABELS[mode]}>
                 <Ionicons name={THEME_ICONS[mode]} size={22} color={colors.primary} />
               </AnimatedPressable>
-              <NotificationBell />
+              {showHeaderBell && <NotificationBell />}
             </View>
           ),
         }}
