@@ -54,7 +54,7 @@ export function KidCard({ kid, onPress }: KidCardProps) {
       <View style={styles.rightSection}>
         <AnimatedNumber
           value={kid.balance}
-          style={[styles.balance, isNegative && styles.balanceNegative]}
+          style={[styles.balance, kid.balance > 0 && styles.balancePositive, isNegative && styles.balanceNegative]}
         />
         <Text style={styles.balanceLabel}>Balance</Text>
       </View>
@@ -138,6 +138,9 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 20,
       fontFamily: FontFamily.bold,
       fontWeight: '700',
+      color: colors.text,
+    },
+    balancePositive: {
       color: colors.success,
     },
     balanceNegative: {

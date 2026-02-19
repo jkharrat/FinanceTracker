@@ -14,6 +14,9 @@ export function getRelativeTime(dateStr: string): string {
   const now = Date.now();
   const date = new Date(dateStr).getTime();
   const diffMs = now - date;
+
+  if (diffMs < 0) return 'Upcoming';
+
   const diffSec = Math.floor(diffMs / 1000);
   const diffMin = Math.floor(diffSec / 60);
   const diffHour = Math.floor(diffMin / 60);
