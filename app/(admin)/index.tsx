@@ -212,6 +212,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     avatarButton: {
       marginLeft: Spacing.sm,
+      ...(Platform.OS === 'ios' && { marginRight: Spacing.sm }),
     },
     headerRight: {
       flexDirection: 'row',

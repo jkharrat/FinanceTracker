@@ -524,6 +524,7 @@ const createStyles = (colors: ThemeColors) =>
       borderRadius: 18,
       backgroundColor: colors.surfaceAlt,
       marginLeft: Spacing.sm,
+      ...(Platform.OS === 'ios' && { marginRight: Spacing.sm }),
     },
     headerRight: {
       flexDirection: 'row',
