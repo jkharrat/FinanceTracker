@@ -141,29 +141,33 @@ export default function KidDetailScreen() {
     }
   };
 
-  const handleDeleteTransaction = () => {
+  const handleDeleteTransaction = async () => {
     if (!editingTransaction) return;
-    Alert.alert(
-      'Delete Transaction',
-      `Are you sure you want to delete this transaction?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteTransaction(kid.id, editingTransaction.id);
-              setEditingTransaction(null);
-              setModalVisible(false);
-              showToast('success', 'Transaction deleted');
-            } catch {
-              showToast('error', 'Failed to delete transaction. Please try again.');
-            }
-          },
-        },
-      ]
-    );
+
+    const isWeb = typeof window !== 'undefined' && typeof window.confirm === 'function';
+    const confirmed = isWeb
+      ? window.confirm('Are you sure you want to delete this transaction?')
+      : await new Promise<boolean>((res) => {
+          Alert.alert(
+            'Delete Transaction',
+            'Are you sure you want to delete this transaction?',
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => res(false) },
+              { text: 'Delete', style: 'destructive', onPress: () => res(true) },
+            ]
+          );
+        });
+
+    if (!confirmed) return;
+
+    try {
+      await deleteTransaction(kid.id, editingTransaction.id);
+      setEditingTransaction(null);
+      setModalVisible(false);
+      showToast('success', 'Transaction deleted');
+    } catch {
+      showToast('error', 'Failed to delete transaction. Please try again.');
+    }
   };
 
   const handleDelete = async () => {
