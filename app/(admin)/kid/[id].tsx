@@ -120,17 +120,24 @@ export default function KidDetailScreen() {
   };
 
   const handleNewTransaction = async (amount: number, description: string, category: TransactionCategory) => {
-    await addTransaction(kid.id, modalType, amount, description, category);
-    setModalVisible(false);
-    showToast('success', `$${amount.toFixed(2)} ${modalType === 'add' ? 'added' : 'subtracted'} successfully`);
+    try {
+      await addTransaction(kid.id, modalType, amount, description, category);
+      setModalVisible(false);
+      showToast('success', `$${amount.toFixed(2)} ${modalType === 'add' ? 'added' : 'subtracted'} successfully`);
+    } catch {
+      showToast('error', 'Failed to save transaction. Please try again.');
+    }
   };
 
   const handleEditTransaction = async (amount: number, description: string, category: TransactionCategory) => {
-    if (editingTransaction) {
+    if (!editingTransaction) return;
+    try {
       await updateTransaction(kid.id, editingTransaction.id, { amount, description, category });
       setEditingTransaction(null);
       setModalVisible(false);
       showToast('success', 'Transaction updated');
+    } catch {
+      showToast('error', 'Failed to update transaction. Please try again.');
     }
   };
 
@@ -145,10 +152,14 @@ export default function KidDetailScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            await deleteTransaction(kid.id, editingTransaction.id);
-            setEditingTransaction(null);
-            setModalVisible(false);
-            showToast('success', 'Transaction deleted');
+            try {
+              await deleteTransaction(kid.id, editingTransaction.id);
+              setEditingTransaction(null);
+              setModalVisible(false);
+              showToast('success', 'Transaction deleted');
+            } catch {
+              showToast('error', 'Failed to delete transaction. Please try again.');
+            }
           },
         },
       ]
