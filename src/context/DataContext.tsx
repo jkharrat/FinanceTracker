@@ -396,25 +396,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const kid = kids.find((k) => k.id === kidId);
     const previousBalance = kid?.balance ?? 0;
 
-    const { data: txRow } = await supabase
-      .from('transactions')
-      .insert({
-        kid_id: kidId,
-        type,
-        amount,
-        description,
-        category,
-        date: new Date().toISOString(),
-      })
-      .select()
-      .single();
+    const { data, error } = await supabase.rpc('add_transaction_safe', {
+      p_kid_id: kidId,
+      p_type: type,
+      p_amount: amount,
+      p_description: description,
+      p_category: category,
+    });
+
+    if (error) {
+      console.error('add_transaction_safe RPC error:', error);
+      Alert.alert('Transaction Failed', error.message || 'Unknown error');
+      return;
+    }
+
+    if (data && data !== 'OK') {
+      console.error('add_transaction_safe returned:', data);
+      Alert.alert('Transaction Failed', String(data));
+      return;
+    }
 
     const newBalance = type === 'add' ? previousBalance + amount : previousBalance - amount;
-    await supabase
-      .from('kids')
-      .update({ balance: Math.round(newBalance * 100) / 100 })
-      .eq('id', kidId);
-
     await loadData(true);
 
     try {
@@ -425,7 +427,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         title: `Transaction ${type === 'add' ? 'Added' : 'Deducted'}`,
         message: `$${amount.toFixed(2)} ${action} ${kidName}'s account: ${description}`,
         kidId,
-        data: { transactionId: txRow?.id, amount },
+        data: { amount },
       }, { skipLocalPush: true });
 
       const updatedKid = kids.find((k) => k.id === kidId);

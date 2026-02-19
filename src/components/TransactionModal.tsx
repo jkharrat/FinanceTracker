@@ -21,7 +21,7 @@ interface TransactionModalProps {
   visible: boolean;
   type: 'add' | 'subtract';
   onClose: () => void;
-  onSubmit: (amount: number, description: string, category: TransactionCategory) => void;
+  onSubmit: (amount: number, description: string, category: TransactionCategory) => void | Promise<void>;
   editTransaction?: Transaction | null;
   onDelete?: () => void;
 }
@@ -58,14 +58,21 @@ export function TransactionModal({
     }
   }, [visible, editTransaction]);
 
-  const handleSubmit = () => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) return;
     if (!description.trim()) return;
-    onSubmit(parsedAmount, description.trim(), category);
-    setAmount('');
-    setDescription('');
-    setCategory('other');
+    setSubmitting(true);
+    try {
+      await onSubmit(parsedAmount, description.trim(), category);
+      setAmount('');
+      setDescription('');
+      setCategory('other');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleClose = () => {
@@ -165,10 +172,10 @@ export function TransactionModal({
                   !isValid && styles.submitDisabled,
                 ]}
                 onPress={handleSubmit}
-                disabled={!isValid}
+                disabled={!isValid || submitting}
               >
                 <Text style={styles.submitText}>
-                  {isEditing ? 'Save' : isAdd ? 'Add' : 'Subtract'}
+                  {submitting ? 'Saving...' : isEditing ? 'Save' : isAdd ? 'Add' : 'Subtract'}
                 </Text>
               </TouchableOpacity>
             </View>
