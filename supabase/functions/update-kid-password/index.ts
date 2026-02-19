@@ -15,21 +15,18 @@ serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
+    const authHeader = req.headers.get('Authorization') ?? req.headers.get('authorization');
+    const token = authHeader?.replace(/^Bearer\s+/i, '');
+    if (!token) {
+      return new Response(JSON.stringify({ error: 'Missing authorization token' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json', ...CORS },
       });
     }
 
-    const callerClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { authorization: authHeader } },
-    });
-
-    const { data: { user: caller }, error: authError } = await callerClient.auth.getUser();
+    const { data: { user: caller }, error: authError } = await adminClient.auth.getUser(token);
     if (authError || !caller) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
@@ -51,8 +48,6 @@ serve(async (req: Request) => {
         headers: { 'Content-Type': 'application/json', ...CORS },
       });
     }
-
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: callerProfile } = await adminClient
       .from('profiles')

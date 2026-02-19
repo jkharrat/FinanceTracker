@@ -392,7 +392,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        return { success: false, error: error.message || 'Failed to update password' };
+        let message = 'Failed to update password';
+        try {
+          const body = typeof error.context?.json === 'function'
+            ? await error.context.json()
+            : null;
+          if (body?.error) message = body.error;
+        } catch {
+          // context not available, use default message
+        }
+        return { success: false, error: message };
       }
 
       if (data?.error) {
