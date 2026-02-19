@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -28,12 +28,19 @@ import { ThemeColors } from '../../src/constants/colors';
 import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
 import { SIDEBAR_BREAKPOINT } from '../../src/components/WebSidebar';
+import { supabase } from '../../src/lib/supabase';
+
+interface AdminProfile {
+  id: string;
+  display_name: string;
+}
 
 export default function AdminHomeScreen() {
   const { kids, loading, refreshData } = useData();
   const [refreshing, setRefreshing] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const { user } = useAuth();
+  const [admins, setAdmins] = useState<AdminProfile[]>([]);
+  const { user, familyId, session } = useAuth();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
@@ -41,12 +48,28 @@ export default function AdminHomeScreen() {
   const showHeaderBell = Platform.OS !== 'web' || width < SIDEBAR_BREAKPOINT;
 
   const displayName = user?.role === 'admin' ? user.displayName : '';
+  const currentUserId = session?.user?.id;
   const totalBalance = kids.reduce((sum, kid) => sum + kid.balance, 0);
+
+  const loadAdmins = useCallback(async () => {
+    if (!familyId) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, display_name')
+      .eq('family_id', familyId)
+      .eq('role', 'admin')
+      .order('created_at');
+    if (data) setAdmins(data);
+  }, [familyId]);
+
+  useEffect(() => {
+    loadAdmins();
+  }, [loadAdmins]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    try { await refreshData(); } finally { setRefreshing(false); }
-  }, [refreshData]);
+    try { await Promise.all([refreshData(), loadAdmins()]); } finally { setRefreshing(false); }
+  }, [refreshData, loadAdmins]);
 
   if (loading) {
     return (
@@ -113,15 +136,34 @@ export default function AdminHomeScreen() {
         ListHeaderComponent={
           <>
             <NotificationPrompt />
-            <AnimatedPressable
-              variant="row"
-              style={styles.addParentButton}
-              onPress={() => router.push('/(admin)/add-admin')}
-            >
-              <Ionicons name="person-add-outline" size={18} color={colors.primary} />
-              <Text style={styles.addParentText}>Add Parent</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
-            </AnimatedPressable>
+            <View style={styles.parentsSection}>
+              <Text style={styles.parentsSectionTitle}>Parents</Text>
+              <View style={styles.parentsRow}>
+                {admins.map((admin) => {
+                  const isYou = admin.id === currentUserId;
+                  return (
+                    <View
+                      key={admin.id}
+                      style={[styles.parentChip, isYou && styles.parentChipYou]}
+                    >
+                      <ProfileAvatar name={admin.display_name} size={24} />
+                      <Text style={styles.parentChipName} numberOfLines={1}>
+                        {admin.display_name}{isYou ? ' (You)' : ''}
+                      </Text>
+                    </View>
+                  );
+                })}
+                <AnimatedPressable
+                  variant="button"
+                  style={styles.addParentChip}
+                  onPress={() => router.push('/(admin)/add-admin')}
+                  accessibilityLabel="Add Parent"
+                >
+                  <Ionicons name="add" size={18} color={colors.primary} />
+                  <Text style={styles.addParentChipText}>Add</Text>
+                </AnimatedPressable>
+              </View>
+            </View>
           </>
         }
         contentContainerStyle={[
@@ -247,23 +289,56 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 13,
       color: 'rgba(255,255,255,0.6)',
     },
-    addParentButton: {
+    parentsSection: {
+      marginBottom: Spacing.lg,
+    },
+    parentsSectionTitle: {
+      fontSize: 11,
+      fontFamily: FontFamily.semiBold,
+      fontWeight: '600',
+      color: colors.textLight,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: Spacing.sm,
+    },
+    parentsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: Spacing.sm,
+    },
+    parentChip: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.surface,
-      borderRadius: 14,
-      padding: 14,
-      marginBottom: Spacing.lg,
-      gap: 10,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
+      borderRadius: 20,
+      paddingVertical: 6,
+      paddingLeft: 6,
+      paddingRight: Spacing.md,
+      gap: Spacing.sm,
     },
-    addParentText: {
-      flex: 1,
-      fontSize: 15,
+    parentChipYou: {
+      backgroundColor: colors.primaryLight + '18',
+    },
+    parentChipName: {
+      fontSize: 13,
+      fontFamily: FontFamily.semiBold,
+      fontWeight: '600',
+      color: colors.text,
+      maxWidth: 120,
+    },
+    addParentChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 20,
+      paddingVertical: 6,
+      paddingHorizontal: Spacing.md,
+      gap: Spacing.xs,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: colors.primary + '50',
+    },
+    addParentChipText: {
+      fontSize: 13,
       fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.primary,
