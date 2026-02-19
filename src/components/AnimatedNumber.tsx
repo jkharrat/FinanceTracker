@@ -1,14 +1,13 @@
-import React, { useEffect } from 'react';
-import { TextInput, StyleProp, TextStyle } from 'react-native';
-import Animated, {
+import React, { useEffect, useState, useCallback } from 'react';
+import { Text, StyleProp, TextStyle, Platform } from 'react-native';
+import {
   useSharedValue,
-  useAnimatedProps,
   withTiming,
+  useAnimatedReaction,
+  runOnJS,
   useReducedMotion,
   Easing,
 } from 'react-native-reanimated';
-
-const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
 interface AnimatedNumberProps {
   value: number;
@@ -16,6 +15,13 @@ interface AnimatedNumberProps {
   style?: StyleProp<TextStyle>;
   duration?: number;
   decimals?: number;
+}
+
+function formatValue(v: number, decimals: number, prefix: string) {
+  'worklet';
+  const abs = Math.abs(v);
+  const sign = v < 0 ? '-' : '';
+  return `${prefix}${sign}$${abs.toFixed(decimals)}`;
 }
 
 export default function AnimatedNumber({
@@ -26,35 +32,33 @@ export default function AnimatedNumber({
   decimals = 2,
 }: AnimatedNumberProps) {
   const reducedMotion = useReducedMotion();
+  const skipAnimation = reducedMotion || Platform.OS === 'web';
+  const [display, setDisplay] = useState(() => formatValue(value, decimals, prefix));
   const animatedValue = useSharedValue(value);
 
+  const updateDisplay = useCallback((text: string) => {
+    setDisplay(text);
+  }, []);
+
   useEffect(() => {
-    if (reducedMotion) {
+    if (skipAnimation) {
       animatedValue.value = value;
+      setDisplay(formatValue(value, decimals, prefix));
     } else {
       animatedValue.value = withTiming(value, {
         duration,
         easing: Easing.out(Easing.cubic),
       });
     }
-  }, [value, duration, reducedMotion]);
+  }, [value, duration, skipAnimation, decimals, prefix]);
 
-  const animatedProps = useAnimatedProps(() => {
-    const v = animatedValue.value;
-    const abs = Math.abs(v);
-    const sign = v < 0 ? '-' : '';
-    const text = `${prefix}${sign}$${abs.toFixed(decimals)}`;
-    return {
-      text,
-      defaultValue: text,
-    } as any;
-  });
-
-  return (
-    <AnimatedTextInput
-      editable={false}
-      animatedProps={animatedProps}
-      style={[{ padding: 0, margin: 0 }, style]}
-    />
+  useAnimatedReaction(
+    () => animatedValue.value,
+    (current) => {
+      const text = formatValue(current, decimals, prefix);
+      runOnJS(updateDisplay)(text);
+    },
   );
+
+  return <Text style={style}>{display}</Text>;
 }

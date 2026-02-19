@@ -15,7 +15,6 @@ import { NotificationProvider, useNotifications } from '../src/context/Notificat
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { DataProvider } from '../src/context/DataContext';
 import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
-import WebContainer from '../src/components/WebContainer';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -77,9 +76,7 @@ function AppContent() {
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <WebContainer>
-        <Slot />
-      </WebContainer>
+      <Slot />
     </>
   );
 }

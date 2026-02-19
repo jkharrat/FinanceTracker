@@ -1,12 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../context/ThemeContext';
-import { ThemeColors } from '../constants/colors';
 import { FontFamily } from '../constants/fonts';
 import { Spacing } from '../constants/spacing';
 import AnimatedPressable from './AnimatedPressable';
+
+const SIDEBAR_WIDTH = 220;
+const SIDEBAR_BREAKPOINT = 768;
 
 interface NavItem {
   label: string;
@@ -32,7 +34,9 @@ interface WebSidebarLayoutProps {
 }
 
 export default function WebSidebarLayout({ children, role }: WebSidebarLayoutProps) {
-  if (Platform.OS !== 'web') {
+  const { width } = useWindowDimensions();
+
+  if (Platform.OS !== 'web' || width < SIDEBAR_BREAKPOINT) {
     return <>{children}</>;
   }
 
@@ -97,7 +101,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   sidebar: {
-    width: 220,
+    width: SIDEBAR_WIDTH,
     borderRightWidth: 1,
     paddingTop: Spacing.xxxl,
     paddingHorizontal: Spacing.lg,
