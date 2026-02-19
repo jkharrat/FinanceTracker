@@ -180,7 +180,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           .single(),
         supabase
           .from('reached_milestones')
-          .select('kid_id, threshold'),
+          .select('kid_id, threshold, kids!inner(family_id)')
+          .eq('kids.family_id', currentFamilyId),
       ]);
 
       if (notifResult.data) {
