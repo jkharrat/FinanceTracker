@@ -38,6 +38,8 @@ export interface AllowanceInfo {
   previousBalance: number;
 }
 
+const MAX_CATCHUP_PAYMENTS = 52;
+
 export function processAllowances(kidsList: Kid[]): { updated: Kid[]; changed: boolean; allowanceInfos: AllowanceInfo[] } {
   const now = new Date();
   let changed = false;
@@ -58,10 +60,9 @@ export function processAllowances(kidsList: Kid[]): { updated: Kid[]; changed: b
     let newBalance = kid.balance;
     let lastDate = kid.lastAllowanceDate;
 
-    while (nextDue <= now) {
-      const txId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    while (nextDue <= now && newTransactions.length < MAX_CATCHUP_PAYMENTS) {
       newTransactions.push({
-        id: txId,
+        id: crypto.randomUUID(),
         type: 'add',
         amount: kid.allowanceAmount,
         description: FREQUENCY_LABELS[kid.allowanceFrequency],

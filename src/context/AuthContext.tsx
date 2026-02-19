@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const familyId = profile?.family_id ?? null;
 
-  const loadProfile = useCallback(async (userId: string) => {
+  const loadProfile = useCallback(async (userId: string, email?: string) => {
     const { data: profileData } = await supabase
       .from('profiles')
       .select('*')
@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (profileData.role === 'admin') {
         setUser({
           role: 'admin',
-          email: '',
+          email: email ?? '',
           displayName: profileData.display_name,
         });
       } else if (profileData.role === 'kid') {
@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       setSession(currentSession);
       if (currentSession?.user) {
-        loadProfile(currentSession.user.id).finally(() => setLoading(false));
+        loadProfile(currentSession.user.id, currentSession.user.email ?? undefined).finally(() => setLoading(false));
       } else {
         setLoading(false);
       }
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setSession(newSession);
         if (newSession?.user) {
-          await loadProfile(newSession.user.id);
+          await loadProfile(newSession.user.id, newSession.user.email ?? undefined);
         } else {
           setProfile(null);
           setFamily(null);
@@ -190,7 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: String(bsResult) };
       }
 
-      await loadProfile(data.user.id);
+      await loadProfile(data.user.id, email);
       return { success: true };
     },
     [loadProfile]
@@ -249,7 +249,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Reload own profile so deferred auth events from signUp/setSession
         // cannot leave the current admin's state stale
         if (adminSession?.user) {
-          await loadProfile(adminSession.user.id);
+          await loadProfile(adminSession.user.id, adminSession.user.email ?? undefined);
         }
 
         return { success: true };
@@ -270,7 +270,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) return { success: false, error: error.message };
       if (!data.user) return { success: false, error: 'Login failed' };
 
-      await loadProfile(data.user.id);
+      await loadProfile(data.user.id, email);
       return { success: true, role: 'admin' };
     },
     [loadProfile]
@@ -374,7 +374,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Reload own profile so deferred auth events from signUp/setSession
         // cannot leave the current admin's state stale
         if (adminSession?.user) {
-          await loadProfile(adminSession.user.id);
+          await loadProfile(adminSession.user.id, adminSession.user.email ?? undefined);
         }
 
         return { success: true };
