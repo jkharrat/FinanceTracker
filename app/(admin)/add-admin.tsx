@@ -18,17 +18,15 @@ import { ThemeColors } from '../../src/constants/colors';
 import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
 
-function getPasswordStrength(pw: string): { score: number; label: string; checks: { label: string; met: boolean }[] } {
-  const checks = [
-    { label: 'At least 8 characters', met: pw.length >= 8 },
-    { label: 'Uppercase letter', met: /[A-Z]/.test(pw) },
-    { label: 'Lowercase letter', met: /[a-z]/.test(pw) },
-    { label: 'Number', met: /\d/.test(pw) },
-    { label: 'Special character', met: /[^A-Za-z0-9]/.test(pw) },
-  ];
-  const score = checks.filter((c) => c.met).length;
-  const label = score <= 2 ? 'Weak' : score <= 3 ? 'Fair' : score === 4 ? 'Good' : 'Strong';
-  return { score, label, checks };
+function getPasswordStrength(pw: string): { score: number; label: string } {
+  let score = 0;
+  if (pw.length >= 6) score++;
+  if (pw.length >= 8) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  const label = score <= 1 ? 'Weak' : score <= 2 ? 'Fair' : score <= 3 ? 'Good' : 'Strong';
+  return { score, label };
 }
 
 export default function AddAdminScreen() {
@@ -49,7 +47,7 @@ export default function AddAdminScreen() {
   const isValid =
     displayName.trim().length > 0 &&
     isValidEmail &&
-    strength.score >= 3 &&
+    strength.score >= 2 &&
     password === confirmPassword &&
     !saving;
 
@@ -64,8 +62,8 @@ export default function AddAdminScreen() {
       setError('Please enter a valid email address');
       return;
     }
-    if (strength.score < 3) {
-      setError('Password is too weak — see requirements below');
+    if (strength.score < 2) {
+      setError('Please choose a stronger password');
       return;
     }
     if (password !== confirmPassword) {
@@ -156,8 +154,8 @@ export default function AddAdminScreen() {
                 {[1, 2, 3, 4, 5].map((i) => {
                   const filled = i <= strength.score;
                   const barColor =
-                    strength.score <= 2 ? colors.danger :
-                    strength.score <= 3 ? colors.warning :
+                    strength.score <= 1 ? colors.danger :
+                    strength.score <= 2 ? colors.warning :
                     colors.success;
                   return (
                     <View
@@ -175,28 +173,14 @@ export default function AddAdminScreen() {
                   styles.strengthLabel,
                   {
                     color:
-                      strength.score <= 2 ? colors.danger :
-                      strength.score <= 3 ? colors.warning :
+                      strength.score <= 1 ? colors.danger :
+                      strength.score <= 2 ? colors.warning :
                       colors.success,
                   },
                 ]}
               >
                 {strength.label}
               </Text>
-              <View style={styles.checksList}>
-                {strength.checks.map((c) => (
-                  <View key={c.label} style={styles.checkRow}>
-                    <Ionicons
-                      name={c.met ? 'checkmark-circle' : 'ellipse-outline'}
-                      size={15}
-                      color={c.met ? colors.success : colors.textLight}
-                    />
-                    <Text style={[styles.checkText, c.met && styles.checkTextMet]}>
-                      {c.label}
-                    </Text>
-                  </View>
-                ))}
-              </View>
             </View>
           )}
         </View>
@@ -315,22 +299,6 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 13,
       fontFamily: FontFamily.semiBold,
       fontWeight: '600',
-      marginBottom: Spacing.sm,
-    },
-    checksList: {
-      gap: 4,
-    },
-    checkRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    checkText: {
-      fontSize: 13,
-      color: colors.textLight,
-    },
-    checkTextMet: {
-      color: colors.textSecondary,
     },
     fieldError: {
       fontSize: 13,

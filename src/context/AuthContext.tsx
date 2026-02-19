@@ -154,12 +154,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) return { success: false, error: error.message };
         if (!data.user) return { success: false, error: 'Failed to create admin' };
 
+        const newUserId = data.user.id;
+
         // Restore the current admin's session so they stay logged in
         if (adminSession) {
-          await supabase.auth.setSession({
+          const { error: sessionError } = await supabase.auth.setSession({
             access_token: adminSession.access_token,
             refresh_token: adminSession.refresh_token,
           });
+          if (sessionError) {
+            return { success: false, error: 'Session expired. Please log out and log back in.' };
+          }
+        }
+
+        // Upsert the new admin's profile into this family via SECURITY DEFINER
+        // function — works regardless of what the signup trigger did
+        const { data: rpcResult, error: rpcError } = await supabase.rpc(
+          'assign_admin_to_family',
+          { p_user_id: newUserId, p_display_name: displayName },
+        );
+
+        if (rpcError) {
+          return { success: false, error: rpcError.message || 'Failed to assign parent to family' };
+        }
+        if (rpcResult && rpcResult !== 'OK') {
+          return { success: false, error: String(rpcResult) };
         }
 
         return { success: true };
