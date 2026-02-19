@@ -253,8 +253,9 @@ async function sendExpoPush(
   tokens: string[],
   title: string,
   body: string,
-): Promise<void> {
-  if (tokens.length === 0) return;
+  adminClient: ReturnType<typeof createClient>,
+): Promise<number> {
+  if (tokens.length === 0) return 0;
 
   const messages = tokens.map((to) => ({
     to,
@@ -266,12 +267,47 @@ async function sendExpoPush(
   const controller = new AbortController();
   const tid = setTimeout(() => controller.abort(), PUSH_FETCH_TIMEOUT_MS);
   try {
-    await fetch(EXPO_PUSH_URL, {
+    const resp = await fetch(EXPO_PUSH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(messages),
       signal: controller.signal,
     });
+
+    if (!resp.ok) {
+      console.error(`Expo push API returned ${resp.status}`);
+      return 0;
+    }
+
+    const result = await resp.json();
+    const tickets: Array<{ status: string; details?: { error?: string } }> =
+      result?.data ?? [];
+
+    let sent = 0;
+    const staleTokens: string[] = [];
+
+    for (let i = 0; i < tickets.length; i++) {
+      const ticket = tickets[i];
+      if (ticket.status === 'ok') {
+        sent++;
+      } else {
+        const errorType = ticket.details?.error;
+        if (errorType === 'DeviceNotRegistered' || errorType === 'InvalidCredentials') {
+          staleTokens.push(tokens[i]);
+        }
+        console.warn(`Expo push failed for token ${i}: ${errorType ?? 'unknown'}`);
+      }
+    }
+
+    if (staleTokens.length > 0) {
+      console.log(`Removing ${staleTokens.length} stale mobile push token(s)`);
+      await adminClient
+        .from('push_tokens')
+        .delete()
+        .in('token', staleTokens);
+    }
+
+    return sent;
   } finally {
     clearTimeout(tid);
   }
@@ -420,17 +456,19 @@ serve(async (req: Request) => {
       .filter((t) => t.platform === 'web')
       .map((t) => t.token);
 
-    const [mobileResult, webSent] = await Promise.allSettled([
-      sendExpoPush(mobileTokens, notification.title, notification.message),
+    const [mobileResult, webResult] = await Promise.allSettled([
+      sendExpoPush(mobileTokens, notification.title, notification.message, adminClient),
       sendWebPush(webSubscriptions, notification.title, notification.message, adminClient),
     ]);
 
-    const webCount = webSent.status === 'fulfilled' ? webSent.value : 0;
+    const mobileCount = mobileResult.status === 'fulfilled' ? mobileResult.value : 0;
+    const webCount = webResult.status === 'fulfilled' ? webResult.value : 0;
 
     return new Response(
       JSON.stringify({
-        sent: mobileTokens.length + webCount,
-        mobile: mobileTokens.length,
+        sent: mobileCount + webCount,
+        mobile: mobileCount,
+        mobileTotal: mobileTokens.length,
         web: webCount,
         webTotal: webSubscriptions.length,
       }),
