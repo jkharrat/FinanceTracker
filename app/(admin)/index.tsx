@@ -59,16 +59,19 @@ export default function AdminHomeScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          headerLeft: () => (
-            <AnimatedPressable
-              variant="button"
-              onPress={() => setProfileOpen(true)}
-              style={styles.avatarButton}
-              accessibilityLabel="Profile"
-            >
-              <ProfileAvatar name={displayName || '?'} size={34} />
-            </AnimatedPressable>
-          ),
+          title: showHeaderBell ? 'Finance Tracker' : 'Dashboard',
+          headerLeft: showHeaderBell
+            ? () => (
+                <AnimatedPressable
+                  variant="button"
+                  onPress={() => setProfileOpen(true)}
+                  style={styles.avatarButton}
+                  accessibilityLabel="Profile"
+                >
+                  <ProfileAvatar name={displayName || '?'} size={34} />
+                </AnimatedPressable>
+              )
+            : undefined,
           headerRight: () => (
             <View style={styles.headerRight}>
               {showHeaderBell && <NotificationBell />}

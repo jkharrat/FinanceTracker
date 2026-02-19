@@ -4,7 +4,7 @@ import { useAuth } from '../src/context/AuthContext';
 import { useColors } from '../src/context/ThemeContext';
 
 export default function Index() {
-  const { user, session, loading } = useAuth();
+  const { user, session, loading, isPasswordRecovery } = useAuth();
   const colors = useColors();
 
   if (loading) {
@@ -13,6 +13,10 @@ export default function Index() {
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
+  }
+
+  if (isPasswordRecovery) {
+    return <Redirect href="/(auth)/reset-password" />;
   }
 
   if (!session || !user) {

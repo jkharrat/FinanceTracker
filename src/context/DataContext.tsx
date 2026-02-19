@@ -7,6 +7,27 @@ import { useAuth } from './AuthContext';
 import { processAllowances } from '../utils/allowance';
 import { rowToKid, txRowToTransaction } from '../utils/transforms';
 
+const TRANSFER_FLAVORS = [
+  'Nice one!',
+  'Sharing is caring!',
+  'How generous!',
+  'What a kind gesture!',
+  'Teamwork makes the dream work!',
+  'That was thoughtful!',
+  'Way to go!',
+  'What a great move!',
+];
+
+function randomFlavor(): string {
+  return TRANSFER_FLAVORS[Math.floor(Math.random() * TRANSFER_FLAVORS.length)];
+}
+
+function goalProgressSnippet(kid: Kid, balance: number): string {
+  if (!kid.savingsGoal || kid.savingsGoal.targetAmount <= 0) return '';
+  const pct = Math.min(100, Math.round((balance / kid.savingsGoal.targetAmount) * 100));
+  return ` · ${pct}% toward "${kid.savingsGoal.name}"`;
+}
+
 interface DataContextType {
   kids: Kid[];
   loading: boolean;
@@ -117,14 +138,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           }
 
           for (const info of allowanceInfos) {
+            const updatedKid = updated.find((k) => k.id === info.kidId);
+            const balanceLine = updatedKid ? ` New balance: $${updatedKid.balance.toFixed(2)}` : '';
             await addNotification({
               type: 'allowance_received',
               title: `Allowance for ${info.kidName}`,
-              message: `${info.kidName} received $${info.totalAmount.toFixed(2)} in allowance.`,
+              message: `${info.kidName} received $${info.totalAmount.toFixed(2)} in allowance.${balanceLine}`,
               kidId: info.kidId,
               data: { amount: info.totalAmount },
             });
-            const updatedKid = updated.find((k) => k.id === info.kidId);
             if (updatedKid) {
               await checkGoalMilestones(updatedKid, info.previousBalance);
             }
@@ -421,18 +443,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const kidName = kid?.name ?? 'Unknown';
-      const action = type === 'add' ? 'added to' : 'subtracted from';
+      const roundedBalance = Math.round(newBalance * 100) / 100;
+      const actionWord = type === 'add' ? 'Added to' : 'Deducted from';
+      const goalLine = kid ? goalProgressSnippet(kid, roundedBalance) : '';
       await addNotification({
         type: 'transaction_added',
-        title: `Transaction ${type === 'add' ? 'Added' : 'Deducted'}`,
-        message: `$${amount.toFixed(2)} ${action} ${kidName}'s account: ${description}`,
+        title: `$${amount.toFixed(2)} ${actionWord} ${kidName}'s Account`,
+        message: `${description} · New balance: $${roundedBalance.toFixed(2)}${goalLine}`,
         kidId,
         data: { amount },
       }, { skipLocalPush: true });
 
       const updatedKid = kids.find((k) => k.id === kidId);
       if (updatedKid) {
-        await checkGoalMilestones({ ...updatedKid, balance: Math.round(newBalance * 100) / 100 }, previousBalance);
+        await checkGoalMilestones({ ...updatedKid, balance: roundedBalance }, previousBalance);
       }
     } catch (notifError) {
       console.error('Post-transaction notification error:', notifError);
@@ -473,8 +497,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const kidName = kid?.name ?? 'Unknown';
       await addNotification({
         type: 'transaction_updated',
-        title: 'Transaction Updated',
-        message: `A transaction was updated for ${kidName}: ${updates.description}`,
+        title: `Transaction Updated for ${kidName}`,
+        message: `${updates.description} · $${updates.amount.toFixed(2)} · New balance: $${newBalance.toFixed(2)}`,
         kidId,
         data: { transactionId, amount: updates.amount },
       }, { skipLocalPush: true });
@@ -511,8 +535,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const kidName = kid?.name ?? 'Unknown';
       await addNotification({
         type: 'transaction_deleted',
-        title: 'Transaction Deleted',
-        message: `A $${deletedTx?.amount.toFixed(2) ?? '0.00'} transaction was removed from ${kidName}'s account.`,
+        title: `Transaction Removed from ${kidName}'s Account`,
+        message: `$${deletedTx?.amount.toFixed(2) ?? '0.00'} removed · New balance: $${newBalance.toFixed(2)}`,
         kidId,
         data: { transactionId, amount: deletedTx?.amount },
       }, { skipLocalPush: true });
@@ -562,15 +586,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     // Notifications and milestone checks run in background so the UI is never blocked
     (async () => {
       try {
+        const receiverBalance = Math.round((receiver.balance + amount) * 100) / 100;
+        const flavorOrDesc = description ? `"${description}"` : randomFlavor();
         await addNotification({
           type: 'transfer_received',
-          title: `Transfer from ${sender.name}`,
-          message: `${receiver.name} received $${amount.toFixed(2)} from ${sender.name}: ${description || ''}`,
+          title: `Transfer from ${sender.name} to ${receiver.name}`,
+          message: `$${amount.toFixed(2)} received · ${flavorOrDesc} · Balance: $${receiverBalance.toFixed(2)}`,
           kidId: toKidId,
           data: { amount },
         }, { skipLocalPush: true });
 
-        const updatedReceiver = { ...receiver, balance: Math.round((receiver.balance + amount) * 100) / 100 };
+        const updatedReceiver = { ...receiver, balance: receiverBalance };
         const updatedSender = { ...sender, balance: Math.round((sender.balance - amount) * 100) / 100 };
         await checkGoalMilestones(updatedReceiver, receiver.balance);
         await checkGoalMilestones(updatedSender, sender.balance);

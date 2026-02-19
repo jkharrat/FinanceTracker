@@ -430,11 +430,13 @@ export default function KidDashboardScreen() {
       <Stack.Screen
         options={{
           title: `${kid.name}'s Dashboard`,
-          headerLeft: () => (
-            <AnimatedPressable variant="button" onPress={handleLogout} style={styles.logoutButton} accessibilityLabel="Logout">
-              <Ionicons name="log-out-outline" size={22} color={colors.dangerDark} />
-            </AnimatedPressable>
-          ),
+          headerLeft: showHeaderBell
+            ? () => (
+                <AnimatedPressable variant="button" onPress={handleLogout} style={styles.logoutButton} accessibilityLabel="Logout">
+                  <Ionicons name="log-out-outline" size={22} color={colors.dangerDark} />
+                </AnimatedPressable>
+              )
+            : undefined,
           headerRight: () => (
             <View style={styles.headerRight}>
               <AnimatedPressable variant="button" onPress={cycleTheme} style={styles.themeButton} accessibilityLabel={THEME_LABELS[mode]}>

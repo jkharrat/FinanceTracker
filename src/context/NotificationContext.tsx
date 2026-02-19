@@ -444,12 +444,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     for (const threshold of MILESTONE_THRESHOLDS) {
       if (kidMilestones.includes(threshold)) continue;
       if (currPercent >= threshold && prevPercent < threshold) {
-        const title = threshold === 100
-          ? `${kid.name} reached their goal!`
-          : `${kid.name} hit ${threshold}% of their goal!`;
-        const message = threshold === 100
-          ? `${kid.name} saved $${kid.balance.toFixed(2)} and reached their "${kid.savingsGoal.name}" goal of $${target.toFixed(2)}!`
-          : `${kid.name} is ${threshold}% of the way to their "${kid.savingsGoal.name}" goal ($${kid.balance.toFixed(2)} / $${target.toFixed(2)}).`;
+        let title: string;
+        let message: string;
+        const goalName = kid.savingsGoal.name;
+        if (threshold === 100) {
+          title = `${kid.name} reached "${goalName}"!`;
+          message = `$${kid.balance.toFixed(2)} saved! Goal complete!`;
+        } else if (threshold === 50) {
+          title = `${kid.name} is halfway to "${goalName}"!`;
+          message = `$${kid.balance.toFixed(2)} saved of $${target.toFixed(2)}. Keep it up!`;
+        } else if (threshold >= 75) {
+          title = `${kid.name} is ${threshold}% toward "${goalName}"!`;
+          message = `$${kid.balance.toFixed(2)} saved of $${target.toFixed(2)}. Almost there!`;
+        } else {
+          title = `${kid.name} is ${threshold}% toward "${goalName}"!`;
+          message = `$${kid.balance.toFixed(2)} saved of $${target.toFixed(2)}. Great start!`;
+        }
 
         const { data: row } = await supabase
           .from('notifications')

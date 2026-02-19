@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
+import * as Linking from 'expo-linking';
 import { Profile, Family } from '../types';
 import { kidEmail, KID_EMAIL_DOMAIN } from '../utils/auth';
 
@@ -21,12 +23,16 @@ interface AuthContextType {
   family: Family | null;
   familyId: string | null;
   loading: boolean;
+  isPasswordRecovery: boolean;
   setupAdmin: (email: string, password: string, displayName: string) => Promise<{ success: boolean; error?: string }>;
   addAdmin: (email: string, password: string, displayName: string) => Promise<{ success: boolean; error?: string }>;
   loginAdmin: (email: string, password: string) => Promise<LoginResult>;
   loginKid: (name: string, password: string) => Promise<LoginResult>;
   createKidAuth: (kidId: string, name: string, password: string) => Promise<{ success: boolean; error?: string }>;
   updateKidPassword: (kidId: string, name: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
+  updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  clearPasswordRecovery: () => void;
   logout: () => Promise<void>;
 }
 
@@ -38,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [family, setFamily] = useState<Family | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const ignoreAuthChanges = React.useRef(false);
 
   const familyId = profile?.family_id ?? null;
@@ -93,8 +100,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
+      async (event, newSession) => {
         if (ignoreAuthChanges.current) return;
+
+        if (event === 'PASSWORD_RECOVERY') {
+          setIsPasswordRecovery(true);
+          setSession(newSession);
+          return;
+        }
+
         setSession(newSession);
         if (newSession?.user) {
           await loadProfile(newSession.user.id);
@@ -338,6 +352,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const resetPassword = useCallback(
+    async (email: string) => {
+      const redirectTo =
+        Platform.OS === 'web'
+          ? `${window.location.origin}/(auth)/reset-password`
+          : Linking.createURL('/(auth)/reset-password');
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo,
+      });
+
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    },
+    []
+  );
+
+  const updatePassword = useCallback(
+    async (newPassword: string) => {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) return { success: false, error: error.message };
+      setIsPasswordRecovery(false);
+      return { success: true };
+    },
+    []
+  );
+
+  const clearPasswordRecovery = useCallback(() => {
+    setIsPasswordRecovery(false);
+  }, []);
+
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
     setSession(null);
@@ -355,12 +403,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         family,
         familyId,
         loading,
+        isPasswordRecovery,
         setupAdmin,
         addAdmin,
         loginAdmin,
         loginKid,
         createKidAuth,
         updateKidPassword,
+        resetPassword,
+        updatePassword,
+        clearPasswordRecovery,
         logout,
       }}
     >

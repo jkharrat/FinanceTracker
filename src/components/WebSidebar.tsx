@@ -120,12 +120,20 @@ function Sidebar({ role }: { role: 'admin' | 'kid' }) {
       </View>
 
       <View style={[styles.profileFooter, { borderTopColor: colors.borderLight }]}>
-        <ProfileAvatar name={displayName || '?'} size={32} />
-        <Text style={[styles.profileName, { color: colors.text }]} numberOfLines={1}>
-          {displayName}
-        </Text>
-        <AnimatedPressable variant="button" onPress={handleLogout} style={styles.profileLogout} accessibilityLabel="Logout">
-          <Ionicons name="log-out-outline" size={18} color={colors.textLight} />
+        <View style={styles.profileInfo}>
+          <ProfileAvatar name={displayName || '?'} size={32} />
+          <Text style={[styles.profileName, { color: colors.text }]} numberOfLines={1}>
+            {displayName}
+          </Text>
+        </View>
+        <AnimatedPressable
+          variant="button"
+          onPress={handleLogout}
+          style={[styles.logoutButton, { backgroundColor: colors.danger + '12' }]}
+          accessibilityLabel="Logout"
+        >
+          <Ionicons name="log-out-outline" size={16} color={colors.danger} />
+          <Text style={[styles.logoutButtonText, { color: colors.danger }]}>Log out</Text>
         </AnimatedPressable>
       </View>
     </View>
@@ -200,14 +208,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   profileFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
     borderTopWidth: 1,
     paddingTop: Spacing.lg,
     paddingHorizontal: Spacing.xs,
     marginTop: 'auto',
     paddingBottom: Spacing.xl,
+    gap: Spacing.sm,
+  },
+  profileInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
   profileName: {
     flex: 1,
@@ -215,7 +226,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 13,
   },
-  profileLogout: {
-    padding: Spacing.xs,
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: 8,
+    paddingHorizontal: Spacing.md,
+    borderRadius: 8,
+  },
+  logoutButtonText: {
+    fontFamily: FontFamily.semiBold,
+    fontWeight: '600',
+    fontSize: 13,
   },
 });

@@ -339,6 +339,16 @@ export default function LoginScreen() {
               </View>
             </View>
 
+            {mode === 'parent' && (
+              <TouchableOpacity
+                onPress={() => animateOut(() => router.push('/(auth)/forgot-password'))}
+                activeOpacity={0.6}
+                style={styles.forgotPasswordLink}
+              >
+                <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+              </TouchableOpacity>
+            )}
+
             {error.length > 0 && (
               <View style={styles.errorContainer}>
                 <Ionicons name="alert-circle-outline" size={18} color={colors.danger} />
@@ -547,6 +557,17 @@ const createStyles = (colors: ThemeColors) =>
     eyeButton: {
       paddingHorizontal: 14,
       paddingVertical: 14,
+    },
+
+    forgotPasswordLink: {
+      alignSelf: 'flex-end',
+      marginTop: -Spacing.sm,
+    },
+    forgotPasswordText: {
+      fontSize: 14,
+      fontFamily: FontFamily.semiBold,
+      fontWeight: '600',
+      color: colors.primary,
     },
 
     errorContainer: {
