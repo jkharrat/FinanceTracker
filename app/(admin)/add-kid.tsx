@@ -102,10 +102,12 @@ export default function AddKidScreen() {
         return;
       }
 
-      // Create Supabase Auth account so the kid can log in
       const authResult = await createKidAuth(kidId, name.trim(), password);
       if (!authResult.success) {
-        console.warn('Kid auth creation issue:', authResult.error);
+        setError(`Account created but login setup failed: ${authResult.error ?? 'Unknown error'}. Try editing this person to set a password.`);
+        showToast('error', 'Login setup failed');
+        setSaving(false);
+        return;
       }
 
       showToast('success', `${name.trim()} has been added`);
