@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
@@ -19,6 +20,8 @@ import { ThemeColors } from '../constants/colors';
 import { FontFamily } from '../constants/fonts';
 import { Spacing } from '../constants/spacing';
 import ProfileAvatar from './ProfileAvatar';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const THEME_OPTIONS: { mode: ThemeMode; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
   { mode: 'light', icon: 'sunny', label: 'Light' },
@@ -91,9 +94,19 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      <AnimatedPressable
+        entering={FadeIn.duration(150)}
+        exiting={FadeOut.duration(150)}
+        style={styles.overlay}
+        onPress={onClose}
+      >
+        <Animated.View
+          entering={SlideInDown.springify().damping(20).stiffness(180)}
+          exiting={SlideOutDown.duration(200)}
+          style={styles.sheet}
+        >
+          <Pressable onPress={(e) => e.stopPropagation()}>
           <View style={styles.profileSection}>
             <ProfileAvatar name={editName || '?'} size={56} />
 
@@ -182,8 +195,9 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
             <Ionicons name="log-out-outline" size={20} color={colors.danger} />
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>
-        </Pressable>
-      </Pressable>
+          </Pressable>
+        </Animated.View>
+      </AnimatedPressable>
     </Modal>
   );
 }
