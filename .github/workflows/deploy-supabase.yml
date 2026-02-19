@@ -27,6 +27,7 @@ jobs:
         run: |
           supabase functions deploy send-push --no-verify-jwt
           supabase functions deploy process-allowances --no-verify-jwt
+          supabase functions deploy update-kid-password --no-verify-jwt
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
