@@ -5,6 +5,7 @@ import Animated, {
   useAnimatedStyle,
   withRepeat,
   withTiming,
+  cancelAnimation,
   Easing,
   useReducedMotion,
 } from 'react-native-reanimated';
@@ -31,6 +32,9 @@ function SkeletonBox({ width = '100%', height = 16, borderRadius = 8, style }: S
         true
       );
     }
+    return () => {
+      cancelAnimation(opacity);
+    };
   }, [reducedMotion]);
 
   const animatedStyle = useAnimatedStyle(() => ({

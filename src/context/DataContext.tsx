@@ -93,10 +93,46 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       if (txError) throw txError;
 
+      const allTxRows = (txRows ?? []) as TransactionRow[];
+
+      const kidNameMap: Record<string, string> = {};
+      for (const row of kidRows as KidRow[]) {
+        kidNameMap[row.id] = row.name;
+      }
+
+      const txRowsByTransferId: Record<string, TransactionRow[]> = {};
+      for (const row of allTxRows) {
+        if (row.transfer_id) {
+          if (!txRowsByTransferId[row.transfer_id]) txRowsByTransferId[row.transfer_id] = [];
+          txRowsByTransferId[row.transfer_id].push(row);
+        }
+      }
+
+      const transferInfoByTxId: Record<string, TransferInfo> = {};
+      for (const [transferId, rows] of Object.entries(txRowsByTransferId)) {
+        if (rows.length !== 2) continue;
+        const sender = rows.find(r => r.type === 'subtract');
+        const receiver = rows.find(r => r.type === 'add');
+        if (!sender || !receiver) continue;
+        const info: TransferInfo = {
+          transferId,
+          fromKidId: sender.kid_id,
+          toKidId: receiver.kid_id,
+          fromKidName: kidNameMap[sender.kid_id] ?? 'Unknown',
+          toKidName: kidNameMap[receiver.kid_id] ?? 'Unknown',
+        };
+        transferInfoByTxId[sender.id] = info;
+        transferInfoByTxId[receiver.id] = info;
+      }
+
       const txByKid: Record<string, Transaction[]> = {};
-      for (const row of (txRows ?? []) as TransactionRow[]) {
+      for (const row of allTxRows) {
         if (!txByKid[row.kid_id]) txByKid[row.kid_id] = [];
-        txByKid[row.kid_id].push(txRowToTransaction(row));
+        const tx = txRowToTransaction(row);
+        if (row.transfer_id && transferInfoByTxId[row.id]) {
+          tx.transfer = transferInfoByTxId[row.id];
+        }
+        txByKid[row.kid_id].push(tx);
       }
 
       const loadedKids = (kidRows as KidRow[]).map((row) =>
@@ -216,8 +252,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
 
-    if (!data || data === 'Profile not found. Please log out and log back in.' ||
-        data === 'Only parents can add kids' || data === 'Family mismatch') {
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!data || !UUID_RE.test(data)) {
       console.error('add_kid_safe returned:', data);
       return null;
     }
@@ -236,66 +272,37 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     _password?: string,
     savingsGoal?: SavingsGoal | null
   ) => {
-    console.log('=== UPDATE KID START ===');
-    console.log('Kid ID:', id);
-    
-    try {
-      const { data, error } = await supabase.rpc('update_kid_safe', {
-        p_kid_id: id,
-        p_name: name,
-        p_avatar: avatar,
-        p_allowance_amount: allowanceAmount,
-        p_allowance_frequency: allowanceFrequency,
-        p_savings_goal_name: savingsGoal?.name ?? null,
-        p_savings_goal_target: savingsGoal?.targetAmount ?? null,
-      });
+    const { data, error } = await supabase.rpc('update_kid_safe', {
+      p_kid_id: id,
+      p_name: name,
+      p_avatar: avatar,
+      p_allowance_amount: allowanceAmount,
+      p_allowance_frequency: allowanceFrequency,
+      p_savings_goal_name: savingsGoal?.name ?? null,
+      p_savings_goal_target: savingsGoal?.targetAmount ?? null,
+    });
 
-      console.log('RPC Response - data:', data);
-      console.log('RPC Response - error:', error);
-
-      if (error) {
-        const errorMsg = `RPC Error: ${error.message || error.code || JSON.stringify(error)}`;
-        console.error('UPDATE FAILED:', errorMsg);
-        throw new Error(errorMsg);
-      }
-
-      if (data && data !== 'OK') {
-        const errorMsg = `Update returned: ${data}`;
-        console.error('UPDATE FAILED:', errorMsg);
-        throw new Error(errorMsg);
-      }
-
-      console.log('Update successful!');
-      await loadData(true);
-    } catch (e: any) {
-      console.error('EXCEPTION IN UPDATE:', e);
-      const errorMsg = e?.message || String(e) || 'Unknown error';
-      console.error('SAVE ERROR:', errorMsg);
-      throw e;
+    if (error) {
+      throw new Error(error.message || error.code || JSON.stringify(error));
     }
+
+    if (data && data !== 'OK') {
+      throw new Error(String(data));
+    }
+
+    await loadData(true);
   };
 
   const deleteKid = async (id: string) => {
-    console.log('=== DELETE KID START ===', id);
-    try {
-      // Delete directly via REST (RLS allows admins to delete their family's kids)
-      const { error } = await supabase
-        .from('kids')
-        .delete()
-        .eq('id', id)
-        .select('id');
+    const { error } = await supabase
+      .from('kids')
+      .delete()
+      .eq('id', id)
+      .select('id');
 
-      if (error) {
-        console.error('DELETE FAILED:', error);
-        throw new Error(error.message);
-      }
+    if (error) throw new Error(error.message);
 
-      console.log('Delete successful!');
-      await loadData(true);
-    } catch (e: any) {
-      console.error('EXCEPTION IN DELETE:', e);
-      throw e;
-    }
+    await loadData(true);
   };
 
   const updateKidAvatar = async (id: string, avatar: string) => {
@@ -313,27 +320,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateSavingsGoal = async (id: string, savingsGoal: SavingsGoal | null) => {
-    try {
-      console.log('Updating savings goal for kid:', id);
-      const { error } = await supabase.rpc('update_savings_goal_safe', {
-        p_kid_id: id,
-        p_savings_goal_name: savingsGoal?.name ?? null,
-        p_savings_goal_target: savingsGoal?.targetAmount ?? null,
-      });
+    const { error } = await supabase.rpc('update_savings_goal_safe', {
+      p_kid_id: id,
+      p_savings_goal_name: savingsGoal?.name ?? null,
+      p_savings_goal_target: savingsGoal?.targetAmount ?? null,
+    });
 
-      if (error) {
-        console.error('RPC savings goal error:', error);
-        if (error.code === '42883' || error.message?.includes('does not exist')) {
-          console.error('The savings goal function is missing. Run supabase/migrations/002_admin_functions.sql');
-        }
-        throw error;
-      }
+    if (error) throw error;
 
-      await loadData(true);
-    } catch (e: any) {
-      console.error('Exception in updateSavingsGoal:', e);
-      throw e;
-    }
+    await loadData(true);
   };
 
   const addTransaction = async (
@@ -364,14 +359,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       throw new Error(String(data));
     }
 
-    const newBalance = type === 'add' ? previousBalance + amount : previousBalance - amount;
     await loadData(true);
 
     try {
-      const kidName = kid?.name ?? 'Unknown';
-      const roundedBalance = Math.round(newBalance * 100) / 100;
+      const freshKid = kidsRef.current.find((k) => k.id === kidId);
+      const kidName = freshKid?.name ?? kid?.name ?? 'Unknown';
+      const freshBalance = freshKid?.balance ?? (type === 'add' ? previousBalance + amount : previousBalance - amount);
+      const roundedBalance = Math.round(freshBalance * 100) / 100;
       const actionWord = type === 'add' ? 'Added to' : 'Deducted from';
-      const goalLine = kid ? goalProgressSnippet(kid, roundedBalance) : '';
+      const goalLine = freshKid ? goalProgressSnippet(freshKid, roundedBalance) : '';
       await addNotification({
         type: 'transaction_added',
         title: `$${amount.toFixed(2)} ${actionWord} ${kidName}'s Account`,

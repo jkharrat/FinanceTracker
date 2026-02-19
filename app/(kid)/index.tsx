@@ -204,14 +204,22 @@ export default function KidDashboardScreen() {
 
   const handleSaveGoal = useCallback(async (goal: SavingsGoal) => {
     if (!kidId) return;
-    await updateSavingsGoal(kidId, goal);
-    setShowGoalEditor(false);
+    try {
+      await updateSavingsGoal(kidId, goal);
+      setShowGoalEditor(false);
+    } catch (e) {
+      console.error('Failed to save goal:', e);
+    }
   }, [kidId, updateSavingsGoal]);
 
   const handleRemoveGoal = useCallback(async () => {
     if (!kidId) return;
-    await updateSavingsGoal(kidId, null);
-    setShowGoalEditor(false);
+    try {
+      await updateSavingsGoal(kidId, null);
+      setShowGoalEditor(false);
+    } catch (e) {
+      console.error('Failed to remove goal:', e);
+    }
   }, [kidId, updateSavingsGoal]);
 
   const handleCancelGoal = useCallback(() => {

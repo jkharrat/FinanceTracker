@@ -357,7 +357,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [isNotificationEnabled, currentFamilyId, scheduleLocalPush, sendRemotePush]);
 
   const markAsRead = useCallback(async (id: string) => {
-    await supabase.from('notifications').update({ read: true }).eq('id', id);
+    const { error } = await supabase.from('notifications').update({ read: true }).eq('id', id);
+    if (error) {
+      console.error('Failed to mark notification as read:', error);
+      return;
+    }
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
@@ -370,7 +374,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       .update({ read: true })
       .eq('family_id', currentFamilyId);
     if (kidId) query = query.eq('kid_id', kidId);
-    await query;
+    const { error } = await query;
+
+    if (error) {
+      console.error('Failed to mark all notifications as read:', error);
+      return;
+    }
 
     setNotifications((prev) =>
       prev.map((n) => {
@@ -384,7 +393,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     if (!currentFamilyId) return;
     let query = supabase.from('notifications').delete().eq('family_id', currentFamilyId);
     if (kidId) query = query.eq('kid_id', kidId);
-    await query;
+    const { error } = await query;
+
+    if (error) {
+      console.error('Failed to clear notifications:', error);
+      return;
+    }
 
     setNotifications((prev) =>
       kidId ? prev.filter((n) => n.kidId !== kidId) : []
