@@ -213,6 +213,7 @@ export default function SetupScreen() {
                   placeholder="At least 6 characters"
                   placeholderTextColor={colors.textLight}
                   secureTextEntry
+                  autoCapitalize="none"
                   textContentType="newPassword"
                   onFocus={() => setFocusedField('password')}
                   onBlur={() => setFocusedField(null)}
@@ -255,6 +256,7 @@ export default function SetupScreen() {
                   placeholder="Re-enter your password"
                   placeholderTextColor={colors.textLight}
                   secureTextEntry
+                  autoCapitalize="none"
                   onFocus={() => setFocusedField('confirm')}
                   onBlur={() => setFocusedField(null)}
                 />

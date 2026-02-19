@@ -175,6 +175,7 @@ export default function AddKidScreen() {
               placeholder="At least 6 characters"
               placeholderTextColor={colors.textLight}
               secureTextEntry={!showPassword}
+              autoCapitalize="none"
               onFocus={() => setFocusedField('password')}
               onBlur={() => setFocusedField(null)}
             />

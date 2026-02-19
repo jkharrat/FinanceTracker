@@ -320,6 +320,7 @@ export default function LoginScreen() {
                   placeholder="Enter your password"
                   placeholderTextColor={colors.textLight}
                   secureTextEntry={!showPassword}
+                  autoCapitalize="none"
                   onSubmitEditing={handleLogin}
                   returnKeyType="go"
                   onFocus={() => setFocusedField('password')}

@@ -180,6 +180,7 @@ export default function EditKidScreen() {
               placeholder="Leave blank to keep current"
               placeholderTextColor={colors.textLight}
               secureTextEntry={!showPassword}
+              autoCapitalize="none"
             />
             {newPassword.length > 0 && (
               <TouchableOpacity

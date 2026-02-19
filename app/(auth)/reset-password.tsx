@@ -212,6 +212,7 @@ export default function ResetPasswordScreen() {
                         placeholder="At least 6 characters"
                         placeholderTextColor={colors.textLight}
                         secureTextEntry={!showPassword}
+                        autoCapitalize="none"
                         onSubmitEditing={() => confirmRef.current?.focus()}
                         returnKeyType="next"
                         onFocus={() => setFocusedField('password')}
@@ -285,6 +286,7 @@ export default function ResetPasswordScreen() {
                         placeholder="Re-enter your password"
                         placeholderTextColor={colors.textLight}
                         secureTextEntry={!showConfirm}
+                        autoCapitalize="none"
                         onSubmitEditing={handleUpdatePassword}
                         returnKeyType="go"
                         onFocus={() => setFocusedField('confirm')}

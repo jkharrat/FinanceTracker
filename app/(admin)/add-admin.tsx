@@ -152,6 +152,7 @@ export default function AddAdminScreen() {
             placeholder="Create a strong password"
             placeholderTextColor={colors.textLight}
             secureTextEntry
+            autoCapitalize="none"
           />
           {password.length > 0 && (
             <View style={styles.strengthSection}>
@@ -202,6 +203,7 @@ export default function AddAdminScreen() {
             placeholder="Re-enter the password"
             placeholderTextColor={colors.textLight}
             secureTextEntry
+            autoCapitalize="none"
           />
           {confirmPassword.length > 0 && password !== confirmPassword && (
             <Text style={styles.fieldError}>Passwords do not match</Text>
