@@ -56,8 +56,11 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
 
   const handleLogout = async () => {
     onClose();
-    await logout();
-    router.replace('/(auth)/login');
+    try {
+      await logout();
+    } finally {
+      router.replace('/(auth)/login');
+    }
   };
 
   const handleSave = async () => {

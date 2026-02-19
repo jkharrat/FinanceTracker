@@ -70,8 +70,11 @@ function Sidebar({ role }: { role: 'admin' | 'kid' }) {
     user?.role === 'admin' ? user.displayName : user?.role === 'kid' ? user.name : '';
 
   const handleLogout = async () => {
-    await logout();
-    router.replace('/(auth)/login');
+    try {
+      await logout();
+    } finally {
+      router.replace('/(auth)/login');
+    }
   };
 
   return (

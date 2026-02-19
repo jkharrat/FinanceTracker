@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import { Profile, Family } from '../types';
 import { kidEmail, KID_EMAIL_DOMAIN } from '../utils/auth';
@@ -123,6 +123,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, [loadProfile]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleVisibility = () => {
+        if (document.visibilityState === 'visible') {
+          supabase.auth.startAutoRefresh();
+        } else {
+          supabase.auth.stopAutoRefresh();
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibility);
+      return () => document.removeEventListener('visibilitychange', handleVisibility);
+    }
+
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        supabase.auth.startAutoRefresh();
+      } else {
+        supabase.auth.stopAutoRefresh();
+      }
+    });
+
+    return () => sub.remove();
+  }, []);
 
   const setupAdmin = useCallback(
     async (email: string, password: string, displayName: string) => {
@@ -410,7 +434,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch {
+        // local-only sign-out should never fail, but clear state regardless
+      }
+    }
     setSession(null);
     setProfile(null);
     setFamily(null);

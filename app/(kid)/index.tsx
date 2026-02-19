@@ -185,8 +185,11 @@ export default function KidDashboardScreen() {
   };
 
   const handleLogout = async () => {
-    await logout();
-    router.replace('/(auth)/login');
+    try {
+      await logout();
+    } finally {
+      router.replace('/(auth)/login');
+    }
   };
 
   const clearFilters = () => {
