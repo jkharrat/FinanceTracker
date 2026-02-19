@@ -96,7 +96,14 @@ function Sidebar({ role }: { role: 'admin' | 'kid' }) {
                 styles.navItem,
                 { backgroundColor: isActive ? colors.primaryLight + '18' : 'transparent' },
               ]}
-              onPress={() => router.replace(item.href as any)}
+              onPress={() => {
+                const rootHref = role === 'admin' ? '/(admin)' : '/(kid)';
+                if (item.href === rootHref && router.canGoBack()) {
+                  router.dismissAll();
+                } else {
+                  router.replace(item.href as any);
+                }
+              }}
             >
               <Ionicons
                 name={isActive ? item.iconActive : item.icon}
