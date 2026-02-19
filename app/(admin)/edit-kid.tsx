@@ -8,16 +8,34 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../../src/context/DataContext';
 import { useAuth } from '../../src/context/AuthContext';
 import { useColors } from '../../src/context/ThemeContext';
+import { useToast } from '../../src/context/ToastContext';
 import { Avatars } from '../../src/constants/colors';
 import { ThemeColors } from '../../src/constants/colors';
 import { AllowanceFrequency, SavingsGoal } from '../../src/types';
 import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
+
+type PasswordStrength = { level: number; label: string; color: string; width: string };
+
+function getPasswordStrength(pw: string, colors: ThemeColors): PasswordStrength {
+  if (pw.length === 0) return { level: 0, label: '', color: 'transparent', width: '0%' };
+  if (pw.length < 6) return { level: 1, label: 'Weak', color: colors.danger, width: '25%' };
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  if (score <= 1) return { level: 2, label: 'Fair', color: colors.warning, width: '50%' };
+  if (score <= 2) return { level: 3, label: 'Good', color: colors.success, width: '75%' };
+  return { level: 4, label: 'Strong', color: colors.successDark, width: '100%' };
+}
 
 const frequencies: { value: AllowanceFrequency; label: string }[] = [
   { value: 'weekly', label: 'Weekly' },
@@ -30,6 +48,7 @@ export default function EditKidScreen() {
   const { updateKidPassword } = useAuth();
   const router = useRouter();
   const colors = useColors();
+  const { showToast } = useToast();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const kid = getKid(id!);
@@ -39,15 +58,20 @@ export default function EditKidScreen() {
   const [allowanceAmount, setAllowanceAmount] = useState(kid?.allowanceAmount.toString() ?? '');
   const [frequency, setFrequency] = useState<AllowanceFrequency>(kid?.allowanceFrequency ?? 'monthly');
   const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [goalName, setGoalName] = useState(kid?.savingsGoal?.name ?? '');
   const [goalAmount, setGoalAmount] = useState(kid?.savingsGoal?.targetAmount?.toString() ?? '');
   const [nameError, setNameError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const strength = useMemo(() => getPasswordStrength(newPassword, colors), [newPassword, colors]);
 
   const isValid =
     name.trim().length > 0 &&
     parseFloat(allowanceAmount) > 0 &&
     nameError === '' &&
-    (newPassword.length === 0 || newPassword.length >= 6);
+    (newPassword.length === 0 || newPassword.length >= 6) &&
+    !saving;
 
   const handleNameChange = (text: string) => {
     setName(text);
@@ -65,21 +89,34 @@ export default function EditKidScreen() {
       return;
     }
 
-    const parsedGoalAmount = parseFloat(goalAmount);
-    let savingsGoal: SavingsGoal | null | undefined;
-    if (goalName.trim() && parsedGoalAmount > 0) {
-      savingsGoal = { name: goalName.trim(), targetAmount: parsedGoalAmount };
-    } else if (kid?.savingsGoal) {
-      savingsGoal = null;
+    setSaving(true);
+
+    try {
+      const parsedGoalAmount = parseFloat(goalAmount);
+      let savingsGoal: SavingsGoal | null | undefined;
+      if (goalName.trim() && parsedGoalAmount > 0) {
+        savingsGoal = { name: goalName.trim(), targetAmount: parsedGoalAmount };
+      } else if (kid?.savingsGoal) {
+        savingsGoal = null;
+      }
+
+      await updateKid(id, name.trim(), selectedAvatar, parseFloat(allowanceAmount), frequency, undefined, savingsGoal);
+
+      if (newPassword.length >= 6) {
+        const pwResult = await updateKidPassword(id, name.trim(), newPassword);
+        if (!pwResult.success) {
+          showToast('error', pwResult.error ?? 'Failed to update password');
+          setSaving(false);
+          return;
+        }
+      }
+
+      showToast('success', `${name.trim()} has been updated`);
+      router.back();
+    } catch {
+      showToast('error', 'Something went wrong. Please try again.');
+      setSaving(false);
     }
-
-    await updateKid(id, name.trim(), selectedAvatar, parseFloat(allowanceAmount), frequency, undefined, savingsGoal);
-
-    if (newPassword.length >= 6) {
-      await updateKidPassword(id, name.trim(), newPassword);
-    }
-
-    router.back();
   };
 
   if (!kid) {
@@ -135,16 +172,37 @@ export default function EditKidScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Change Password</Text>
-          <TextInput
-            style={styles.textInput}
-            value={newPassword}
-            onChangeText={setNewPassword}
-            placeholder="Leave blank to keep current"
-            placeholderTextColor={colors.textLight}
-            secureTextEntry
-          />
-          {newPassword.length > 0 && newPassword.length < 6 && (
-            <Text style={styles.fieldHint}>Password must be at least 6 characters</Text>
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.passwordInput}
+              value={newPassword}
+              onChangeText={setNewPassword}
+              placeholder="Leave blank to keep current"
+              placeholderTextColor={colors.textLight}
+              secureTextEntry={!showPassword}
+            />
+            {newPassword.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeButton}
+                activeOpacity={0.6}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={22}
+                  color={colors.textLight}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+          {newPassword.length > 0 && (
+            <View style={styles.strengthContainer}>
+              <View style={styles.strengthTrack}>
+                <View style={[styles.strengthFill, { width: strength.width as any, backgroundColor: strength.color }]} />
+              </View>
+              <Text style={[styles.strengthLabel, { color: strength.color }]}>{strength.label}</Text>
+            </View>
           )}
         </View>
 
@@ -217,8 +275,13 @@ export default function EditKidScreen() {
           style={[styles.saveButton, !isValid && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={!isValid}
+          activeOpacity={0.85}
         >
-          <Text style={styles.saveButtonText}>Save Changes</Text>
+          {saving ? (
+            <ActivityIndicator color={colors.textWhite} />
+          ) : (
+            <Text style={styles.saveButtonText}>Save Changes</Text>
+          )}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -290,6 +353,52 @@ const createStyles = (colors: ThemeColors) =>
       shadowOpacity: 0.04,
       shadowRadius: 4,
       elevation: 1,
+    },
+    passwordContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 14,
+      shadowColor: colors.primaryDark,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.04,
+      shadowRadius: 4,
+      elevation: 1,
+    },
+    passwordInput: {
+      flex: 1,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.lg,
+      fontSize: 17,
+      color: colors.text,
+    },
+    eyeButton: {
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+    },
+    strengthContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      marginTop: 6,
+    },
+    strengthTrack: {
+      flex: 1,
+      height: 4,
+      backgroundColor: colors.borderLight,
+      borderRadius: 2,
+      overflow: 'hidden',
+    },
+    strengthFill: {
+      height: '100%',
+      borderRadius: 2,
+    },
+    strengthLabel: {
+      fontSize: 12,
+      fontFamily: FontFamily.semiBold,
+      fontWeight: '600',
+      minWidth: 44,
+      textAlign: 'right',
     },
     textInputError: {
       borderWidth: 1,

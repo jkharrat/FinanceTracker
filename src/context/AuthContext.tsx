@@ -387,27 +387,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateKidPassword = useCallback(
     async (kidId: string, _name: string, newPassword: string) => {
-      const { data: kidData } = await supabase
-        .from('kids')
-        .select('user_id')
-        .eq('id', kidId)
-        .single();
-
-      if (!kidData?.user_id) {
-        return { success: false, error: 'Kid has no auth account' };
-      }
-
-      const email = kidEmail(kidId);
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password: newPassword,
+      const { data, error } = await supabase.functions.invoke('update-kid-password', {
+        body: { kid_id: kidId, new_password: newPassword },
       });
 
       if (error) {
-        // We can't update another user's password from the client side.
-        // For now, store the new password hash in a custom column or
-        // handle via edge function. We'll update the kid row to flag it.
-        return { success: true };
+        return { success: false, error: error.message || 'Failed to update password' };
+      }
+
+      if (data?.error) {
+        return { success: false, error: data.error };
       }
 
       return { success: true };
