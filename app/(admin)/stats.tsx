@@ -10,7 +10,7 @@ export default function AdminStatsScreen() {
   const { getKid } = useData();
   const colors = useColors();
 
-  const kid = getKid(id!);
+  const kid = id ? getKid(id) : undefined;
 
   if (!kid) {
     return (

@@ -51,7 +51,7 @@ export default function EditKidScreen() {
   const { showToast } = useToast();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const kid = getKid(id!);
+  const kid = id ? getKid(id) : undefined;
 
   const [name, setName] = useState(kid?.name ?? '');
   const [selectedAvatar, setSelectedAvatar] = useState(kid?.avatar ?? Avatars[0]);

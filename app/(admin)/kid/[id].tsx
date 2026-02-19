@@ -53,7 +53,7 @@ export default function KidDetailScreen() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState<TransactionCategory | null>(null);
 
-  const kid = getKid(id!);
+  const kid = id ? getKid(id) : undefined;
 
   const goalPercent = useMemo(() => {
     if (!kid?.savingsGoal) return 0;

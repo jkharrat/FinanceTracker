@@ -394,11 +394,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const updatePreferences = useCallback(async (prefs: Partial<NotificationPreferences>) => {
     if (!currentFamilyId) return;
 
-    const updated = { ...prefsRef.current, ...prefs };
+    const previous = prefsRef.current;
+    const updated = { ...previous, ...prefs };
     setPreferences(updated);
     prefsRef.current = updated;
 
-    await supabase
+    const { error } = await supabase
       .from('notification_preferences')
       .upsert({
         family_id: currentFamilyId,
@@ -408,6 +409,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         goal_milestones: updated.goalMilestones,
         push_enabled: updated.pushEnabled,
       });
+
+    if (error) {
+      console.error('Failed to save notification preferences:', error);
+      setPreferences(previous);
+      prefsRef.current = previous;
+      return;
+    }
 
     if (prefs.pushEnabled === true) {
       if (Platform.OS === 'web') {
