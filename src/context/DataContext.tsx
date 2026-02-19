@@ -454,31 +454,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const kid = kids.find((k) => k.id === kidId);
     const previousBalance = kid?.balance ?? 0;
 
-    const { error: updateError } = await supabase
-      .from('transactions')
-      .update({
-        amount: updates.amount,
-        description: updates.description,
-        category: updates.category,
-      })
-      .eq('id', transactionId);
+    const { data, error } = await supabase.rpc('update_transaction_safe', {
+      p_transaction_id: transactionId,
+      p_amount: updates.amount,
+      p_description: updates.description,
+      p_category: updates.category,
+    });
 
-    if (updateError) throw new Error(updateError.message || 'Failed to update transaction');
-
-    const { data: allTxs, error: fetchError } = await supabase
-      .from('transactions')
-      .select('type, amount')
-      .eq('kid_id', kidId);
-
-    if (fetchError) throw new Error(fetchError.message || 'Failed to recalculate balance');
-
-    const newBalance = (allTxs ?? []).reduce((sum: number, t: { type: string; amount: number }) => {
-      const delta = t.type === 'add' ? Number(t.amount) : -Number(t.amount);
-      return Math.round((sum + delta) * 100) / 100;
-    }, 0);
-
-    const { error: balanceError } = await supabase.from('kids').update({ balance: newBalance }).eq('id', kidId);
-    if (balanceError) throw new Error(balanceError.message || 'Failed to update balance');
+    if (error) throw new Error(error.message || 'Failed to update transaction');
+    if (data && data !== 'OK') throw new Error(String(data));
 
     await loadData(true);
 
@@ -487,13 +471,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       await addNotification({
         type: 'transaction_updated',
         title: `Transaction Updated for ${kidName}`,
-        message: `${updates.description} · $${updates.amount.toFixed(2)} · New balance: $${newBalance.toFixed(2)}`,
+        message: `${updates.description} · $${updates.amount.toFixed(2)}`,
         kidId,
         data: { transactionId, amount: updates.amount },
       }, { skipLocalPush: true });
 
-      if (kid) {
-        await checkGoalMilestones({ ...kid, balance: newBalance }, previousBalance);
+      const updatedKid = kids.find((k) => k.id === kidId);
+      if (updatedKid) {
+        await checkGoalMilestones(updatedKid, previousBalance);
       }
     } catch (notifError) {
       console.error('Post-update notification error:', notifError);
@@ -505,23 +490,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const previousBalance = kid?.balance ?? 0;
     const deletedTx = kid?.transactions.find((t) => t.id === transactionId);
 
-    const { error: deleteError } = await supabase.from('transactions').delete().eq('id', transactionId);
-    if (deleteError) throw new Error(deleteError.message || 'Failed to delete transaction');
+    const { data, error } = await supabase.rpc('delete_transaction_safe', {
+      p_transaction_id: transactionId,
+    });
 
-    const { data: allTxs, error: fetchError } = await supabase
-      .from('transactions')
-      .select('type, amount')
-      .eq('kid_id', kidId);
-
-    if (fetchError) throw new Error(fetchError.message || 'Failed to recalculate balance');
-
-    const newBalance = (allTxs ?? []).reduce((sum: number, t: { type: string; amount: number }) => {
-      const delta = t.type === 'add' ? Number(t.amount) : -Number(t.amount);
-      return Math.round((sum + delta) * 100) / 100;
-    }, 0);
-
-    const { error: balanceError } = await supabase.from('kids').update({ balance: newBalance }).eq('id', kidId);
-    if (balanceError) throw new Error(balanceError.message || 'Failed to update balance');
+    if (error) throw new Error(error.message || 'Failed to delete transaction');
+    if (data && data !== 'OK') throw new Error(String(data));
 
     await loadData(true);
 
@@ -530,13 +504,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       await addNotification({
         type: 'transaction_deleted',
         title: `Transaction Removed from ${kidName}'s Account`,
-        message: `$${deletedTx?.amount.toFixed(2) ?? '0.00'} removed · New balance: $${newBalance.toFixed(2)}`,
+        message: `$${deletedTx?.amount.toFixed(2) ?? '0.00'} removed`,
         kidId,
         data: { transactionId, amount: deletedTx?.amount },
       }, { skipLocalPush: true });
 
-      if (kid) {
-        await checkGoalMilestones({ ...kid, balance: newBalance }, previousBalance);
+      const updatedKid = kids.find((k) => k.id === kidId);
+      if (updatedKid) {
+        await checkGoalMilestones(updatedKid, previousBalance);
       }
     } catch (notifError) {
       console.error('Post-delete notification error:', notifError);
