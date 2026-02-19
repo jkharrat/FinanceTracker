@@ -479,13 +479,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updatePassword = useCallback(
     async (newPassword: string) => {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
+      ignoreAuthChanges.current = true;
+      try {
+        const { error } = await supabase.auth.updateUser({
+          password: newPassword,
+        });
 
-      if (error) return { success: false, error: error.message };
-      setIsPasswordRecovery(false);
-      return { success: true };
+        if (error) return { success: false, error: error.message };
+        return { success: true };
+      } finally {
+        ignoreAuthChanges.current = false;
+      }
     },
     []
   );
