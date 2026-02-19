@@ -165,13 +165,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!data.user) return { success: false, error: 'Signup failed' };
 
       // When email confirmation is enabled, signUp returns session: null.
-      // Sign in explicitly so RLS-protected queries in loadProfile succeed.
+      // Sign in explicitly so subsequent calls have a valid session.
       if (!data.session) {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (signInError) return { success: false, error: signInError.message };
+      }
+
+      // Guarantee the family + profile exist with the correct display name.
+      // The handle_new_user trigger should have created them, but if it
+      // didn't fire (missing trigger, migration not applied, etc.) the
+      // SECURITY DEFINER bootstrap_admin function creates them from scratch.
+      const { data: bsResult, error: bsError } = await supabase.rpc(
+        'bootstrap_admin',
+        { p_display_name: displayName },
+      );
+
+      if (bsError) {
+        return { success: false, error: bsError.message };
+      }
+      if (bsResult && bsResult !== 'OK') {
+        return { success: false, error: String(bsResult) };
       }
 
       await loadProfile(data.user.id);
