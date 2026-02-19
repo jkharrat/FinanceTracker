@@ -23,6 +23,50 @@ jest.mock('expo-crypto', () => ({
 
 jest.mock('react-native-url-polyfill/auto', () => {});
 
+jest.mock('react-native-reanimated', () => {
+  const RN = require('react-native');
+  const Animated = {
+    View: RN.View,
+    Text: RN.Text,
+    Image: RN.Image,
+    ScrollView: RN.ScrollView,
+    createAnimatedComponent: jest.fn((comp) => comp),
+  };
+  const layoutAnim = { duration: jest.fn().mockReturnThis(), delay: jest.fn().mockReturnThis() };
+  return {
+    __esModule: true,
+    default: Animated,
+    useSharedValue: jest.fn((init) => ({ value: init })),
+    useAnimatedStyle: jest.fn(() => ({})),
+    useAnimatedReaction: jest.fn(),
+    useReducedMotion: jest.fn(() => false),
+    runOnJS: jest.fn((fn) => fn),
+    interpolate: jest.fn((val) => val),
+    withTiming: jest.fn((val) => val),
+    withSpring: jest.fn((val) => val),
+    withDelay: jest.fn((_, val) => val),
+    withSequence: jest.fn((...vals) => vals[vals.length - 1]),
+    withRepeat: jest.fn((val) => val),
+    Easing: {
+      bezier: jest.fn(() => jest.fn()),
+      in: jest.fn(() => jest.fn()),
+      out: jest.fn(() => jest.fn()),
+      inOut: jest.fn(() => jest.fn()),
+      linear: jest.fn(),
+      ease: jest.fn(),
+      cubic: jest.fn(),
+    },
+    FadeIn: { ...layoutAnim },
+    FadeInUp: { ...layoutAnim },
+    FadeOut: { ...layoutAnim },
+    SlideInRight: { ...layoutAnim },
+    SlideInUp: { ...layoutAnim },
+    SlideOutUp: { ...layoutAnim },
+    SlideOutLeft: { ...layoutAnim },
+    Layout: { springify: jest.fn().mockReturnThis() },
+  };
+});
+
 jest.mock('./src/lib/supabase', () => {
   const mockChain = () => {
     const chain = {
