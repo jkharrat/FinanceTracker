@@ -6,6 +6,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import { useColors } from '../context/ThemeContext';
 import AnimatedPressable from './AnimatedPressable';
+import { FontFamily } from '../constants/fonts';
 
 export default function NotificationBell() {
   const router = useRouter();
@@ -57,6 +58,7 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#FFFFFF',
     fontSize: 10,
+    fontFamily: FontFamily.bold,
     fontWeight: '700',
   },
 });

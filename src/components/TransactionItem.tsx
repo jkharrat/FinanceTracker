@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useColors } from '../context/ThemeContext';
 import { ThemeColors } from '../constants/colors';
 import { Transaction, CATEGORIES } from '../types';
+import { FontFamily } from '../constants/fonts';
+import { Spacing } from '../constants/spacing';
 
 interface TransactionItemProps {
   transaction: Transaction;
@@ -79,7 +81,7 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: 1,
       backgroundColor: colors.surface,
       paddingVertical: 14,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.lg,
     },
     indicator: {
       width: 3,
@@ -99,22 +101,24 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: 4,
+      marginBottom: Spacing.xs,
     },
     descriptionRow: {
       flex: 1,
-      marginRight: 12,
+      marginRight: Spacing.md,
     },
     description: {
       fontSize: 15,
+      fontFamily: FontFamily.medium,
       fontWeight: '500',
       color: colors.text,
-      marginBottom: 4,
+      marginBottom: Spacing.xs,
     },
     transferLabel: {
       fontSize: 12,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
-      marginBottom: 4,
+      marginBottom: Spacing.xs,
     },
     transferLabelAdd: {
       color: colors.successDark,
@@ -126,22 +130,24 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.surfaceAlt,
-      paddingHorizontal: 8,
+      paddingHorizontal: Spacing.sm,
       paddingVertical: 2,
       borderRadius: 8,
       alignSelf: 'flex-start',
-      gap: 4,
+      gap: Spacing.xs,
     },
     categoryEmoji: {
       fontSize: 11,
     },
     categoryLabel: {
       fontSize: 11,
+      fontFamily: FontFamily.medium,
       fontWeight: '500',
       color: colors.textSecondary,
     },
     amount: {
       fontSize: 16,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
     },
     amountAdd: {

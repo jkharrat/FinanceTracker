@@ -16,6 +16,8 @@ import { useData } from '../../src/context/DataContext';
 import { useAuth } from '../../src/context/AuthContext';
 import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
+import { FontFamily } from '../../src/constants/fonts';
+import { Spacing } from '../../src/constants/spacing';
 
 export default function SendMoneyScreen() {
   const { user } = useAuth();
@@ -227,10 +229,10 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.background,
     },
     headerButton: {
-      padding: 4,
+      padding: Spacing.xs,
     },
     content: {
-      padding: 20,
+      padding: Spacing.xl,
     },
     errorText: {
       fontSize: 16,
@@ -241,7 +243,7 @@ const createStyles = (colors: ThemeColors) =>
     balanceInfo: {
       backgroundColor: colors.surface,
       borderRadius: 16,
-      padding: 20,
+      padding: Spacing.xl,
       alignItems: 'center',
       marginBottom: 28,
       shadowColor: colors.primaryDark,
@@ -252,20 +254,23 @@ const createStyles = (colors: ThemeColors) =>
     },
     balanceLabel: {
       fontSize: 13,
+      fontFamily: FontFamily.medium,
       fontWeight: '500',
       color: colors.textSecondary,
-      marginBottom: 4,
+      marginBottom: Spacing.xs,
     },
     balanceAmount: {
       fontSize: 32,
+      fontFamily: FontFamily.extraBold,
       fontWeight: '800',
       color: colors.success,
     },
     sectionTitle: {
       fontSize: 16,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.text,
-      marginBottom: 12,
+      marginBottom: Spacing.md,
     },
     recipientList: {
       gap: 10,
@@ -277,7 +282,7 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.surface,
       borderRadius: 14,
       padding: 14,
-      gap: 12,
+      gap: Spacing.md,
       borderWidth: 2,
       borderColor: colors.border,
     },
@@ -302,6 +307,7 @@ const createStyles = (colors: ThemeColors) =>
     recipientName: {
       flex: 1,
       fontSize: 16,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.text,
     },
@@ -313,20 +319,22 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       backgroundColor: colors.surface,
       borderRadius: 14,
-      paddingHorizontal: 16,
-      marginBottom: 8,
+      paddingHorizontal: Spacing.lg,
+      marginBottom: Spacing.sm,
       borderWidth: 1,
       borderColor: colors.border,
     },
     currencySign: {
       fontSize: 24,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.textSecondary,
-      marginRight: 4,
+      marginRight: Spacing.xs,
     },
     amountInput: {
       flex: 1,
       fontSize: 24,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.text,
       paddingVertical: 14,
@@ -334,13 +342,13 @@ const createStyles = (colors: ThemeColors) =>
     warningText: {
       fontSize: 13,
       color: colors.danger,
-      marginBottom: 20,
-      marginTop: 4,
+      marginBottom: Spacing.xl,
+      marginTop: Spacing.xs,
     },
     descriptionInput: {
       backgroundColor: colors.surface,
       borderRadius: 14,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.lg,
       paddingVertical: 14,
       fontSize: 15,
       color: colors.text,
@@ -351,15 +359,16 @@ const createStyles = (colors: ThemeColors) =>
     errorContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: Spacing.sm,
       backgroundColor: colors.dangerLight,
       borderRadius: 12,
       padding: 14,
-      marginBottom: 20,
+      marginBottom: Spacing.xl,
     },
     errorMessage: {
       flex: 1,
       fontSize: 14,
+      fontFamily: FontFamily.medium,
       fontWeight: '500',
       color: colors.danger,
     },
@@ -369,7 +378,7 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: 'center',
       backgroundColor: colors.primary,
       borderRadius: 16,
-      paddingVertical: 16,
+      paddingVertical: Spacing.lg,
       gap: 10,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 4 },
@@ -384,6 +393,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     sendButtonText: {
       fontSize: 17,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.textWhite,
     },

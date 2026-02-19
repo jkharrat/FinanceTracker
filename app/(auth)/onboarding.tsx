@@ -11,6 +11,8 @@ import { useRouter } from 'expo-router';
 import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
 import PageTransition from '../../src/components/PageTransition';
+import { FontFamily } from '../../src/constants/fonts';
+import { Spacing } from '../../src/constants/spacing';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -160,13 +162,14 @@ const createStyles = (colors: ThemeColors) =>
       zIndex: 10,
     },
     skipButton: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.sm,
       borderRadius: 20,
       backgroundColor: colors.surfaceAlt,
     },
     skipText: {
       fontSize: 15,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
     },
@@ -182,14 +185,15 @@ const createStyles = (colors: ThemeColors) =>
     },
     slideEmoji: {
       fontSize: 80,
-      marginBottom: 32,
+      marginBottom: Spacing.xxxl,
     },
     slideTitle: {
       fontSize: 32,
+      fontFamily: FontFamily.extraBold,
       fontWeight: '800',
       color: colors.text,
       textAlign: 'center',
-      marginBottom: 16,
+      marginBottom: Spacing.lg,
       lineHeight: 40,
     },
     slideDescription: {
@@ -199,14 +203,14 @@ const createStyles = (colors: ThemeColors) =>
       lineHeight: 24,
     },
     footer: {
-      paddingHorizontal: 24,
+      paddingHorizontal: Spacing.xxl,
       paddingBottom: 48,
-      gap: 24,
+      gap: Spacing.xxl,
     },
     pagination: {
       flexDirection: 'row',
       justifyContent: 'center',
-      gap: 8,
+      gap: Spacing.sm,
     },
     dot: {
       width: 8,
@@ -233,6 +237,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     buttonText: {
       fontSize: 17,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.textWhite,
     },

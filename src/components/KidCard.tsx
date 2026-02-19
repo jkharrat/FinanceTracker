@@ -4,6 +4,9 @@ import { useColors } from '../context/ThemeContext';
 import { ThemeColors } from '../constants/colors';
 import { Kid, AllowanceFrequency } from '../types';
 import AnimatedPressable from './AnimatedPressable';
+import AnimatedNumber from './AnimatedNumber';
+import { FontFamily } from '../constants/fonts';
+import { Spacing } from '../constants/spacing';
 
 interface KidCardProps {
   kid: Kid;
@@ -24,8 +27,10 @@ export function KidCard({ kid, onPress }: KidCardProps) {
   const progress = goal ? Math.min(Math.max(kid.balance / goal.targetAmount, 0), 1) : 0;
   const progressPercent = Math.round(progress * 100);
 
+  const accentColor = kid.balance > 0 ? colors.success : kid.balance < 0 ? colors.danger : colors.border;
+
   return (
-    <AnimatedPressable variant="card" style={styles.card} onPress={onPress}>
+    <AnimatedPressable variant="card" style={[styles.card, { borderLeftColor: accentColor }]} onPress={onPress}>
       <View style={styles.leftSection}>
         <View style={styles.avatarContainer}>
           <Text style={styles.avatar}>{kid.avatar}</Text>
@@ -38,9 +43,10 @@ export function KidCard({ kid, onPress }: KidCardProps) {
         </View>
       </View>
       <View style={styles.rightSection}>
-        <Text style={[styles.balance, isNegative && styles.balanceNegative]}>
-          {isNegative ? '-' : ''}${Math.abs(kid.balance).toFixed(2)}
-        </Text>
+        <AnimatedNumber
+          value={kid.balance}
+          style={[styles.balance, isNegative && styles.balanceNegative]}
+        />
         <Text style={styles.balanceLabel}>Balance</Text>
       </View>
       {goal && (
@@ -72,12 +78,13 @@ const createStyles = (colors: ThemeColors) =>
     card: {
       backgroundColor: colors.surface,
       borderRadius: 16,
-      padding: 16,
-      marginBottom: 12,
+      padding: Spacing.lg,
+      marginBottom: Spacing.md,
       flexDirection: 'row',
       flexWrap: 'wrap',
       alignItems: 'center',
       justifyContent: 'space-between',
+      borderLeftWidth: 4,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.06,
@@ -106,6 +113,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     name: {
       fontSize: 17,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.text,
       marginBottom: 3,
@@ -119,6 +127,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     balance: {
       fontSize: 20,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.success,
     },
@@ -132,8 +141,8 @@ const createStyles = (colors: ThemeColors) =>
     },
     goalSection: {
       width: '100%',
-      marginTop: 12,
-      paddingTop: 12,
+      marginTop: Spacing.md,
+      paddingTop: Spacing.md,
       borderTopWidth: 1,
       borderTopColor: colors.borderLight,
     },
@@ -145,13 +154,15 @@ const createStyles = (colors: ThemeColors) =>
     },
     goalName: {
       fontSize: 13,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
       flex: 1,
-      marginRight: 8,
+      marginRight: Spacing.sm,
     },
     goalPercent: {
       fontSize: 13,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.primary,
     },
@@ -172,6 +183,6 @@ const createStyles = (colors: ThemeColors) =>
     goalAmounts: {
       fontSize: 11,
       color: colors.textLight,
-      marginTop: 4,
+      marginTop: Spacing.xs,
     },
   });

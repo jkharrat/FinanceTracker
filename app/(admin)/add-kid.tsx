@@ -18,6 +18,8 @@ import { useColors } from '../../src/context/ThemeContext';
 import { Avatars } from '../../src/constants/colors';
 import { ThemeColors } from '../../src/constants/colors';
 import { AllowanceFrequency } from '../../src/types';
+import { FontFamily } from '../../src/constants/fonts';
+import { Spacing } from '../../src/constants/spacing';
 
 const frequencies: { value: AllowanceFrequency; label: string }[] = [
   { value: 'weekly', label: 'Weekly' },
@@ -255,19 +257,20 @@ const createStyles = (colors: ThemeColors) =>
       flex: 1,
     },
     scrollContent: {
-      padding: 20,
-      paddingBottom: 32,
+      padding: Spacing.xl,
+      paddingBottom: Spacing.xxxl,
     },
     section: {
       marginBottom: 28,
     },
     sectionTitle: {
       fontSize: 13,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
-      marginBottom: 12,
+      marginBottom: Spacing.md,
     },
     avatarGrid: {
       flexDirection: 'row',
@@ -294,8 +297,8 @@ const createStyles = (colors: ThemeColors) =>
     textInput: {
       backgroundColor: colors.surface,
       borderRadius: 14,
-      paddingHorizontal: 16,
-      paddingVertical: 16,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.lg,
       fontSize: 17,
       color: colors.text,
       shadowColor: colors.primaryDark,
@@ -317,8 +320,8 @@ const createStyles = (colors: ThemeColors) =>
     },
     passwordInput: {
       flex: 1,
-      paddingHorizontal: 16,
-      paddingVertical: 16,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.lg,
       fontSize: 17,
       color: colors.text,
     },
@@ -339,12 +342,13 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.dangerLight,
       borderRadius: 12,
       padding: 14,
-      marginBottom: 8,
+      marginBottom: Spacing.sm,
     },
     errorText: {
       fontSize: 14,
       color: colors.danger,
       textAlign: 'center',
+      fontFamily: FontFamily.medium,
       fontWeight: '500',
     },
     fieldHint: {
@@ -357,7 +361,7 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       backgroundColor: colors.surface,
       borderRadius: 14,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.lg,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.04,
@@ -366,13 +370,15 @@ const createStyles = (colors: ThemeColors) =>
     },
     dollarSign: {
       fontSize: 22,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
-      marginRight: 4,
+      marginRight: Spacing.xs,
     },
     amountInput: {
       flex: 1,
       fontSize: 22,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.text,
       paddingVertical: 14,
@@ -398,6 +404,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     frequencyText: {
       fontSize: 14,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
     },
@@ -405,7 +412,7 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.textWhite,
     },
     footer: {
-      padding: 20,
+      padding: Spacing.xl,
       paddingBottom: 36,
       backgroundColor: colors.background,
     },
@@ -425,6 +432,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     saveButtonText: {
       fontSize: 17,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.textWhite,
     },

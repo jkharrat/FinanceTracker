@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,8 +18,13 @@ import { EmptyState } from '../../src/components/EmptyState';
 import NotificationBell from '../../src/components/NotificationBell';
 import NotificationPrompt from '../../src/components/NotificationPrompt';
 import AnimatedPressable from '../../src/components/AnimatedPressable';
+import GradientCard from '../../src/components/GradientCard';
+import AnimatedNumber from '../../src/components/AnimatedNumber';
+import { AdminDashboardSkeleton } from '../../src/components/Skeleton';
 import { ThemeColors } from '../../src/constants/colors';
 import type { ThemeMode } from '../../src/context/ThemeContext';
+import { FontFamily } from '../../src/constants/fonts';
+import { Spacing } from '../../src/constants/spacing';
 
 const THEME_CYCLE: ThemeMode[] = ['light', 'dark', 'system'];
 const THEME_ICONS: Record<ThemeMode, keyof typeof Ionicons.glyphMap> = {
@@ -33,7 +39,8 @@ const THEME_LABELS: Record<ThemeMode, string> = {
 };
 
 export default function AdminHomeScreen() {
-  const { kids, loading } = useData();
+  const { kids, loading, refreshData } = useData();
+  const [refreshing, setRefreshing] = useState(false);
   const { mode, setMode } = useTheme();
   const { logout } = useAuth();
   const colors = useColors();
@@ -41,6 +48,11 @@ export default function AdminHomeScreen() {
   const router = useRouter();
 
   const totalBalance = kids.reduce((sum, kid) => sum + kid.balance, 0);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await refreshData(); } finally { setRefreshing(false); }
+  }, [refreshData]);
 
   const cycleTheme = () => {
     const currentIndex = THEME_CYCLE.indexOf(mode);
@@ -56,7 +68,7 @@ export default function AdminHomeScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <AdminDashboardSkeleton />
       </View>
     );
   }
@@ -82,15 +94,19 @@ export default function AdminHomeScreen() {
       />
 
       {kids.length > 0 && (
-        <View style={styles.summaryCard}>
+        <GradientCard
+          colors={[colors.primary, colors.primaryDark]}
+          style={styles.summaryCard}
+        >
           <Text style={styles.summaryLabel}>Total Balance</Text>
-          <Text style={[styles.summaryAmount, totalBalance < 0 && styles.summaryNegative]}>
-            {totalBalance < 0 ? '-' : ''}${Math.abs(totalBalance).toFixed(2)}
-          </Text>
+          <AnimatedNumber
+            value={totalBalance}
+            style={[styles.summaryAmount, totalBalance < 0 && styles.summaryNegative]}
+          />
           <Text style={styles.summaryCount}>
             {kids.length} {kids.length === 1 ? 'person' : 'people'} tracked
           </Text>
-        </View>
+        </GradientCard>
       )}
 
       <FlatList
@@ -128,14 +144,18 @@ export default function AdminHomeScreen() {
           />
         }
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
+        }
       />
 
       <AnimatedPressable
         variant="button"
         style={styles.fab}
         onPress={() => router.push('/(admin)/add-kid')}
+        accessibilityLabel="Add Person"
       >
-        <Text style={styles.fabIcon}>+</Text>
+        <Ionicons name="add" size={28} color={colors.textWhite} />
       </AnimatedPressable>
     </View>
   );
@@ -160,13 +180,13 @@ const createStyles = (colors: ThemeColors) =>
       height: 36,
       borderRadius: 18,
       backgroundColor: colors.surfaceAlt,
-      marginLeft: 8,
+      marginLeft: Spacing.sm,
     },
     headerRight: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      marginRight: 8,
+      marginRight: Spacing.sm,
     },
     themeButton: {
       alignItems: 'center',
@@ -177,30 +197,24 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.surfaceAlt,
     },
     summaryCard: {
-      backgroundColor: colors.primary,
-      marginHorizontal: 20,
-      marginTop: 8,
-      marginBottom: 4,
-      borderRadius: 20,
-      padding: 24,
+      marginHorizontal: Spacing.xl,
+      marginTop: Spacing.sm,
+      marginBottom: Spacing.xs,
       alignItems: 'center',
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.25,
-      shadowRadius: 16,
-      elevation: 8,
     },
     summaryLabel: {
       fontSize: 14,
+      fontFamily: FontFamily.medium,
       fontWeight: '500',
       color: 'rgba(255,255,255,0.75)',
       marginBottom: 6,
     },
     summaryAmount: {
       fontSize: 36,
+      fontFamily: FontFamily.extraBold,
       fontWeight: '800',
       color: colors.textWhite,
-      marginBottom: 4,
+      marginBottom: Spacing.xs,
     },
     summaryNegative: {
       color: '#FFB4B4',
@@ -215,7 +229,7 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.surface,
       borderRadius: 14,
       padding: 14,
-      marginBottom: 16,
+      marginBottom: Spacing.lg,
       gap: 10,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 1 },
@@ -226,11 +240,12 @@ const createStyles = (colors: ThemeColors) =>
     addParentText: {
       flex: 1,
       fontSize: 15,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.primary,
     },
     listContent: {
-      padding: 20,
+      padding: Spacing.xl,
       paddingBottom: 100,
     },
     emptyListContent: {
@@ -239,8 +254,8 @@ const createStyles = (colors: ThemeColors) =>
     },
     fab: {
       position: 'absolute',
-      bottom: 32,
-      right: 24,
+      bottom: Spacing.xxxl,
+      right: Spacing.xxl,
       width: 60,
       height: 60,
       borderRadius: 30,
@@ -248,15 +263,9 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       justifyContent: 'center',
       shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 12,
-      elevation: 6,
-    },
-    fabIcon: {
-      fontSize: 30,
-      color: colors.textWhite,
-      fontWeight: '300',
-      marginTop: -2,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.35,
+      shadowRadius: 16,
+      elevation: 8,
     },
   });

@@ -4,7 +4,9 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withTiming,
   useReducedMotion,
+  interpolate,
 } from 'react-native-reanimated';
 
 const SPRING_CONFIG = { damping: 15, stiffness: 200, mass: 0.4 };
@@ -25,6 +27,9 @@ interface AnimatedPressableProps extends Omit<PressableProps, 'style'> {
 
 const AnimatedPressableView = Animated.createAnimatedComponent(Pressable);
 
+const isWeb = Platform.OS === 'web';
+const webCursor = isWeb ? { cursor: 'pointer' as const } : {};
+
 export default function AnimatedPressable({
   variant = 'button',
   style,
@@ -36,20 +41,24 @@ export default function AnimatedPressable({
 }: AnimatedPressableProps) {
   const reducedMotion = useReducedMotion();
   const pressed = useSharedValue(false);
-  const hovered = useSharedValue(false);
+  const hoverProgress = useSharedValue(0);
 
   const { press: pressScale, hover: hoverScale } = VARIANTS[variant];
 
   const animatedStyle = useAnimatedStyle(() => {
     if (reducedMotion) return {};
-    let target = 1;
     if (pressed.value) {
-      target = pressScale;
-    } else if (hovered.value) {
-      target = hoverScale;
+      return {
+        transform: [{ scale: withSpring(pressScale, SPRING_CONFIG) }],
+      };
     }
+    const scale = interpolate(hoverProgress.value, [0, 1], [1, hoverScale]);
+    const shadowOpacity = isWeb && variant === 'card'
+      ? interpolate(hoverProgress.value, [0, 1], [0.06, 0.14])
+      : undefined;
     return {
-      transform: [{ scale: withSpring(target, SPRING_CONFIG) }],
+      transform: [{ scale: withSpring(scale, SPRING_CONFIG) }],
+      ...(shadowOpacity !== undefined ? { shadowOpacity } : {}),
     };
   });
 
@@ -63,16 +72,16 @@ export default function AnimatedPressable({
     onPressOut?.(e);
   };
 
-  const webHoverProps = Platform.OS === 'web'
+  const webHoverProps = isWeb
     ? {
-        onHoverIn: () => { hovered.value = true; },
-        onHoverOut: () => { hovered.value = false; },
+        onHoverIn: () => { hoverProgress.value = withTiming(1, { duration: 200 }); },
+        onHoverOut: () => { hoverProgress.value = withTiming(0, { duration: 200 }); },
       }
     : {};
 
   return (
     <AnimatedPressableView
-      style={[animatedStyle, style]}
+      style={[animatedStyle, webCursor, style]}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled}

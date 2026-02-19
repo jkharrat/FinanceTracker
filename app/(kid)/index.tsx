@@ -3,10 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  SectionList,
   TouchableOpacity,
   TextInput,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,10 +19,15 @@ import { EmptyState } from '../../src/components/EmptyState';
 import NotificationBell from '../../src/components/NotificationBell';
 import NotificationPrompt from '../../src/components/NotificationPrompt';
 import AnimatedPressable from '../../src/components/AnimatedPressable';
+import GradientCard from '../../src/components/GradientCard';
+import AnimatedNumber from '../../src/components/AnimatedNumber';
+import { groupTransactionsByDate } from '../../src/utils/dateGrouping';
 import { ThemeColors } from '../../src/constants/colors';
 import { AllowanceFrequency, TransactionCategory, CATEGORIES, SavingsGoal } from '../../src/types';
 import { Avatars } from '../../src/constants/colors';
 import type { ThemeMode } from '../../src/context/ThemeContext';
+import { FontFamily } from '../../src/constants/fonts';
+import { Spacing } from '../../src/constants/spacing';
 
 const frequencyLabel: Record<AllowanceFrequency, string> = {
   weekly: '/wk',
@@ -107,7 +113,8 @@ function GoalEditor({ existingGoal, onSave, onRemove, onCancel, styles, colors }
 
 export default function KidDashboardScreen() {
   const { user, logout } = useAuth();
-  const { kids, getKid, updateKidAvatar, updateSavingsGoal } = useData();
+  const { kids, getKid, updateKidAvatar, updateSavingsGoal, refreshData } = useData();
+  const [refreshing, setRefreshing] = useState(false);
   const { mode, setMode } = useTheme();
   const router = useRouter();
   const colors = useColors();
@@ -144,7 +151,13 @@ export default function KidDashboardScreen() {
     return result;
   }, [kid, searchQuery, typeFilter, categoryFilter]);
 
+  const sections = useMemo(() => groupTransactionsByDate(filteredTransactions), [filteredTransactions]);
   const hasActiveFilters = searchQuery.trim() !== '' || typeFilter !== 'all' || categoryFilter !== null;
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await refreshData(); } finally { setRefreshing(false); }
+  }, [refreshData]);
 
   const cycleTheme = () => {
     const currentIndex = THEME_CYCLE.indexOf(mode);
@@ -241,12 +254,13 @@ export default function KidDashboardScreen() {
         )}
       </View>
 
-      <View style={styles.balanceCard}>
+      <GradientCard
+        colors={isNegative ? [colors.danger, colors.dangerDark] : [colors.primary, colors.primaryDark]}
+        style={styles.balanceCard}
+      >
         <Text style={styles.balanceLabel}>Your Balance</Text>
-        <Text style={[styles.balanceAmount, isNegative && styles.balanceNegative]}>
-          {isNegative ? '-' : ''}${Math.abs(kid.balance).toFixed(2)}
-        </Text>
-      </View>
+        <AnimatedNumber value={kid.balance} style={styles.balanceAmount} />
+      </GradientCard>
 
       {showGoalEditor ? (
         <GoalEditor
@@ -269,7 +283,7 @@ export default function KidDashboardScreen() {
                 <Text style={[styles.goalPercent, percent >= 100 && styles.goalPercentComplete]}>
                   {percent}%
                 </Text>
-                <Ionicons name="pencil" size={14} color={colors.textLight} style={{ marginLeft: 8 }} />
+                <Ionicons name="pencil" size={14} color={colors.textLight} style={{ marginLeft: Spacing.sm }} />
               </View>
             </View>
             <Text style={styles.goalName}>{goal.name}</Text>
@@ -427,10 +441,15 @@ export default function KidDashboardScreen() {
         }}
       />
 
-      <FlatList
-        data={filteredTransactions}
+      <SectionList
+        sections={sections}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderListHeader()}
+        renderSectionHeader={({ section: { title } }) => (
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionHeaderText}>{title}</Text>
+          </View>
+        )}
         renderItem={({ item }) => (
           <TransactionItem transaction={item} />
         )}
@@ -449,8 +468,12 @@ export default function KidDashboardScreen() {
             />
           )
         }
+        stickySectionHeadersEnabled={false}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
+        }
       />
     </View>
   );
@@ -475,13 +498,13 @@ const createStyles = (colors: ThemeColors) =>
       height: 36,
       borderRadius: 18,
       backgroundColor: colors.surfaceAlt,
-      marginLeft: 8,
+      marginLeft: Spacing.sm,
     },
     headerRight: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      marginRight: 8,
+      marginRight: Spacing.sm,
     },
     themeButton: {
       alignItems: 'center',
@@ -494,10 +517,24 @@ const createStyles = (colors: ThemeColors) =>
     listContent: {
       paddingBottom: 40,
     },
+    sectionHeader: {
+      backgroundColor: colors.background,
+      paddingHorizontal: Spacing.xl,
+      paddingTop: Spacing.lg,
+      paddingBottom: Spacing.sm,
+    },
+    sectionHeaderText: {
+      fontFamily: FontFamily.semiBold,
+      fontWeight: '600',
+      fontSize: 13,
+      color: colors.textLight,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
     profileSection: {
       alignItems: 'center',
-      paddingTop: 8,
-      paddingBottom: 20,
+      paddingTop: Spacing.sm,
+      paddingBottom: Spacing.xl,
     },
     avatarLarge: {
       width: 80,
@@ -506,7 +543,7 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.surface,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 12,
+      marginBottom: Spacing.md,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.06,
@@ -532,9 +569,9 @@ const createStyles = (colors: ThemeColors) =>
     avatarPickerContainer: {
       backgroundColor: colors.surface,
       borderRadius: 16,
-      padding: 16,
-      marginTop: 16,
-      marginHorizontal: 4,
+      padding: Spacing.lg,
+      marginTop: Spacing.lg,
+      marginHorizontal: Spacing.xs,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.08,
@@ -543,10 +580,11 @@ const createStyles = (colors: ThemeColors) =>
     },
     avatarPickerTitle: {
       fontSize: 14,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
       textAlign: 'center',
-      marginBottom: 12,
+      marginBottom: Spacing.md,
     },
     avatarGrid: {
       flexDirection: 'row',
@@ -573,54 +611,50 @@ const createStyles = (colors: ThemeColors) =>
     },
     kidName: {
       fontSize: 24,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.text,
-      marginBottom: 8,
+      marginBottom: Spacing.sm,
     },
     allowanceBadge: {
       backgroundColor: colors.surfaceAlt,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.lg,
       paddingVertical: 6,
       borderRadius: 20,
     },
     allowanceText: {
       fontSize: 14,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.primary,
     },
     balanceCard: {
-      backgroundColor: colors.surface,
-      marginHorizontal: 20,
-      borderRadius: 20,
-      padding: 24,
+      marginHorizontal: Spacing.xl,
       alignItems: 'center',
       marginBottom: 28,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.06,
-      shadowRadius: 12,
-      elevation: 3,
     },
     balanceLabel: {
       fontSize: 13,
+      fontFamily: FontFamily.medium,
       fontWeight: '500',
-      color: colors.textSecondary,
+      color: 'rgba(255,255,255,0.75)',
       marginBottom: 6,
     },
     balanceAmount: {
       fontSize: 40,
+      fontFamily: FontFamily.extraBold,
       fontWeight: '800',
-      color: colors.success,
+      color: colors.textWhite,
     },
     balanceNegative: {
-      color: colors.danger,
+      color: '#FFB4B4',
     },
     goalCard: {
       backgroundColor: colors.surface,
-      marginHorizontal: 20,
+      marginHorizontal: Spacing.xl,
       borderRadius: 16,
-      padding: 16,
-      marginBottom: 20,
+      padding: Spacing.lg,
+      marginBottom: Spacing.xl,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.06,
@@ -631,7 +665,7 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 4,
+      marginBottom: Spacing.xs,
     },
     goalHeaderRight: {
       flexDirection: 'row',
@@ -639,6 +673,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     goalLabel: {
       fontSize: 11,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textLight,
       textTransform: 'uppercase',
@@ -646,6 +681,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     goalPercent: {
       fontSize: 14,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.primary,
     },
@@ -654,6 +690,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     goalName: {
       fontSize: 17,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.text,
       marginBottom: 10,
@@ -675,16 +712,16 @@ const createStyles = (colors: ThemeColors) =>
     goalAmounts: {
       fontSize: 13,
       color: colors.textSecondary,
-      marginTop: 8,
+      marginTop: Spacing.sm,
     },
     setGoalButton: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.surface,
-      marginHorizontal: 20,
-      marginBottom: 20,
+      marginHorizontal: Spacing.xl,
+      marginBottom: Spacing.xl,
       borderRadius: 14,
-      padding: 16,
+      padding: Spacing.lg,
       gap: 10,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 1 },
@@ -695,20 +732,22 @@ const createStyles = (colors: ThemeColors) =>
     setGoalButtonText: {
       flex: 1,
       fontSize: 15,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.primary,
     },
     goalEditorTitle: {
       fontSize: 15,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.text,
-      marginBottom: 12,
+      marginBottom: Spacing.md,
     },
     goalEditorInput: {
       backgroundColor: colors.surfaceAlt,
       borderRadius: 12,
       paddingHorizontal: 14,
-      paddingVertical: 12,
+      paddingVertical: Spacing.md,
       fontSize: 16,
       color: colors.text,
       marginBottom: 10,
@@ -723,24 +762,26 @@ const createStyles = (colors: ThemeColors) =>
     },
     goalEditorDollar: {
       fontSize: 20,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
-      marginRight: 4,
+      marginRight: Spacing.xs,
     },
     goalEditorAmountInput: {
       flex: 1,
       fontSize: 20,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.text,
-      paddingVertical: 12,
+      paddingVertical: Spacing.md,
     },
     goalEditorButtons: {
       flexDirection: 'row',
-      gap: 8,
+      gap: Spacing.sm,
       justifyContent: 'flex-end',
     },
     goalRemoveButton: {
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.lg,
       paddingVertical: 10,
       borderRadius: 10,
       backgroundColor: colors.dangerLight,
@@ -748,22 +789,24 @@ const createStyles = (colors: ThemeColors) =>
     },
     goalRemoveButtonText: {
       fontSize: 14,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.danger,
     },
     goalCancelButton: {
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.lg,
       paddingVertical: 10,
       borderRadius: 10,
       backgroundColor: colors.surfaceAlt,
     },
     goalCancelButtonText: {
       fontSize: 14,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
     },
     goalSaveButton: {
-      paddingHorizontal: 20,
+      paddingHorizontal: Spacing.xl,
       paddingVertical: 10,
       borderRadius: 10,
       backgroundColor: colors.primary,
@@ -773,6 +816,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     goalSaveButtonText: {
       fontSize: 14,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textWhite,
     },
@@ -780,10 +824,10 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.surface,
-      marginHorizontal: 20,
-      marginBottom: 24,
+      marginHorizontal: Spacing.xl,
+      marginBottom: Spacing.xxl,
       borderRadius: 14,
-      padding: 16,
+      padding: Spacing.lg,
       gap: 10,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 1 },
@@ -794,6 +838,7 @@ const createStyles = (colors: ThemeColors) =>
     statsButtonText: {
       flex: 1,
       fontSize: 15,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.primary,
     },
@@ -801,10 +846,10 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.primary,
-      marginHorizontal: 20,
-      marginBottom: 24,
+      marginHorizontal: Spacing.xl,
+      marginBottom: Spacing.xxl,
       borderRadius: 14,
-      padding: 16,
+      padding: Spacing.lg,
       gap: 10,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 2 },
@@ -815,6 +860,7 @@ const createStyles = (colors: ThemeColors) =>
     sendMoneyButtonText: {
       flex: 1,
       fontSize: 15,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.textWhite,
     },
@@ -822,11 +868,12 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingHorizontal: 20,
-      marginBottom: 12,
+      paddingHorizontal: Spacing.xl,
+      marginBottom: Spacing.md,
     },
     transactionsTitle: {
       fontSize: 18,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.text,
     },
@@ -835,16 +882,16 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.textLight,
     },
     filterSection: {
-      paddingBottom: 8,
+      paddingBottom: Spacing.sm,
     },
     searchContainer: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.surface,
-      marginHorizontal: 20,
+      marginHorizontal: Spacing.xl,
       borderRadius: 12,
-      paddingHorizontal: 12,
-      marginBottom: 12,
+      paddingHorizontal: Spacing.md,
+      marginBottom: Spacing.md,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.04,
@@ -852,27 +899,27 @@ const createStyles = (colors: ThemeColors) =>
       elevation: 1,
     },
     searchIcon: {
-      marginRight: 8,
+      marginRight: Spacing.sm,
     },
     searchInput: {
       flex: 1,
-      paddingVertical: 12,
+      paddingVertical: Spacing.md,
       fontSize: 15,
       color: colors.text,
     },
     filterChips: {
-      paddingHorizontal: 20,
-      gap: 8,
-      paddingBottom: 4,
+      paddingHorizontal: Spacing.xl,
+      gap: Spacing.sm,
+      paddingBottom: Spacing.xs,
     },
     filterChip: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.surface,
       paddingHorizontal: 14,
-      paddingVertical: 8,
+      paddingVertical: Spacing.sm,
       borderRadius: 20,
-      gap: 4,
+      gap: Spacing.xs,
       borderWidth: 1,
       borderColor: colors.border,
     },
@@ -893,6 +940,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     filterChipText: {
       fontSize: 13,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
     },
@@ -903,14 +951,14 @@ const createStyles = (colors: ThemeColors) =>
       width: 1,
       height: 24,
       backgroundColor: colors.border,
-      marginHorizontal: 4,
+      marginHorizontal: Spacing.xs,
     },
     filterStatus: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingHorizontal: 20,
-      paddingTop: 8,
+      paddingHorizontal: Spacing.xl,
+      paddingTop: Spacing.sm,
     },
     filterStatusText: {
       fontSize: 13,
@@ -918,6 +966,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     clearFiltersText: {
       fontSize: 13,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.primary,
     },

@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  SectionList,
   TouchableOpacity,
   Alert,
   TextInput,
@@ -16,8 +16,13 @@ import { useColors } from '../../../src/context/ThemeContext';
 import { TransactionItem } from '../../../src/components/TransactionItem';
 import { TransactionModal } from '../../../src/components/TransactionModal';
 import { EmptyState } from '../../../src/components/EmptyState';
+import GradientCard from '../../../src/components/GradientCard';
+import AnimatedNumber from '../../../src/components/AnimatedNumber';
 import { ThemeColors } from '../../../src/constants/colors';
 import { AllowanceFrequency, Transaction, TransactionCategory, CATEGORIES } from '../../../src/types';
+import { groupTransactionsByDate } from '../../../src/utils/dateGrouping';
+import { FontFamily } from '../../../src/constants/fonts';
+import { Spacing } from '../../../src/constants/spacing';
 
 const frequencyLabel: Record<AllowanceFrequency, string> = {
   weekly: '/wk',
@@ -66,6 +71,7 @@ export default function KidDetailScreen() {
     return result;
   }, [kid, searchQuery, typeFilter, categoryFilter]);
 
+  const sections = useMemo(() => groupTransactionsByDate(filteredTransactions), [filteredTransactions]);
   const hasActiveFilters = searchQuery.trim() !== '' || typeFilter !== 'all' || categoryFilter !== null;
 
   if (!kid) {
@@ -183,12 +189,13 @@ export default function KidDetailScreen() {
         </View>
       </View>
 
-      <View style={styles.balanceCard}>
+      <GradientCard
+        colors={isNegative ? [colors.danger, colors.dangerDark] : [colors.primary, colors.primaryDark]}
+        style={styles.balanceCard}
+      >
         <Text style={styles.balanceLabel}>Current Balance</Text>
-        <Text style={[styles.balanceAmount, isNegative && styles.balanceNegative]}>
-          {isNegative ? '-' : ''}${Math.abs(kid.balance).toFixed(2)}
-        </Text>
-      </View>
+        <AnimatedNumber value={kid.balance} style={styles.balanceAmount} />
+      </GradientCard>
 
       {kid.savingsGoal && (() => {
         const goal = kid.savingsGoal!;
@@ -355,10 +362,15 @@ export default function KidDetailScreen() {
         </View>
       )}
 
-      <FlatList
-        data={filteredTransactions}
+      <SectionList
+        sections={sections}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderListHeader()}
+        renderSectionHeader={({ section: { title } }) => (
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionHeaderText}>{title}</Text>
+          </View>
+        )}
         renderItem={({ item }) => (
           <TransactionItem
             transaction={item}
@@ -380,6 +392,7 @@ export default function KidDetailScreen() {
             />
           )
         }
+        stickySectionHeadersEnabled={false}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
@@ -407,8 +420,8 @@ const createStyles = (colors: ThemeColors) =>
     },
     errorContainer: {
       backgroundColor: colors.dangerLight,
-      margin: 16,
-      padding: 16,
+      margin: Spacing.lg,
+      padding: Spacing.lg,
       borderRadius: 12,
       flexDirection: 'row',
       alignItems: 'center',
@@ -418,11 +431,12 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 14,
       color: colors.danger,
       flex: 1,
+      fontFamily: FontFamily.medium,
       fontWeight: '500',
     },
     errorClose: {
-      marginLeft: 12,
-      padding: 4,
+      marginLeft: Spacing.md,
+      padding: Spacing.xs,
     },
     errorCloseText: {
       fontSize: 18,
@@ -432,8 +446,8 @@ const createStyles = (colors: ThemeColors) =>
     headerButtons: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      marginRight: 4,
+      gap: Spacing.sm,
+      marginRight: Spacing.xs,
     },
     headerIconButton: {
       alignItems: 'center',
@@ -449,10 +463,24 @@ const createStyles = (colors: ThemeColors) =>
     listContent: {
       paddingBottom: 40,
     },
+    sectionHeader: {
+      backgroundColor: colors.background,
+      paddingHorizontal: Spacing.xl,
+      paddingTop: Spacing.lg,
+      paddingBottom: Spacing.sm,
+    },
+    sectionHeaderText: {
+      fontFamily: FontFamily.semiBold,
+      fontWeight: '600',
+      fontSize: 13,
+      color: colors.textLight,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
     profileSection: {
       alignItems: 'center',
-      paddingTop: 8,
-      paddingBottom: 20,
+      paddingTop: Spacing.sm,
+      paddingBottom: Spacing.xl,
     },
     avatarLarge: {
       width: 80,
@@ -461,7 +489,7 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.surface,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 12,
+      marginBottom: Spacing.md,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.06,
@@ -473,54 +501,50 @@ const createStyles = (colors: ThemeColors) =>
     },
     kidName: {
       fontSize: 24,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.text,
-      marginBottom: 8,
+      marginBottom: Spacing.sm,
     },
     allowanceBadge: {
       backgroundColor: colors.surfaceAlt,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.lg,
       paddingVertical: 6,
       borderRadius: 20,
     },
     allowanceText: {
       fontSize: 14,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.primary,
     },
     balanceCard: {
-      backgroundColor: colors.surface,
-      marginHorizontal: 20,
-      borderRadius: 20,
-      padding: 24,
+      marginHorizontal: Spacing.xl,
       alignItems: 'center',
-      marginBottom: 16,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.06,
-      shadowRadius: 12,
-      elevation: 3,
+      marginBottom: Spacing.lg,
     },
     balanceLabel: {
       fontSize: 13,
+      fontFamily: FontFamily.medium,
       fontWeight: '500',
-      color: colors.textSecondary,
+      color: 'rgba(255,255,255,0.75)',
       marginBottom: 6,
     },
     balanceAmount: {
       fontSize: 40,
+      fontFamily: FontFamily.extraBold,
       fontWeight: '800',
-      color: colors.success,
+      color: colors.textWhite,
     },
     balanceNegative: {
       color: colors.danger,
     },
     goalCard: {
       backgroundColor: colors.surface,
-      marginHorizontal: 20,
+      marginHorizontal: Spacing.xl,
       borderRadius: 16,
-      padding: 16,
-      marginBottom: 16,
+      padding: Spacing.lg,
+      marginBottom: Spacing.lg,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.06,
@@ -531,10 +555,11 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 4,
+      marginBottom: Spacing.xs,
     },
     goalLabel: {
       fontSize: 11,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textLight,
       textTransform: 'uppercase',
@@ -542,6 +567,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     goalPercent: {
       fontSize: 14,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.primary,
     },
@@ -550,6 +576,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     goalName: {
       fontSize: 17,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.text,
       marginBottom: 10,
@@ -571,12 +598,12 @@ const createStyles = (colors: ThemeColors) =>
     goalAmounts: {
       fontSize: 13,
       color: colors.textSecondary,
-      marginTop: 8,
+      marginTop: Spacing.sm,
     },
     actionRow: {
       flexDirection: 'row',
-      paddingHorizontal: 20,
-      gap: 12,
+      paddingHorizontal: Spacing.xl,
+      gap: Spacing.md,
       marginBottom: 28,
     },
     actionButton: {
@@ -584,9 +611,9 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 16,
+      paddingVertical: Spacing.lg,
       borderRadius: 16,
-      gap: 8,
+      gap: Spacing.sm,
     },
     addButton: {
       backgroundColor: colors.success,
@@ -596,11 +623,13 @@ const createStyles = (colors: ThemeColors) =>
     },
     actionButtonIcon: {
       fontSize: 22,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.textWhite,
     },
     actionButtonLabel: {
       fontSize: 16,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.textWhite,
     },
@@ -608,11 +637,12 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingHorizontal: 20,
-      marginBottom: 12,
+      paddingHorizontal: Spacing.xl,
+      marginBottom: Spacing.md,
     },
     transactionsTitle: {
       fontSize: 18,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.text,
     },
@@ -621,16 +651,16 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.textLight,
     },
     filterSection: {
-      paddingBottom: 8,
+      paddingBottom: Spacing.sm,
     },
     searchContainer: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.surface,
-      marginHorizontal: 20,
+      marginHorizontal: Spacing.xl,
       borderRadius: 12,
-      paddingHorizontal: 12,
-      marginBottom: 12,
+      paddingHorizontal: Spacing.md,
+      marginBottom: Spacing.md,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.04,
@@ -638,27 +668,27 @@ const createStyles = (colors: ThemeColors) =>
       elevation: 1,
     },
     searchIcon: {
-      marginRight: 8,
+      marginRight: Spacing.sm,
     },
     searchInput: {
       flex: 1,
-      paddingVertical: 12,
+      paddingVertical: Spacing.md,
       fontSize: 15,
       color: colors.text,
     },
     filterChips: {
-      paddingHorizontal: 20,
-      gap: 8,
-      paddingBottom: 4,
+      paddingHorizontal: Spacing.xl,
+      gap: Spacing.sm,
+      paddingBottom: Spacing.xs,
     },
     filterChip: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.surface,
       paddingHorizontal: 14,
-      paddingVertical: 8,
+      paddingVertical: Spacing.sm,
       borderRadius: 20,
-      gap: 4,
+      gap: Spacing.xs,
       borderWidth: 1,
       borderColor: colors.border,
     },
@@ -679,6 +709,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     filterChipText: {
       fontSize: 13,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
     },
@@ -689,14 +720,14 @@ const createStyles = (colors: ThemeColors) =>
       width: 1,
       height: 24,
       backgroundColor: colors.border,
-      marginHorizontal: 4,
+      marginHorizontal: Spacing.xs,
     },
     filterStatus: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingHorizontal: 20,
-      paddingTop: 8,
+      paddingHorizontal: Spacing.xl,
+      paddingTop: Spacing.sm,
     },
     filterStatusText: {
       fontSize: 13,
@@ -704,6 +735,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     clearFiltersText: {
       fontSize: 13,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.primary,
     },

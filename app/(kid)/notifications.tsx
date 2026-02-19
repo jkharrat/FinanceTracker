@@ -7,6 +7,8 @@ import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
 import NotificationItem from '../../src/components/NotificationItem';
 import { EmptyState } from '../../src/components/EmptyState';
+import { FontFamily } from '../../src/constants/fonts';
+import { Spacing } from '../../src/constants/spacing';
 
 export default function KidNotificationsScreen() {
   const colors = useColors();
@@ -94,7 +96,7 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.lg,
       paddingVertical: 10,
       borderBottomWidth: 1,
       borderBottomColor: colors.borderLight,
@@ -104,16 +106,17 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      paddingVertical: 4,
-      paddingHorizontal: 8,
+      paddingVertical: Spacing.xs,
+      paddingHorizontal: Spacing.sm,
     },
     actionText: {
       fontSize: 14,
+      fontFamily: FontFamily.medium,
       fontWeight: '500',
     },
     countBadge: {
-      paddingVertical: 4,
-      paddingHorizontal: 8,
+      paddingVertical: Spacing.xs,
+      paddingHorizontal: Spacing.sm,
     },
     countText: {
       fontSize: 13,
@@ -133,6 +136,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     clearText: {
       fontSize: 14,
+      fontFamily: FontFamily.medium,
       fontWeight: '500',
     },
   });

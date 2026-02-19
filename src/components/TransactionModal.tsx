@@ -14,6 +14,8 @@ import {
 import { useColors } from '../context/ThemeContext';
 import { ThemeColors } from '../constants/colors';
 import { Transaction, TransactionCategory, CATEGORIES } from '../types';
+import { FontFamily } from '../constants/fonts';
+import { Spacing } from '../constants/spacing';
 
 interface TransactionModalProps {
   visible: boolean;
@@ -197,7 +199,7 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.surface,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
-      padding: 24,
+      padding: Spacing.xxl,
       paddingBottom: 40,
     },
     handle: {
@@ -206,21 +208,23 @@ const createStyles = (colors: ThemeColors) =>
       borderRadius: 2,
       backgroundColor: colors.border,
       alignSelf: 'center',
-      marginBottom: 20,
+      marginBottom: Spacing.xl,
     },
     title: {
       fontSize: 22,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
-      marginBottom: 24,
+      marginBottom: Spacing.xxl,
     },
     field: {
-      marginBottom: 20,
+      marginBottom: Spacing.xl,
     },
     label: {
       fontSize: 13,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
-      marginBottom: 8,
+      marginBottom: Spacing.sm,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
     },
@@ -229,39 +233,42 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       backgroundColor: colors.surfaceAlt,
       borderRadius: 12,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.lg,
     },
     dollarSign: {
       fontSize: 22,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
-      marginRight: 4,
+      marginRight: Spacing.xs,
     },
     amountInput: {
       flex: 1,
       fontSize: 22,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.text,
       paddingVertical: 14,
     },
     textInput: {
+      fontFamily: FontFamily.regular,
       backgroundColor: colors.surfaceAlt,
       borderRadius: 12,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.lg,
       paddingVertical: 14,
       fontSize: 16,
       color: colors.text,
     },
     categoryScroll: {
-      gap: 8,
+      gap: Spacing.sm,
       paddingVertical: 2,
     },
     categoryChip: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.surfaceAlt,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
       borderRadius: 20,
       gap: 6,
     },
@@ -277,6 +284,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     categoryChipText: {
       fontSize: 13,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
     },
@@ -285,24 +293,25 @@ const createStyles = (colors: ThemeColors) =>
     },
     buttons: {
       flexDirection: 'row',
-      gap: 12,
-      marginTop: 8,
+      gap: Spacing.md,
+      marginTop: Spacing.sm,
     },
     cancelButton: {
       flex: 1,
-      paddingVertical: 16,
+      paddingVertical: Spacing.lg,
       borderRadius: 14,
       backgroundColor: colors.surfaceAlt,
       alignItems: 'center',
     },
     cancelText: {
       fontSize: 16,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
     },
     submitButton: {
       flex: 1,
-      paddingVertical: 16,
+      paddingVertical: Spacing.lg,
       borderRadius: 14,
       alignItems: 'center',
     },
@@ -311,11 +320,12 @@ const createStyles = (colors: ThemeColors) =>
     },
     submitText: {
       fontSize: 16,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.textWhite,
     },
     deleteButton: {
-      marginTop: 16,
+      marginTop: Spacing.lg,
       paddingVertical: 14,
       borderRadius: 14,
       borderWidth: 1.5,
@@ -324,6 +334,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     deleteText: {
       fontSize: 15,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.danger,
     },

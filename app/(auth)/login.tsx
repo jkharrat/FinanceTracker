@@ -19,6 +19,8 @@ import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
 import PageTransition from '../../src/components/PageTransition';
 import AnimatedPressable from '../../src/components/AnimatedPressable';
+import { FontFamily } from '../../src/constants/fonts';
+import { Spacing } from '../../src/constants/spacing';
 
 type LoginMode = 'parent' | 'kid';
 
@@ -329,7 +331,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     scrollContent: {
       flexGrow: 1,
-      padding: 24,
+      padding: Spacing.xxl,
       paddingTop: 100,
     },
     header: {
@@ -338,14 +340,15 @@ const createStyles = (colors: ThemeColors) =>
     },
     lockEmoji: {
       fontSize: 56,
-      marginBottom: 20,
+      marginBottom: Spacing.xl,
     },
     title: {
       fontSize: 30,
+      fontFamily: FontFamily.extraBold,
       fontWeight: '800',
       color: colors.text,
       textAlign: 'center',
-      marginBottom: 8,
+      marginBottom: Spacing.sm,
     },
     subtitle: {
       fontSize: 15,
@@ -356,7 +359,7 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       backgroundColor: colors.surfaceAlt,
       borderRadius: 14,
-      padding: 4,
+      padding: Spacing.xs,
       marginBottom: 28,
       position: 'relative',
     },
@@ -374,12 +377,13 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       justifyContent: 'center',
       gap: 6,
-      paddingVertical: 12,
+      paddingVertical: Spacing.md,
       borderRadius: 10,
       zIndex: 1,
     },
     toggleText: {
       fontSize: 15,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
     },
@@ -387,13 +391,14 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.textWhite,
     },
     form: {
-      gap: 20,
+      gap: Spacing.xl,
     },
     field: {
-      gap: 8,
+      gap: Spacing.sm,
     },
     label: {
       fontSize: 13,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
       textTransform: 'uppercase',
@@ -402,8 +407,8 @@ const createStyles = (colors: ThemeColors) =>
     textInput: {
       backgroundColor: colors.surface,
       borderRadius: 14,
-      paddingHorizontal: 16,
-      paddingVertical: 16,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.lg,
       fontSize: 17,
       color: colors.text,
       shadowColor: colors.primaryDark,
@@ -425,8 +430,8 @@ const createStyles = (colors: ThemeColors) =>
     },
     passwordInput: {
       flex: 1,
-      paddingHorizontal: 16,
-      paddingVertical: 16,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.lg,
       fontSize: 17,
       color: colors.text,
     },
@@ -443,10 +448,11 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 14,
       color: colors.danger,
       textAlign: 'center',
+      fontFamily: FontFamily.medium,
       fontWeight: '500',
     },
     footer: {
-      padding: 24,
+      padding: Spacing.xxl,
       paddingBottom: 40,
       backgroundColor: colors.background,
     },
@@ -466,18 +472,20 @@ const createStyles = (colors: ThemeColors) =>
     },
     buttonText: {
       fontSize: 17,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.textWhite,
     },
     createAccountLink: {
       alignItems: 'center',
-      paddingVertical: 12,
+      paddingVertical: Spacing.md,
     },
     createAccountText: {
       fontSize: 15,
       color: colors.textSecondary,
     },
     createAccountBold: {
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.primary,
     },

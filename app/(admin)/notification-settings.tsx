@@ -3,6 +3,8 @@ import { View, Text, Switch, StyleSheet, ScrollView } from 'react-native';
 import { useNotifications } from '../../src/context/NotificationContext';
 import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
+import { FontFamily } from '../../src/constants/fonts';
+import { Spacing } from '../../src/constants/spacing';
 
 interface SettingRowProps {
   label: string;
@@ -34,16 +36,17 @@ const rowStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
     borderBottomWidth: 1,
   },
   textContainer: {
     flex: 1,
-    marginRight: 12,
+    marginRight: Spacing.md,
   },
   label: {
     fontSize: 16,
+    fontFamily: FontFamily.semiBold,
     fontWeight: '600',
     marginBottom: 2,
   },
@@ -122,26 +125,27 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.background,
     },
     content: {
-      paddingVertical: 16,
+      paddingVertical: Spacing.lg,
     },
     section: {
-      marginBottom: 24,
+      marginBottom: Spacing.xxl,
       borderTopWidth: 1,
       borderBottomWidth: 1,
       borderColor: colors.borderLight,
     },
     sectionTitle: {
       fontSize: 12,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       letterSpacing: 0.5,
-      paddingHorizontal: 16,
-      paddingTop: 16,
-      paddingBottom: 8,
+      paddingHorizontal: Spacing.lg,
+      paddingTop: Spacing.lg,
+      paddingBottom: Spacing.sm,
     },
     footer: {
       fontSize: 13,
       lineHeight: 18,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.lg,
       textAlign: 'center',
     },
   });

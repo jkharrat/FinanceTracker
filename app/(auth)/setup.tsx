@@ -16,6 +16,8 @@ import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
 import PageTransition from '../../src/components/PageTransition';
 import AnimatedPressable from '../../src/components/AnimatedPressable';
+import { FontFamily } from '../../src/constants/fonts';
+import { Spacing } from '../../src/constants/spacing';
 
 export default function SetupScreen() {
   const [displayName, setDisplayName] = useState('');
@@ -188,7 +190,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     scrollContent: {
       flexGrow: 1,
-      padding: 24,
+      padding: Spacing.xxl,
       paddingTop: 80,
     },
     header: {
@@ -197,14 +199,15 @@ const createStyles = (colors: ThemeColors) =>
     },
     welcomeEmoji: {
       fontSize: 56,
-      marginBottom: 20,
+      marginBottom: Spacing.xl,
     },
     welcomeTitle: {
       fontSize: 30,
+      fontFamily: FontFamily.extraBold,
       fontWeight: '800',
       color: colors.text,
       textAlign: 'center',
-      marginBottom: 12,
+      marginBottom: Spacing.md,
       lineHeight: 38,
     },
     welcomeSubtitle: {
@@ -212,16 +215,17 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.textSecondary,
       textAlign: 'center',
       lineHeight: 22,
-      paddingHorizontal: 16,
+      paddingHorizontal: Spacing.lg,
     },
     form: {
-      gap: 20,
+      gap: Spacing.xl,
     },
     field: {
-      gap: 8,
+      gap: Spacing.sm,
     },
     label: {
       fontSize: 13,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
       textTransform: 'uppercase',
@@ -230,8 +234,8 @@ const createStyles = (colors: ThemeColors) =>
     textInput: {
       backgroundColor: colors.surface,
       borderRadius: 14,
-      paddingHorizontal: 16,
-      paddingVertical: 16,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.lg,
       fontSize: 17,
       color: colors.text,
       shadowColor: colors.primaryDark,
@@ -249,10 +253,11 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 14,
       color: colors.danger,
       textAlign: 'center',
+      fontFamily: FontFamily.medium,
       fontWeight: '500',
     },
     footer: {
-      padding: 24,
+      padding: Spacing.xxl,
       paddingBottom: 40,
       backgroundColor: colors.background,
     },
@@ -272,18 +277,20 @@ const createStyles = (colors: ThemeColors) =>
     },
     buttonText: {
       fontSize: 17,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.textWhite,
     },
     loginLink: {
       alignItems: 'center',
-      paddingVertical: 12,
+      paddingVertical: Spacing.md,
     },
     loginLinkText: {
       fontSize: 15,
       color: colors.textSecondary,
     },
     loginLinkBold: {
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.primary,
     },

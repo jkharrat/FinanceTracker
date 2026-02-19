@@ -1,17 +1,32 @@
+import { Platform } from 'react-native';
 import { Stack } from 'expo-router';
-import { useColors } from '../../src/context/ThemeContext';
+import { useColors, useTheme } from '../../src/context/ThemeContext';
+import { FontFamily } from '../../src/constants/fonts';
+import WebSidebarLayout from '../../src/components/WebSidebar';
 
 export default function KidLayout() {
+  const { isDark } = useTheme();
   const colors = useColors();
 
+  const blurEffect = isDark ? 'systemChromeMaterialDark' : 'systemChromeMaterial';
+  const iosBlur = Platform.OS === 'ios'
+    ? {
+        headerTransparent: true as const,
+        headerBlurEffect: blurEffect as 'systemChromeMaterialDark' | 'systemChromeMaterial',
+        headerStyle: { backgroundColor: 'transparent' },
+      }
+    : {
+        headerStyle: { backgroundColor: colors.background },
+      };
+
   return (
+    <WebSidebarLayout role="kid">
     <Stack
       screenOptions={{
-        headerStyle: {
-          backgroundColor: colors.background,
-        },
+        ...iosBlur,
         headerTintColor: colors.text,
         headerTitleStyle: {
+          fontFamily: FontFamily.bold,
           fontWeight: '700',
           fontSize: 18,
         },
@@ -26,6 +41,7 @@ export default function KidLayout() {
         options={{
           title: 'My Dashboard',
           headerTitleStyle: {
+            fontFamily: FontFamily.extraBold,
             fontWeight: '800',
             fontSize: 22,
           },
@@ -54,5 +70,6 @@ export default function KidLayout() {
         }}
       />
     </Stack>
+    </WebSidebarLayout>
   );
 }

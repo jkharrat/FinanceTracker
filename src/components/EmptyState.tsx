@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useColors } from '../context/ThemeContext';
 import { ThemeColors } from '../constants/colors';
+import { FontFamily } from '../constants/fonts';
+import { Spacing } from '../constants/spacing';
 
 interface EmptyStateProps {
   icon: string;
@@ -32,13 +34,14 @@ const createStyles = (colors: ThemeColors) =>
     },
     icon: {
       fontSize: 64,
-      marginBottom: 16,
+      marginBottom: Spacing.lg,
     },
     title: {
       fontSize: 20,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 8,
+      marginBottom: Spacing.sm,
       textAlign: 'center',
     },
     subtitle: {

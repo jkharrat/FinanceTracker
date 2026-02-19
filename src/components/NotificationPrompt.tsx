@@ -8,6 +8,8 @@ import { useColors } from '../context/ThemeContext';
 import { isIOSPWA } from '../utils/pushTokens';
 import AnimatedPressable from './AnimatedPressable';
 import { ThemeColors } from '../constants/colors';
+import { FontFamily } from '../constants/fonts';
+import { Spacing } from '../constants/spacing';
 
 const DISMISSED_KEY = 'notification_prompt_dismissed';
 
@@ -80,10 +82,10 @@ const createStyles = (colors: ThemeColors) =>
     container: {
       backgroundColor: colors.surface,
       borderRadius: 16,
-      padding: 16,
-      marginHorizontal: 16,
-      marginTop: 12,
-      marginBottom: 4,
+      padding: Spacing.lg,
+      marginHorizontal: Spacing.lg,
+      marginTop: Spacing.md,
+      marginBottom: Spacing.xs,
       borderWidth: 1,
       borderColor: colors.borderLight,
       shadowColor: colors.shadow,
@@ -104,16 +106,17 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.primaryLight + '22',
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 12,
+      marginRight: Spacing.md,
     },
     textSection: {
       flex: 1,
     },
     title: {
       fontSize: 16,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.text,
-      marginBottom: 4,
+      marginBottom: Spacing.xs,
     },
     subtitle: {
       fontSize: 13,
@@ -126,26 +129,28 @@ const createStyles = (colors: ThemeColors) =>
       gap: 10,
     },
     dismissButton: {
-      paddingVertical: 8,
-      paddingHorizontal: 16,
+      paddingVertical: Spacing.sm,
+      paddingHorizontal: Spacing.lg,
       borderRadius: 10,
       backgroundColor: colors.surfaceAlt,
     },
     dismissText: {
       fontSize: 14,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
     },
     enableButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 8,
-      paddingHorizontal: 16,
+      paddingVertical: Spacing.sm,
+      paddingHorizontal: Spacing.lg,
       borderRadius: 10,
       backgroundColor: colors.primary,
     },
     enableText: {
       fontSize: 14,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textWhite,
     },

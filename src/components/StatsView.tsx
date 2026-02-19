@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { ThemeColors } from '../constants/colors';
 import { Transaction, CATEGORIES, TransactionCategory } from '../types';
+import { FontFamily } from '../constants/fonts';
+import { Spacing } from '../constants/spacing';
 
 interface StatsViewProps {
   transactions: Transaction[];
@@ -482,7 +484,7 @@ const createStyles = (colors: ThemeColors) =>
       flex: 1,
     },
     content: {
-      padding: 20,
+      padding: Spacing.xl,
       paddingBottom: 40,
     },
     emptyContainer: {
@@ -494,13 +496,14 @@ const createStyles = (colors: ThemeColors) =>
     },
     emptyEmoji: {
       fontSize: 64,
-      marginBottom: 16,
+      marginBottom: Spacing.lg,
     },
     emptyTitle: {
       fontSize: 20,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 8,
+      marginBottom: Spacing.sm,
     },
     emptySubtitle: {
       fontSize: 15,
@@ -511,15 +514,15 @@ const createStyles = (colors: ThemeColors) =>
     summaryGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: 12,
-      marginBottom: 24,
+      gap: Spacing.md,
+      marginBottom: Spacing.xxl,
     },
     summaryCard: {
       flex: 1,
       minWidth: '45%',
       backgroundColor: colors.surface,
       borderRadius: 16,
-      padding: 16,
+      padding: Spacing.lg,
       borderLeftWidth: 4,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 1 },
@@ -529,6 +532,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     summaryLabel: {
       fontSize: 12,
+      fontFamily: FontFamily.medium,
       fontWeight: '500',
       color: colors.textSecondary,
       marginBottom: 6,
@@ -537,22 +541,24 @@ const createStyles = (colors: ThemeColors) =>
     },
     summaryValue: {
       fontSize: 22,
+      fontFamily: FontFamily.extraBold,
       fontWeight: '800',
     },
     section: {
-      marginBottom: 24,
+      marginBottom: Spacing.xxl,
     },
     sectionTitle: {
       fontSize: 17,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.text,
-      marginBottom: 12,
+      marginBottom: Spacing.md,
     },
     comparisonCard: {
       backgroundColor: colors.surface,
       borderRadius: 16,
-      padding: 20,
-      gap: 12,
+      padding: Spacing.xl,
+      gap: Spacing.md,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.04,
@@ -567,7 +573,7 @@ const createStyles = (colors: ThemeColors) =>
     comparisonLabel: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: Spacing.sm,
     },
     comparisonDot: {
       width: 10,
@@ -576,11 +582,13 @@ const createStyles = (colors: ThemeColors) =>
     },
     comparisonText: {
       fontSize: 14,
+      fontFamily: FontFamily.medium,
       fontWeight: '500',
       color: colors.text,
     },
     comparisonAmount: {
       fontSize: 16,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
     },
     comparisonBarContainer: {
@@ -597,7 +605,7 @@ const createStyles = (colors: ThemeColors) =>
     chartCard: {
       backgroundColor: colors.surface,
       borderRadius: 16,
-      padding: 20,
+      padding: Spacing.xl,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.04,
@@ -609,7 +617,7 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: 'space-around',
       alignItems: 'flex-end',
       height: 140,
-      marginBottom: 16,
+      marginBottom: Spacing.lg,
     },
     barGroup: {
       alignItems: 'center',
@@ -619,7 +627,7 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'flex-end',
       gap: 3,
-      marginBottom: 8,
+      marginBottom: Spacing.sm,
     },
     bar: {
       width: 14,
@@ -628,13 +636,14 @@ const createStyles = (colors: ThemeColors) =>
     },
     barLabel: {
       fontSize: 11,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textLight,
     },
     chartLegend: {
       flexDirection: 'row',
       justifyContent: 'center',
-      gap: 20,
+      gap: Spacing.xl,
     },
     legendItem: {
       flexDirection: 'row',
@@ -648,14 +657,15 @@ const createStyles = (colors: ThemeColors) =>
     },
     legendText: {
       fontSize: 12,
+      fontFamily: FontFamily.medium,
       fontWeight: '500',
       color: colors.textSecondary,
     },
     categoryCard: {
       backgroundColor: colors.surface,
       borderRadius: 16,
-      padding: 16,
-      gap: 16,
+      padding: Spacing.lg,
+      gap: Spacing.lg,
       shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.04,
@@ -665,13 +675,13 @@ const createStyles = (colors: ThemeColors) =>
     categoryRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: Spacing.md,
     },
     categoryInfo: {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: Spacing.md,
     },
     categoryEmoji: {
       fontSize: 22,
@@ -687,11 +697,13 @@ const createStyles = (colors: ThemeColors) =>
     },
     categoryName: {
       fontSize: 14,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.text,
     },
     categoryAmount: {
       fontSize: 14,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.text,
     },
@@ -707,6 +719,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     categoryPercentage: {
       fontSize: 13,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.textSecondary,
       width: 38,
@@ -719,10 +732,11 @@ const createStyles = (colors: ThemeColors) =>
     lineChartYAxis: {
       width: 48,
       justifyContent: 'space-between',
-      paddingRight: 8,
+      paddingRight: Spacing.sm,
     },
     lineChartYLabel: {
       fontSize: 11,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textLight,
       textAlign: 'right',
@@ -756,6 +770,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     lineChartXLabel: {
       fontSize: 10,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textLight,
       textAlign: 'center',

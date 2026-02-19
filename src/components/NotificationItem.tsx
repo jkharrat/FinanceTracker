@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppNotification, NotificationType } from '../types';
 import { useColors } from '../context/ThemeContext';
 import { ThemeColors } from '../constants/colors';
+import { FontFamily } from '../constants/fonts';
+import { Spacing } from '../constants/spacing';
 
 function getRelativeTime(dateStr: string): string {
   const now = Date.now();
@@ -103,7 +105,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: 14,
     borderBottomWidth: 1,
   },
@@ -113,11 +115,11 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: Spacing.md,
   },
   content: {
     flex: 1,
-    marginRight: 8,
+    marginRight: Spacing.sm,
   },
   titleRow: {
     flexDirection: 'row',
@@ -127,11 +129,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 15,
+    fontFamily: FontFamily.medium,
     fontWeight: '500',
     flex: 1,
-    marginRight: 8,
+    marginRight: Spacing.sm,
   },
   titleUnread: {
+    fontFamily: FontFamily.bold,
     fontWeight: '700',
   },
   time: {

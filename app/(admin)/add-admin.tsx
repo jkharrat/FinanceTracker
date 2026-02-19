@@ -15,6 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
+import { FontFamily } from '../../src/constants/fonts';
+import { Spacing } from '../../src/constants/spacing';
 
 export default function AddAdminScreen() {
   const [displayName, setDisplayName] = useState('');
@@ -193,16 +195,16 @@ const createStyles = (colors: ThemeColors) =>
       flex: 1,
     },
     scrollContent: {
-      padding: 20,
-      paddingBottom: 32,
+      padding: Spacing.xl,
+      paddingBottom: Spacing.xxxl,
     },
     infoCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: Spacing.md,
       backgroundColor: colors.surfaceAlt,
       borderRadius: 14,
-      padding: 16,
+      padding: Spacing.lg,
       marginBottom: 28,
     },
     infoText: {
@@ -212,21 +214,22 @@ const createStyles = (colors: ThemeColors) =>
       lineHeight: 20,
     },
     section: {
-      marginBottom: 24,
+      marginBottom: Spacing.xxl,
     },
     sectionTitle: {
       fontSize: 13,
+      fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.textSecondary,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
-      marginBottom: 12,
+      marginBottom: Spacing.md,
     },
     textInput: {
       backgroundColor: colors.surface,
       borderRadius: 14,
-      paddingHorizontal: 16,
-      paddingVertical: 16,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.lg,
       fontSize: 17,
       color: colors.text,
       shadowColor: colors.primaryDark,
@@ -248,20 +251,21 @@ const createStyles = (colors: ThemeColors) =>
     errorContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: Spacing.sm,
       backgroundColor: colors.dangerLight,
       borderRadius: 12,
       padding: 14,
-      marginBottom: 8,
+      marginBottom: Spacing.sm,
     },
     errorText: {
       flex: 1,
       fontSize: 14,
+      fontFamily: FontFamily.medium,
       fontWeight: '500',
       color: colors.danger,
     },
     footer: {
-      padding: 20,
+      padding: Spacing.xl,
       paddingBottom: 36,
       backgroundColor: colors.background,
     },
@@ -281,6 +285,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     saveButtonText: {
       fontSize: 17,
+      fontFamily: FontFamily.bold,
       fontWeight: '700',
       color: colors.textWhite,
     },
