@@ -125,6 +125,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [loadProfile]);
 
   useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    const extractSessionFromUrl = async (url: string) => {
+      const hashIndex = url.indexOf('#');
+      if (hashIndex === -1) return;
+
+      const params = new URLSearchParams(url.substring(hashIndex + 1));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      const type = params.get('type');
+
+      if (!accessToken || !refreshToken) return;
+
+      const { error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+
+      if (!error && type === 'recovery') {
+        setIsPasswordRecovery(true);
+      }
+    };
+
+    Linking.getInitialURL().then((url) => {
+      if (url) extractSessionFromUrl(url);
+    });
+
+    const subscription = Linking.addEventListener('url', (event) => {
+      extractSessionFromUrl(event.url);
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
     if (Platform.OS === 'web') {
       const handleVisibility = () => {
         if (document.visibilityState === 'visible') {

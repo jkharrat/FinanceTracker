@@ -204,6 +204,8 @@ $$;
 --    OR linking themselves; kid must not already be linked
 -- ============================================================
 
+DROP FUNCTION IF EXISTS link_kid_user(uuid, uuid);
+
 CREATE OR REPLACE FUNCTION link_kid_user(p_kid_id UUID, p_user_id UUID)
 RETURNS TEXT
 SECURITY DEFINER
