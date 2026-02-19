@@ -89,12 +89,17 @@ export default function SetupScreen() {
     }
 
     setSaving(true);
-    const result = await setupAdmin(email.trim().toLowerCase(), password, displayName.trim());
+    try {
+      const result = await setupAdmin(email.trim().toLowerCase(), password, displayName.trim());
 
-    if (result.success) {
-      router.replace('/(admin)');
-    } else {
-      setError(result.error ?? 'Something went wrong');
+      if (result.success) {
+        router.replace('/(admin)');
+      } else {
+        setError(result.error ?? 'Something went wrong');
+      }
+    } catch {
+      setError('Something went wrong. Please try again.');
+    } finally {
       setSaving(false);
     }
   };

@@ -72,12 +72,17 @@ export default function AddAdminScreen() {
     }
 
     setSaving(true);
-    const result = await addAdmin(email.trim().toLowerCase(), password, displayName.trim());
+    try {
+      const result = await addAdmin(email.trim().toLowerCase(), password, displayName.trim());
 
-    if (result.success) {
-      router.back();
-    } else {
-      setError(result.error ?? 'Failed to add parent');
+      if (result.success) {
+        router.back();
+      } else {
+        setError(result.error ?? 'Failed to add parent');
+      }
+    } catch {
+      setError('Something went wrong. Please try again.');
+    } finally {
       setSaving(false);
     }
   };

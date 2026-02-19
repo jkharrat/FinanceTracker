@@ -71,6 +71,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_PREFS);
   const [reachedMilestones, setReachedMilestones] = useState<Record<string, number[]>>({});
+  const reachedMilestonesRef = useRef<Record<string, number[]>>({});
   const [currentFamilyId, setCurrentFamilyId] = useState<string | null>(null);
 
   const [pushPermissionStatus, setPushPermissionStatus] = useState<'undetermined' | 'granted' | 'denied'>('undetermined');
@@ -212,6 +213,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           if (!map[row.kid_id]) map[row.kid_id] = [];
           map[row.kid_id].push(row.threshold);
         }
+        reachedMilestonesRef.current = map;
         setReachedMilestones(map);
       }
     } catch (error) {
@@ -439,11 +441,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const prevPercent = (previousBalance / target) * 100;
     const currPercent = (kid.balance / target) * 100;
 
-    const kidMilestones = reachedMilestones[kid.id] || [];
-
     for (const threshold of MILESTONE_THRESHOLDS) {
+      const kidMilestones = reachedMilestonesRef.current[kid.id] || [];
       if (kidMilestones.includes(threshold)) continue;
       if (currPercent >= threshold && prevPercent < threshold) {
+        // Claim the milestone synchronously so concurrent calls skip it
+        reachedMilestonesRef.current = {
+          ...reachedMilestonesRef.current,
+          [kid.id]: [...kidMilestones, threshold],
+        };
+
         let title: string;
         let message: string;
         const goalName = kid.savingsGoal.name;
@@ -493,7 +500,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         }));
       }
     }
-  }, [reachedMilestones, currentFamilyId, scheduleLocalPush, sendRemotePush]);
+  }, [currentFamilyId, scheduleLocalPush, sendRemotePush]);
 
   return (
     <NotificationContext.Provider

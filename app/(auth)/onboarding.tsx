@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
+  useWindowDimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
@@ -25,8 +25,6 @@ import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
 import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const SLIDES = [
   {
@@ -73,18 +71,20 @@ function AnimatedSlide({
   index,
   scrollX,
   colors,
+  screenWidth,
 }: {
   item: (typeof SLIDES)[number];
   index: number;
   scrollX: SharedValue<number>;
   colors: ThemeColors;
+  screenWidth: number;
 }) {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const inputRange = [
-    (index - 1) * SCREEN_WIDTH,
-    index * SCREEN_WIDTH,
-    (index + 1) * SCREEN_WIDTH,
+    (index - 1) * screenWidth,
+    index * screenWidth,
+    (index + 1) * screenWidth,
   ];
 
   const emojiStyle = useAnimatedStyle(() => {
@@ -142,7 +142,7 @@ function AnimatedSlide({
   });
 
   return (
-    <View style={styles.slide}>
+    <View style={[styles.slide, { width: screenWidth }]}>
       <View style={styles.slideContent}>
         <Animated.Text style={[styles.slideEmoji, emojiStyle]}>
           {item.emoji}
@@ -162,15 +162,17 @@ function AnimatedDot({
   index,
   scrollX,
   colors,
+  screenWidth,
 }: {
   index: number;
   scrollX: SharedValue<number>;
   colors: ThemeColors;
+  screenWidth: number;
 }) {
   const inputRange = [
-    (index - 1) * SCREEN_WIDTH,
-    index * SCREEN_WIDTH,
-    (index + 1) * SCREEN_WIDTH,
+    (index - 1) * screenWidth,
+    index * screenWidth,
+    (index + 1) * screenWidth,
   ];
 
   const dotStyle = useAnimatedStyle(() => {
@@ -210,6 +212,7 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { width: screenWidth } = useWindowDimensions();
 
   const isLastSlide = currentIndex === SLIDES.length - 1;
 
@@ -266,9 +269,10 @@ export default function OnboardingScreen() {
         index={index}
         scrollX={scrollX}
         colors={colors}
+        screenWidth={screenWidth}
       />
     ),
-    [scrollX, colors],
+    [scrollX, colors, screenWidth],
   );
 
   const buttonAnim = useSharedValue(1);
@@ -326,8 +330,8 @@ export default function OnboardingScreen() {
         onScroll={onScroll}
         scrollEventThrottle={16}
         getItemLayout={(_, index) => ({
-          length: SCREEN_WIDTH,
-          offset: SCREEN_WIDTH * index,
+          length: screenWidth,
+          offset: screenWidth * index,
           index,
         })}
       />
@@ -343,6 +347,7 @@ export default function OnboardingScreen() {
               index={index}
               scrollX={scrollX}
               colors={colors}
+              screenWidth={screenWidth}
             />
           ))}
         </View>
@@ -414,7 +419,6 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.textWhite,
     },
     slide: {
-      width: SCREEN_WIDTH,
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',

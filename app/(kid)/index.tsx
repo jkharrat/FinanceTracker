@@ -260,9 +260,13 @@ export default function KidDashboardScreen() {
                     styles.avatarOption,
                     kid.avatar === emoji && styles.avatarOptionSelected,
                   ]}
-                  onPress={() => {
+                  onPress={async () => {
                     if (kidId && emoji !== kid.avatar) {
-                      updateKidAvatar(kidId, emoji);
+                      try {
+                        await updateKidAvatar(kidId, emoji);
+                      } catch (err) {
+                        console.error('Failed to update avatar:', err);
+                      }
                     }
                     setShowAvatarPicker(false);
                   }}
