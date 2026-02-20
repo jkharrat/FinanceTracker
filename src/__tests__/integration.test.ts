@@ -545,6 +545,173 @@ describe('Transfer Deletion Updates Both Accounts', () => {
   });
 });
 
+// ─── BUG: Transfer Deletion Only Updates One Account ─────────────────────
+
+describe('BUG: delete_transaction_safe leaves paired transfer orphaned', () => {
+  /**
+   * Simulates what the current delete_transaction_safe SQL function does:
+   * deletes the specified transaction and recalculates the balance ONLY for
+   * that kid. The paired transfer transaction in the other account is untouched.
+   */
+  function simulateCurrentDeleteBehavior(
+    kids: Kid[],
+    targetKidId: string,
+    transactionId: string
+  ): Kid[] {
+    return kids.map((kid) => {
+      if (kid.id !== targetKidId) return kid; // other kids are NOT touched — this is the bug
+      const remaining = kid.transactions.filter((t) => t.id !== transactionId);
+      const newBalance =
+        Math.round(
+          remaining.reduce(
+            (sum, t) => sum + (t.type === 'add' ? t.amount : -t.amount),
+            0
+          ) * 100
+        ) / 100;
+      return { ...kid, transactions: remaining, balance: newBalance };
+    });
+  }
+
+  it('deleting sender-side transfer leaves orphaned add in receiver account', () => {
+    const transferId = 'xfer-bug-1';
+
+    const alice = makeKid({
+      id: 'alice',
+      name: 'Alice',
+      balance: 70,
+      transactions: [
+        { id: 'tx-a1', type: 'add', amount: 100, description: 'Deposit', category: 'other', date: '2025-01-01' },
+        {
+          id: 'tx-a-xfer', type: 'subtract', amount: 30, description: 'Transfer to Bob',
+          category: 'transfer', date: '2025-01-15', transfer_id: transferId,
+          transfer: { transferId, fromKidId: 'alice', toKidId: 'bob', fromKidName: 'Alice', toKidName: 'Bob' },
+        },
+      ],
+    });
+
+    const bob = makeKid({
+      id: 'bob',
+      name: 'Bob',
+      balance: 80,
+      transactions: [
+        { id: 'tx-b1', type: 'add', amount: 50, description: 'Deposit', category: 'other', date: '2025-01-01' },
+        {
+          id: 'tx-b-xfer', type: 'add', amount: 30, description: 'Transfer from Alice',
+          category: 'transfer', date: '2025-01-15', transfer_id: transferId,
+          transfer: { transferId, fromKidId: 'alice', toKidId: 'bob', fromKidName: 'Alice', toKidName: 'Bob' },
+        },
+      ],
+    });
+
+    // Parent deletes the transfer from Alice's (sender) account
+    const [updatedAlice, updatedBob] = simulateCurrentDeleteBehavior(
+      [alice, bob], 'alice', 'tx-a-xfer'
+    );
+
+    // Alice's side is correctly updated
+    expect(updatedAlice.balance).toBe(100);
+    expect(updatedAlice.transactions).toHaveLength(1);
+
+    // Bob's side should ALSO be updated — the paired transfer should be removed
+    // These assertions expose the bug: they will FAIL because the current
+    // implementation does not touch the other kid's account.
+    expect(updatedBob.transactions).toHaveLength(1);
+    expect(updatedBob.balance).toBe(50);
+  });
+
+  it('deleting receiver-side transfer leaves orphaned subtract in sender account', () => {
+    const transferId = 'xfer-bug-2';
+
+    const alice = makeKid({
+      id: 'alice',
+      name: 'Alice',
+      balance: 150,
+      transactions: [
+        { id: 'tx-a1', type: 'add', amount: 200, description: 'Deposit', category: 'other', date: '2025-01-01' },
+        {
+          id: 'tx-a-xfer', type: 'subtract', amount: 50, description: 'Transfer to Bob',
+          category: 'transfer', date: '2025-02-01', transfer_id: transferId,
+          transfer: { transferId, fromKidId: 'alice', toKidId: 'bob', fromKidName: 'Alice', toKidName: 'Bob' },
+        },
+      ],
+    });
+
+    const bob = makeKid({
+      id: 'bob',
+      name: 'Bob',
+      balance: 130,
+      transactions: [
+        { id: 'tx-b1', type: 'add', amount: 100, description: 'Deposit', category: 'other', date: '2025-01-01' },
+        { id: 'tx-b2', type: 'subtract', amount: 20, description: 'Snack', category: 'food', date: '2025-01-10' },
+        {
+          id: 'tx-b-xfer', type: 'add', amount: 50, description: 'Transfer from Alice',
+          category: 'transfer', date: '2025-02-01', transfer_id: transferId,
+          transfer: { transferId, fromKidId: 'alice', toKidId: 'bob', fromKidName: 'Alice', toKidName: 'Bob' },
+        },
+      ],
+    });
+
+    // Parent deletes the transfer from Bob's (receiver) account
+    const [updatedAlice, updatedBob] = simulateCurrentDeleteBehavior(
+      [alice, bob], 'bob', 'tx-b-xfer'
+    );
+
+    // Bob's side is correctly updated
+    expect(updatedBob.balance).toBe(80);
+    expect(updatedBob.transactions).toHaveLength(2);
+
+    // Alice's side should ALSO be updated — the subtract should be reversed
+    // These assertions expose the bug: they will FAIL because the current
+    // implementation does not touch the other kid's account.
+    expect(updatedAlice.transactions).toHaveLength(1);
+    expect(updatedAlice.balance).toBe(200);
+  });
+
+  it('orphaned transfer causes balance inconsistency in stats', () => {
+    const transferId = 'xfer-bug-3';
+
+    const alice = makeKid({
+      id: 'alice',
+      name: 'Alice',
+      balance: 70,
+      transactions: [
+        { id: 'tx-a1', type: 'add', amount: 100, description: 'Deposit', category: 'other', date: '2025-01-01' },
+        {
+          id: 'tx-a-xfer', type: 'subtract', amount: 30, description: 'Transfer to Bob',
+          category: 'transfer', date: '2025-01-15', transfer_id: transferId,
+          transfer: { transferId, fromKidId: 'alice', toKidId: 'bob', fromKidName: 'Alice', toKidName: 'Bob' },
+        },
+      ],
+    });
+
+    const bob = makeKid({
+      id: 'bob',
+      name: 'Bob',
+      balance: 80,
+      transactions: [
+        { id: 'tx-b1', type: 'add', amount: 50, description: 'Deposit', category: 'other', date: '2025-01-01' },
+        {
+          id: 'tx-b-xfer', type: 'add', amount: 30, description: 'Transfer from Alice',
+          category: 'transfer', date: '2025-01-15', transfer_id: transferId,
+          transfer: { transferId, fromKidId: 'alice', toKidId: 'bob', fromKidName: 'Alice', toKidName: 'Bob' },
+        },
+      ],
+    });
+
+    // Delete transfer from Alice's account (current buggy behavior)
+    const [, buggyBob] = simulateCurrentDeleteBehavior(
+      [alice, bob], 'alice', 'tx-a-xfer'
+    );
+
+    // Bob still has the orphaned "add" transfer — his stats will be wrong
+    const bobStats = computeStats(buggyBob.transactions);
+
+    // Bob's stats should show only $50 income (the deposit), not $80
+    // This will FAIL because the orphaned transfer inflates his income
+    expect(bobStats.totalIncome).toBe(50);
+  });
+});
+
 // ─── Balance Calculation Edge Cases ──────────────────────────────────────
 
 describe('Balance Calculation Edge Cases', () => {
