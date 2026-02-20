@@ -86,6 +86,10 @@ export default function AdminHomeScreen() {
       <Stack.Screen
         options={{
           title: showHeaderBell ? 'Finance Tracker' : 'Dashboard',
+          ...(Platform.OS === 'ios' && {
+            headerTransparent: false,
+            headerStyle: { backgroundColor: colors.background },
+          }),
           headerLeft: showHeaderBell
             ? () => (
                 <AnimatedPressable
