@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../../src/context/DataContext';
 import { useColors } from '../../src/context/ThemeContext';
@@ -62,9 +62,11 @@ export default function AdminHomeScreen() {
     if (data) setAdmins(data);
   }, [familyId]);
 
-  useEffect(() => {
-    loadAdmins();
-  }, [loadAdmins]);
+  useFocusEffect(
+    useCallback(() => {
+      loadAdmins();
+    }, [loadAdmins])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
