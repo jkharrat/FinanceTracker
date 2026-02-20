@@ -65,10 +65,14 @@ function AppContent() {
       const meta = document.querySelector('meta[name="theme-color"]');
       if (meta) meta.setAttribute('content', colors.background);
 
-      if (!document.getElementById('web-cursor-style')) {
+      if (!document.getElementById('web-app-style')) {
         const style = document.createElement('style');
-        style.id = 'web-cursor-style';
-        style.textContent = '[role="button"] { cursor: pointer; }';
+        style.id = 'web-app-style';
+        style.textContent = [
+          'html, body, #root { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }',
+          'body { position: fixed; width: 100%; }',
+          '[role="button"] { cursor: pointer; }',
+        ].join('\n');
         document.head.appendChild(style);
       }
     }
