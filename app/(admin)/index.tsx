@@ -108,22 +108,6 @@ export default function AdminHomeScreen() {
 
       <ProfileSheet visible={profileOpen} onClose={() => setProfileOpen(false)} />
 
-      {kids.length > 0 && (
-        <GradientCard
-          colors={[colors.primary, colors.primaryDark]}
-          style={styles.summaryCard}
-        >
-          <Text style={styles.summaryLabel}>Total Balance</Text>
-          <AnimatedNumber
-            value={totalBalance}
-            style={[styles.summaryAmount, totalBalance < 0 && styles.summaryNegative]}
-          />
-          <Text style={styles.summaryCount}>
-            {kids.length} {kids.length === 1 ? 'person' : 'people'} tracked
-          </Text>
-        </GradientCard>
-      )}
-
       <FlatList
         data={kids}
         keyExtractor={(item) => item.id}
@@ -137,6 +121,21 @@ export default function AdminHomeScreen() {
         )}
         ListHeaderComponent={
           <>
+            {kids.length > 0 && (
+              <GradientCard
+                colors={[colors.primary, colors.primaryDark]}
+                style={styles.summaryCard}
+              >
+                <Text style={styles.summaryLabel}>Total Balance</Text>
+                <AnimatedNumber
+                  value={totalBalance}
+                  style={[styles.summaryAmount, totalBalance < 0 && styles.summaryNegative]}
+                />
+                <Text style={styles.summaryCount}>
+                  {kids.length} {kids.length === 1 ? 'person' : 'people'} tracked
+                </Text>
+              </GradientCard>
+            )}
             <NotificationPrompt />
             <View style={styles.parentsSection}>
               <Text style={styles.parentsSectionTitle}>Parents</Text>
@@ -269,9 +268,7 @@ const createStyles = (colors: ThemeColors) =>
       marginRight: Spacing.sm,
     },
     summaryCard: {
-      marginHorizontal: Spacing.xl,
-      marginTop: Spacing.sm,
-      marginBottom: Spacing.xs,
+      marginBottom: Spacing.md,
       alignItems: 'center',
     },
     summaryLabel: {
@@ -351,7 +348,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     listContent: {
       paddingHorizontal: Spacing.xl,
-      paddingTop: Platform.OS === 'ios' ? Spacing.sm : Spacing.xl,
+      paddingTop: Spacing.sm,
       paddingBottom: 100,
     },
     emptyListContent: {
