@@ -351,7 +351,7 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.primary,
     },
     listContent: {
-      paddingHorizontal: Spacing.xl,
+      padding: Spacing.xl,
       paddingTop: Spacing.sm,
       paddingBottom: 100,
     },
