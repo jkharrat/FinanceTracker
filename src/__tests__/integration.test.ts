@@ -399,6 +399,189 @@ describe('Multi-Kid Family Scenario', () => {
   });
 });
 
+// ─── Transfer Deletion Updates Both Accounts ─────────────────────────────
+
+describe('Transfer Deletion Updates Both Accounts', () => {
+  function recalcBalance(transactions: Transaction[]): number {
+    return Math.round(
+      transactions.reduce((sum, t) => sum + (t.type === 'add' ? t.amount : -t.amount), 0) * 100
+    ) / 100;
+  }
+
+  it('deleting a transfer in one kid\'s account correctly updates the other account', () => {
+    const transferId = 'transfer-001';
+
+    const aliceTransferTx: Transaction = {
+      id: 'tx-alice-transfer',
+      type: 'subtract',
+      amount: 30,
+      description: 'Transfer to Bob',
+      category: 'transfer',
+      date: '2025-01-15',
+      transfer_id: transferId,
+      transfer: { transferId, fromKidId: 'alice', toKidId: 'bob', fromKidName: 'Alice', toKidName: 'Bob' },
+    };
+
+    const bobTransferTx: Transaction = {
+      id: 'tx-bob-transfer',
+      type: 'add',
+      amount: 30,
+      description: 'Transfer from Alice',
+      category: 'transfer',
+      date: '2025-01-15',
+      transfer_id: transferId,
+      transfer: { transferId, fromKidId: 'alice', toKidId: 'bob', fromKidName: 'Alice', toKidName: 'Bob' },
+    };
+
+    const alice = makeKid({
+      id: 'alice',
+      name: 'Alice',
+      balance: 70,
+      transactions: [
+        { id: 'tx-alice-1', type: 'add', amount: 100, description: 'Initial deposit', category: 'other', date: '2025-01-01' },
+        aliceTransferTx,
+      ],
+    });
+
+    const bob = makeKid({
+      id: 'bob',
+      name: 'Bob',
+      balance: 80,
+      transactions: [
+        { id: 'tx-bob-1', type: 'add', amount: 50, description: 'Initial deposit', category: 'other', date: '2025-01-01' },
+        bobTransferTx,
+      ],
+    });
+
+    expect(recalcBalance(alice.transactions)).toBe(70);
+    expect(recalcBalance(bob.transactions)).toBe(80);
+
+    // Parent deletes the transfer from Alice's account
+    const deletedTx = alice.transactions.find(t => t.id === 'tx-alice-transfer')!;
+    expect(deletedTx.transfer_id).toBe(transferId);
+
+    const aliceRemainingTxs = alice.transactions.filter(t => t.id !== deletedTx.id);
+    const aliceNewBalance = recalcBalance(aliceRemainingTxs);
+
+    // Find and remove the paired transaction from Bob's account
+    const pairedTx = bob.transactions.find(t => t.transfer_id === deletedTx.transfer_id);
+    expect(pairedTx).toBeDefined();
+    const bobRemainingTxs = bob.transactions.filter(t => t.id !== pairedTx!.id);
+    const bobNewBalance = recalcBalance(bobRemainingTxs);
+
+    // Alice's balance restored: $100 (transfer reversal)
+    expect(aliceNewBalance).toBe(100);
+    expect(aliceRemainingTxs).toHaveLength(1);
+
+    // Bob's balance restored: $50 (received transfer removed)
+    expect(bobNewBalance).toBe(50);
+    expect(bobRemainingTxs).toHaveLength(1);
+
+    const aliceStats = computeStats(aliceRemainingTxs);
+    const bobStats = computeStats(bobRemainingTxs);
+    expect(aliceStats.totalIncome).toBe(100);
+    expect(aliceStats.totalExpense).toBe(0);
+    expect(bobStats.totalIncome).toBe(50);
+    expect(bobStats.totalExpense).toBe(0);
+  });
+
+  it('handles deleting transfer from the receiver side', () => {
+    const transferId = 'transfer-002';
+
+    const aliceTxs: Transaction[] = [
+      { id: 'tx-a1', type: 'add', amount: 200, description: 'Deposit', category: 'other', date: '2025-01-01' },
+      {
+        id: 'tx-a-transfer', type: 'subtract', amount: 50, description: 'Transfer to Bob',
+        category: 'transfer', date: '2025-02-01', transfer_id: transferId,
+        transfer: { transferId, fromKidId: 'alice', toKidId: 'bob', fromKidName: 'Alice', toKidName: 'Bob' },
+      },
+    ];
+
+    const bobTxs: Transaction[] = [
+      { id: 'tx-b1', type: 'add', amount: 100, description: 'Deposit', category: 'other', date: '2025-01-01' },
+      { id: 'tx-b2', type: 'subtract', amount: 20, description: 'Snack', category: 'food', date: '2025-01-10' },
+      {
+        id: 'tx-b-transfer', type: 'add', amount: 50, description: 'Transfer from Alice',
+        category: 'transfer', date: '2025-02-01', transfer_id: transferId,
+        transfer: { transferId, fromKidId: 'alice', toKidId: 'bob', fromKidName: 'Alice', toKidName: 'Bob' },
+      },
+    ];
+
+    const alice = makeKid({ id: 'alice', name: 'Alice', balance: 150, transactions: aliceTxs });
+    const bob = makeKid({ id: 'bob', name: 'Bob', balance: 130, transactions: bobTxs });
+
+    expect(recalcBalance(alice.transactions)).toBe(150);
+    expect(recalcBalance(bob.transactions)).toBe(130);
+
+    // Parent deletes the transfer from Bob's (receiver) side
+    const deletedTx = bob.transactions.find(t => t.id === 'tx-b-transfer')!;
+    const bobRemainingTxs = bob.transactions.filter(t => t.id !== deletedTx.id);
+    const bobNewBalance = recalcBalance(bobRemainingTxs);
+
+    const pairedTx = alice.transactions.find(t => t.transfer_id === deletedTx.transfer_id);
+    expect(pairedTx).toBeDefined();
+    const aliceRemainingTxs = alice.transactions.filter(t => t.id !== pairedTx!.id);
+    const aliceNewBalance = recalcBalance(aliceRemainingTxs);
+
+    // Bob: 100 - 20 = 80 (deposit + snack, transfer removed)
+    expect(bobNewBalance).toBe(80);
+    expect(bobRemainingTxs).toHaveLength(2);
+
+    // Alice: 200 (deposit only, subtract reversed)
+    expect(aliceNewBalance).toBe(200);
+    expect(aliceRemainingTxs).toHaveLength(1);
+  });
+
+  it('only removes the correct transfer when multiple transfers exist', () => {
+    const transfer1 = 'transfer-a';
+    const transfer2 = 'transfer-b';
+
+    const aliceTxs: Transaction[] = [
+      { id: 'tx-a1', type: 'add', amount: 500, description: 'Deposit', category: 'other', date: '2025-01-01' },
+      {
+        id: 'tx-a-t1', type: 'subtract', amount: 40, description: 'Transfer to Bob',
+        category: 'transfer', date: '2025-01-10', transfer_id: transfer1,
+        transfer: { transferId: transfer1, fromKidId: 'alice', toKidId: 'bob', fromKidName: 'Alice', toKidName: 'Bob' },
+      },
+      {
+        id: 'tx-a-t2', type: 'subtract', amount: 60, description: 'Transfer to Bob',
+        category: 'transfer', date: '2025-01-20', transfer_id: transfer2,
+        transfer: { transferId: transfer2, fromKidId: 'alice', toKidId: 'bob', fromKidName: 'Alice', toKidName: 'Bob' },
+      },
+    ];
+
+    const bobTxs: Transaction[] = [
+      { id: 'tx-b1', type: 'add', amount: 100, description: 'Deposit', category: 'other', date: '2025-01-01' },
+      {
+        id: 'tx-b-t1', type: 'add', amount: 40, description: 'From Alice',
+        category: 'transfer', date: '2025-01-10', transfer_id: transfer1,
+        transfer: { transferId: transfer1, fromKidId: 'alice', toKidId: 'bob', fromKidName: 'Alice', toKidName: 'Bob' },
+      },
+      {
+        id: 'tx-b-t2', type: 'add', amount: 60, description: 'From Alice',
+        category: 'transfer', date: '2025-01-20', transfer_id: transfer2,
+        transfer: { transferId: transfer2, fromKidId: 'alice', toKidId: 'bob', fromKidName: 'Alice', toKidName: 'Bob' },
+      },
+    ];
+
+    expect(recalcBalance(aliceTxs)).toBe(400);
+    expect(recalcBalance(bobTxs)).toBe(200);
+
+    // Delete only transfer1 from Alice's account
+    const deletedTx = aliceTxs.find(t => t.transfer_id === transfer1)!;
+    const aliceRemaining = aliceTxs.filter(t => t.id !== deletedTx.id);
+    const bobRemaining = bobTxs.filter(t => t.transfer_id !== transfer1);
+
+    // Alice: 500 - 60 = 440, Bob: 100 + 60 = 160
+    expect(recalcBalance(aliceRemaining)).toBe(440);
+    expect(recalcBalance(bobRemaining)).toBe(160);
+
+    // Second transfer remains intact
+    expect(aliceRemaining.some(t => t.transfer_id === transfer2)).toBe(true);
+    expect(bobRemaining.some(t => t.transfer_id === transfer2)).toBe(true);
+  });
+});
+
 // ─── Balance Calculation Edge Cases ──────────────────────────────────────
 
 describe('Balance Calculation Edge Cases', () => {
