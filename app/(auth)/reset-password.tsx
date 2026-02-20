@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  Pressable,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -219,10 +220,9 @@ export default function ResetPasswordScreen() {
                         onBlur={() => setFocusedField(null)}
                         autoFocus
                       />
-                      <TouchableOpacity
+                      <Pressable
                         onPress={() => setShowPassword(!showPassword)}
                         style={styles.eyeButton}
-                        activeOpacity={0.6}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
                         <Ionicons
@@ -230,7 +230,7 @@ export default function ResetPasswordScreen() {
                           size={22}
                           color={colors.textLight}
                         />
-                      </TouchableOpacity>
+                      </Pressable>
                     </View>
                     {strength && (
                       <View style={styles.strengthContainer}>
@@ -292,10 +292,9 @@ export default function ResetPasswordScreen() {
                         onFocus={() => setFocusedField('confirm')}
                         onBlur={() => setFocusedField(null)}
                       />
-                      <TouchableOpacity
+                      <Pressable
                         onPress={() => setShowConfirm(!showConfirm)}
                         style={styles.eyeButton}
-                        activeOpacity={0.6}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
                         <Ionicons
@@ -303,7 +302,7 @@ export default function ResetPasswordScreen() {
                           size={22}
                           color={colors.textLight}
                         />
-                      </TouchableOpacity>
+                      </Pressable>
                     </View>
                     {confirmPassword.length > 0 && password !== confirmPassword && (
                       <Text style={styles.mismatchText}>Passwords do not match</Text>

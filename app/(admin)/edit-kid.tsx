@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  Pressable,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -136,6 +137,7 @@ export default function EditKidScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Avatar</Text>
@@ -183,10 +185,9 @@ export default function EditKidScreen() {
               autoCapitalize="none"
             />
             {newPassword.length > 0 && (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => setShowPassword(!showPassword)}
                 style={styles.eyeButton}
-                activeOpacity={0.6}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Ionicons
@@ -194,7 +195,7 @@ export default function EditKidScreen() {
                   size={22}
                   color={colors.textLight}
                 />
-              </TouchableOpacity>
+              </Pressable>
             )}
           </View>
           {newPassword.length > 0 && (

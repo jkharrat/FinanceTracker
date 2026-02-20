@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  Pressable,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -326,10 +327,9 @@ export default function LoginScreen() {
                   onFocus={() => setFocusedField('password')}
                   onBlur={() => setFocusedField(null)}
                 />
-                <TouchableOpacity
+                <Pressable
                   onPress={() => setShowPassword(!showPassword)}
                   style={styles.eyeButton}
-                  activeOpacity={0.6}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Ionicons
@@ -337,7 +337,7 @@ export default function LoginScreen() {
                     size={22}
                     color={colors.textLight}
                   />
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
 
