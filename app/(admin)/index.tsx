@@ -346,7 +346,8 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.primary,
     },
     listContent: {
-      padding: Spacing.xl,
+      paddingHorizontal: Spacing.xl,
+      paddingTop: Platform.OS === 'ios' ? Spacing.sm : Spacing.xl,
       paddingBottom: 100,
     },
     emptyListContent: {
