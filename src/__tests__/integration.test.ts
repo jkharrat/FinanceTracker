@@ -547,20 +547,30 @@ describe('Transfer Deletion Updates Both Accounts', () => {
 
 // ─── BUG: Transfer Deletion Only Updates One Account ─────────────────────
 
-describe('BUG: delete_transaction_safe leaves paired transfer orphaned', () => {
+describe('delete_transaction_safe removes both sides of a transfer', () => {
   /**
-   * Simulates what the current delete_transaction_safe SQL function does:
-   * deletes the specified transaction and recalculates the balance ONLY for
-   * that kid. The paired transfer transaction in the other account is untouched.
+   * Simulates what delete_transaction_safe does: if the deleted transaction
+   * has a transfer_id, both it and the paired transaction are removed and
+   * both kids' balances are recalculated.
    */
-  function simulateCurrentDeleteBehavior(
+  function simulateDeleteTransactionSafe(
     kids: Kid[],
     targetKidId: string,
     transactionId: string
   ): Kid[] {
+    const targetKid = kids.find((k) => k.id === targetKidId);
+    const deletedTx = targetKid?.transactions.find((t) => t.id === transactionId);
+    const transferId = deletedTx?.transfer_id;
+
     return kids.map((kid) => {
-      if (kid.id !== targetKidId) return kid; // other kids are NOT touched — this is the bug
-      const remaining = kid.transactions.filter((t) => t.id !== transactionId);
+      let remaining: Transaction[];
+      if (kid.id === targetKidId) {
+        remaining = kid.transactions.filter((t) => t.id !== transactionId);
+      } else if (transferId) {
+        remaining = kid.transactions.filter((t) => t.transfer_id !== transferId);
+      } else {
+        return kid;
+      }
       const newBalance =
         Math.round(
           remaining.reduce(
@@ -604,7 +614,7 @@ describe('BUG: delete_transaction_safe leaves paired transfer orphaned', () => {
     });
 
     // Parent deletes the transfer from Alice's (sender) account
-    const [updatedAlice, updatedBob] = simulateCurrentDeleteBehavior(
+    const [updatedAlice, updatedBob] = simulateDeleteTransactionSafe(
       [alice, bob], 'alice', 'tx-a-xfer'
     );
 
@@ -612,9 +622,7 @@ describe('BUG: delete_transaction_safe leaves paired transfer orphaned', () => {
     expect(updatedAlice.balance).toBe(100);
     expect(updatedAlice.transactions).toHaveLength(1);
 
-    // Bob's side should ALSO be updated — the paired transfer should be removed
-    // These assertions expose the bug: they will FAIL because the current
-    // implementation does not touch the other kid's account.
+    // Bob's paired transfer should also be removed
     expect(updatedBob.transactions).toHaveLength(1);
     expect(updatedBob.balance).toBe(50);
   });
@@ -652,7 +660,7 @@ describe('BUG: delete_transaction_safe leaves paired transfer orphaned', () => {
     });
 
     // Parent deletes the transfer from Bob's (receiver) account
-    const [updatedAlice, updatedBob] = simulateCurrentDeleteBehavior(
+    const [updatedAlice, updatedBob] = simulateDeleteTransactionSafe(
       [alice, bob], 'bob', 'tx-b-xfer'
     );
 
@@ -660,9 +668,7 @@ describe('BUG: delete_transaction_safe leaves paired transfer orphaned', () => {
     expect(updatedBob.balance).toBe(80);
     expect(updatedBob.transactions).toHaveLength(2);
 
-    // Alice's side should ALSO be updated — the subtract should be reversed
-    // These assertions expose the bug: they will FAIL because the current
-    // implementation does not touch the other kid's account.
+    // Alice's paired subtract should also be removed
     expect(updatedAlice.transactions).toHaveLength(1);
     expect(updatedAlice.balance).toBe(200);
   });
@@ -698,16 +704,14 @@ describe('BUG: delete_transaction_safe leaves paired transfer orphaned', () => {
       ],
     });
 
-    // Delete transfer from Alice's account (current buggy behavior)
-    const [, buggyBob] = simulateCurrentDeleteBehavior(
+    // Delete transfer from Alice's account — both sides should be cleaned up
+    const [, updatedBob] = simulateDeleteTransactionSafe(
       [alice, bob], 'alice', 'tx-a-xfer'
     );
 
-    // Bob still has the orphaned "add" transfer — his stats will be wrong
-    const bobStats = computeStats(buggyBob.transactions);
+    const bobStats = computeStats(updatedBob.transactions);
 
-    // Bob's stats should show only $50 income (the deposit), not $80
-    // This will FAIL because the orphaned transfer inflates his income
+    // Bob's income should be $50 (deposit only), not $80
     expect(bobStats.totalIncome).toBe(50);
   });
 });
