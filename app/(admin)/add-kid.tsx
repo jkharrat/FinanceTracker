@@ -47,18 +47,19 @@ function getPasswordStrength(pw: string, colors: ThemeColors): PasswordStrength 
 
 export default function AddKidScreen() {
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState(Avatars[0]);
   const [allowanceAmount, setAllowanceAmount] = useState('');
   const [frequency, setFrequency] = useState<AllowanceFrequency>('monthly');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [initialBalance, setInitialBalance] = useState('');
-  const [nameError, setNameError] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  const { addKid, isNameUnique } = useData();
+  const { addKid } = useData();
   const { createKidAuth } = useAuth();
   const router = useRouter();
   const colors = useColors();
@@ -67,35 +68,34 @@ export default function AddKidScreen() {
   const strength = useMemo(() => getPasswordStrength(password, colors), [password, colors]);
   const { shakeStyle, triggerShake } = useShake();
 
+  const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
   const isValid =
     name.trim().length > 0 &&
+    isValidEmail(email.trim()) &&
     parseFloat(allowanceAmount) > 0 &&
     password.length >= 6 &&
-    nameError === '' &&
+    emailError === '' &&
     !saving;
 
-  const handleNameChange = (text: string) => {
-    setName(text);
-    if (text.trim().length > 0 && !isNameUnique(text.trim())) {
-      setNameError('This name is already taken');
-    } else {
-      setNameError('');
+  const handleEmailChange = (text: string) => {
+    setEmail(text);
+    setEmailError('');
+    if (text.trim().length > 0 && !isValidEmail(text.trim())) {
+      setEmailError('Enter a valid email address');
     }
   };
 
   const handleSave = async () => {
     if (!isValid) return;
-    if (!isNameUnique(name.trim())) {
-      setNameError('This name is already taken');
-      return;
-    }
 
     setError('');
     setSaving(true);
 
     try {
+      const trimmedEmail = email.trim().toLowerCase();
       const parsedInitialBalance = parseFloat(initialBalance) || 0;
-      const kidId = await addKid(name.trim(), selectedAvatar, parseFloat(allowanceAmount), frequency, password, parsedInitialBalance);
+      const kidId = await addKid(name.trim(), selectedAvatar, parseFloat(allowanceAmount), frequency, trimmedEmail, password, parsedInitialBalance);
 
       if (!kidId) {
         setError('Failed to create account. Check your connection and try again.');
@@ -103,7 +103,7 @@ export default function AddKidScreen() {
         return;
       }
 
-      const authResult = await createKidAuth(kidId, name.trim(), password);
+      const authResult = await createKidAuth(kidId, name.trim(), trimmedEmail, password);
       if (!authResult.success) {
         setError(`Account created but login setup failed: ${authResult.error ?? 'Unknown error'}. Try editing this person to set a password.`);
         showToast('error', 'Login setup failed');
@@ -150,11 +150,11 @@ export default function AddKidScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Name (used as login username)</Text>
+          <Text style={styles.sectionTitle}>Display Name</Text>
           <TextInput
-            style={[styles.textInput, focusedField === 'name' && styles.textInputFocused, nameError ? styles.textInputError : null]}
+            style={[styles.textInput, focusedField === 'name' && styles.textInputFocused]}
             value={name}
-            onChangeText={handleNameChange}
+            onChangeText={setName}
             placeholder="Enter name"
             autoCapitalize="words"
             placeholderTextColor={colors.textLight}
@@ -162,8 +162,25 @@ export default function AddKidScreen() {
             onBlur={() => setFocusedField(null)}
             autoFocus
           />
-          {nameError.length > 0 && (
-            <Text style={styles.fieldError}>{nameError}</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Login Email</Text>
+          <TextInput
+            style={[styles.textInput, focusedField === 'email' && styles.textInputFocused, emailError ? styles.textInputError : null]}
+            value={email}
+            onChangeText={handleEmailChange}
+            placeholder="your@email.com"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            placeholderTextColor={colors.textLight}
+            onFocus={() => setFocusedField('email')}
+            onBlur={() => setFocusedField(null)}
+          />
+          {emailError.length > 0 && (
+            <Text style={styles.fieldError}>{emailError}</Text>
           )}
         </View>
 

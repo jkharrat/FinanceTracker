@@ -4,7 +4,6 @@ import type { Session } from '@supabase/supabase-js';
 import { AppState, Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import { Profile, Family } from '../types';
-import { kidEmail, KID_EMAIL_DOMAIN } from '../utils/auth';
 
 type AdminUser = { role: 'admin'; email: string; displayName: string };
 type KidUser = { role: 'kid'; kidId: string; name: string };
@@ -27,8 +26,8 @@ interface AuthContextType {
   setupAdmin: (email: string, password: string, displayName: string) => Promise<{ success: boolean; error?: string }>;
   addAdmin: (email: string, password: string, displayName: string) => Promise<{ success: boolean; error?: string }>;
   loginAdmin: (email: string, password: string) => Promise<LoginResult>;
-  loginKid: (name: string, password: string) => Promise<LoginResult>;
-  createKidAuth: (kidId: string, name: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  loginKid: (email: string, password: string) => Promise<LoginResult>;
+  createKidAuth: (kidId: string, name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   updateKidPassword: (kidId: string, name: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
@@ -312,74 +311,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const loginKid = useCallback(
-    async (name: string, password: string): Promise<LoginResult> => {
-      // Use RPC function to bypass RLS (kid is not authenticated yet)
-      const { data: kids, error: lookupError } = await supabase
-        .rpc('lookup_kid_for_login', { kid_name: name.trim() });
+    async (email: string, password: string): Promise<LoginResult> => {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      if (lookupError || !kids || kids.length === 0) {
-        return { success: false, error: 'Invalid name or password' };
-      }
+      if (error) return { success: false, error: 'Invalid email or password' };
+      if (!data.user) return { success: false, error: 'Login failed' };
 
-      for (const kid of kids) {
-        const email = kidEmail(kid.kid_id);
-
-        // If kid already has an auth account, try signing in
-        if (kid.kid_user_id) {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-
-          if (!error && data.user) {
-            await loadProfile(data.user.id);
-            return { success: true, role: 'kid' };
-          }
-          continue;
-        }
-
-        // Kid has no auth account yet -- create one and sign in
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              family_id: kid.kid_family_id,
-              role: 'kid',
-              display_name: name,
-            },
-          },
-        });
-
-        if (signUpError || !signUpData.user) continue;
-
-        const { data: linkResult, error: linkError } = await supabase.rpc('link_kid_user', {
-          p_kid_id: kid.kid_id,
-          p_user_id: signUpData.user.id,
-        });
-
-        if (linkError || (linkResult && linkResult !== 'OK')) {
-          continue;
-        }
-
-        await loadProfile(signUpData.user.id);
-        return { success: true, role: 'kid' };
-      }
-
-      return { success: false, error: 'Invalid name or password' };
+      await loadProfile(data.user.id, email);
+      return { success: true, role: 'kid' };
     },
     [loadProfile]
   );
 
   const createKidAuth = useCallback(
-    async (kidId: string, name: string, password: string) => {
+    async (kidId: string, name: string, email: string, password: string) => {
       if (!familyId) return { success: false, error: 'No family context' };
 
       const adminSession = session;
       ignoreAuthChanges.current = true;
 
       try {
-        const email = kidEmail(kidId);
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -395,7 +349,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) return { success: false, error: error.message };
         if (!data.user) return { success: false, error: 'Failed to create kid account' };
 
-        // Restore admin session before linking the kid row
         if (adminSession) {
           const { error: sessionError } = await supabase.auth.setSession({
             access_token: adminSession.access_token,
@@ -418,8 +371,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { success: false, error: String(linkResult) };
         }
 
-        // Reload own profile so deferred auth events from signUp/setSession
-        // cannot leave the current admin's state stale
         if (adminSession?.user) {
           await loadProfile(adminSession.user.id, adminSession.user.email ?? undefined);
         }

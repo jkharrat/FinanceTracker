@@ -26,12 +26,11 @@ import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
 
 type LoginMode = 'parent' | 'kid';
-type FocusedField = 'email' | 'name' | 'password' | null;
+type FocusedField = 'email' | 'password' | null;
 
 export default function LoginScreen() {
   const [mode, setMode] = useState<LoginMode>('parent');
   const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
@@ -58,10 +57,7 @@ export default function LoginScreen() {
     }, [exitOpacity, exitScale]),
   );
 
-  const isValid =
-    mode === 'parent'
-      ? email.trim().length > 0 && password.length > 0
-      : name.trim().length > 0 && password.length > 0;
+  const isValid = email.trim().length > 0 && password.length > 0;
 
   const animateOut = useCallback(
     (onComplete: () => void) => {
@@ -92,7 +88,7 @@ export default function LoginScreen() {
       const result =
         mode === 'parent'
           ? await loginAdmin(email.trim().toLowerCase(), password)
-          : await loginKid(name.trim(), password);
+          : await loginKid(email.trim().toLowerCase(), password);
 
       if (result.success) {
         const route = result.role === 'admin' ? '/(admin)' : '/(kid)';
@@ -143,7 +139,6 @@ export default function LoginScreen() {
       setMode(newMode);
       setError('');
       setEmail('');
-      setName('');
       setPassword('');
       setFocusedField(null);
     }, 120);
@@ -182,9 +177,7 @@ export default function LoginScreen() {
           </View>
           <Text style={styles.title}>Sign In</Text>
           <Text style={styles.subtitle}>
-            {mode === 'parent'
-              ? 'Sign in with your email and password'
-              : 'Sign in with your name and password'}
+            Sign in with your email and password
           </Text>
         </LinearGradient>
 
@@ -232,7 +225,6 @@ export default function LoginScreen() {
           </View>
 
           <Animated.View style={[styles.form, { opacity: formFade, transform: [{ translateX: formSlide }] }]}>
-            {mode === 'parent' ? (
               <View style={styles.field}>
                 <Text style={styles.label}>Email</Text>
                 <View style={[
@@ -265,38 +257,6 @@ export default function LoginScreen() {
                   />
                 </View>
               </View>
-            ) : (
-              <View style={styles.field}>
-                <Text style={styles.label}>Name</Text>
-                <View style={[
-                  styles.inputContainer,
-                  focusedField === 'name' && styles.inputContainerFocused,
-                ]}>
-                  <View style={styles.inputIconWrap}>
-                    <Ionicons
-                      name="person-outline"
-                      size={20}
-                      color={focusedField === 'name' ? colors.primary : colors.textLight}
-                    />
-                  </View>
-                  <TextInput
-                    style={styles.textInput}
-                    value={name}
-                    onChangeText={(text) => {
-                      setName(text);
-                      setError('');
-                    }}
-                    placeholder="Enter your name"
-                    placeholderTextColor={colors.textLight}
-                    autoCapitalize="words"
-                    autoCorrect={false}
-                    onFocus={() => setFocusedField('name')}
-                    onBlur={() => setFocusedField(null)}
-                    autoFocus
-                  />
-                </View>
-              </View>
-            )}
 
             <View style={styles.field}>
               <Text style={styles.label}>Password</Text>

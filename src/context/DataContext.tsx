@@ -31,7 +31,7 @@ interface DataContextType {
   kids: Kid[];
   loading: boolean;
   refreshData: () => Promise<void>;
-  addKid: (name: string, avatar: string, allowanceAmount: number, allowanceFrequency: AllowanceFrequency, password: string, initialBalance?: number) => Promise<string | null>;
+  addKid: (name: string, avatar: string, allowanceAmount: number, allowanceFrequency: AllowanceFrequency, email: string, password: string, initialBalance?: number) => Promise<string | null>;
   updateKid: (id: string, name: string, avatar: string, allowanceAmount: number, allowanceFrequency: AllowanceFrequency, password?: string, savingsGoal?: SavingsGoal | null) => Promise<void>;
   deleteKid: (id: string) => Promise<void>;
   addTransaction: (kidId: string, type: 'add' | 'subtract', amount: number, description: string, category: TransactionCategory) => Promise<void>;
@@ -41,7 +41,6 @@ interface DataContextType {
   updateSavingsGoal: (id: string, savingsGoal: SavingsGoal | null) => Promise<void>;
   transferMoney: (fromKidId: string, toKidId: string, amount: number, description: string) => Promise<{ success: boolean; error?: string }>;
   getKid: (id: string) => Kid | undefined;
-  isNameUnique: (name: string, excludeId?: string) => boolean;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -228,6 +227,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     avatar: string,
     allowanceAmount: number,
     allowanceFrequency: AllowanceFrequency,
+    _email: string,
     _password: string,
     initialBalance?: number
   ): Promise<string | null> => {
@@ -526,14 +526,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [kids]
   );
 
-  const isNameUnique = useCallback(
-    (name: string, excludeId?: string) =>
-      !kids.some(
-        (kid) => kid.name.toLowerCase() === name.toLowerCase() && kid.id !== excludeId
-      ),
-    [kids]
-  );
-
   return (
     <DataContext.Provider
       value={{
@@ -550,7 +542,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         deleteTransaction,
         transferMoney,
         getKid,
-        isNameUnique,
       }}
     >
       {children}

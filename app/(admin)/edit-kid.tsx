@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../../src/lib/supabase';
 import { useData } from '../../src/context/DataContext';
 import { useAuth } from '../../src/context/AuthContext';
 import { useColors } from '../../src/context/ThemeContext';
@@ -45,7 +46,7 @@ const frequencies: { value: AllowanceFrequency; label: string }[] = [
 
 export default function EditKidScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getKid, updateKid, isNameUnique } = useData();
+  const { getKid, updateKid } = useData();
   const { updateKidPassword } = useAuth();
   const router = useRouter();
   const colors = useColors();
@@ -55,6 +56,7 @@ export default function EditKidScreen() {
   const kid = id ? getKid(id) : undefined;
 
   const [name, setName] = useState(kid?.name ?? '');
+  const [kidEmail, setKidEmail] = useState<string | null>(null);
   const [selectedAvatar, setSelectedAvatar] = useState(kid?.avatar ?? Avatars[0]);
   const [allowanceAmount, setAllowanceAmount] = useState(kid?.allowanceAmount.toString() ?? '');
   const [frequency, setFrequency] = useState<AllowanceFrequency>(kid?.allowanceFrequency ?? 'monthly');
@@ -62,33 +64,25 @@ export default function EditKidScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [goalName, setGoalName] = useState(kid?.savingsGoal?.name ?? '');
   const [goalAmount, setGoalAmount] = useState(kid?.savingsGoal?.targetAmount?.toString() ?? '');
-  const [nameError, setNameError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!id) return;
+    supabase.rpc('get_kid_auth_email', { p_kid_id: id }).then(({ data }) => {
+      if (data) setKidEmail(data);
+    });
+  }, [id]);
 
   const strength = useMemo(() => getPasswordStrength(newPassword, colors), [newPassword, colors]);
 
   const isValid =
     name.trim().length > 0 &&
     parseFloat(allowanceAmount) > 0 &&
-    nameError === '' &&
     (newPassword.length === 0 || newPassword.length >= 6) &&
     !saving;
 
-  const handleNameChange = (text: string) => {
-    setName(text);
-    if (text.trim().length > 0 && !isNameUnique(text.trim(), id)) {
-      setNameError('This name is already taken');
-    } else {
-      setNameError('');
-    }
-  };
-
   const handleSave = async () => {
     if (!isValid || !id) return;
-    if (!isNameUnique(name.trim(), id)) {
-      setNameError('This name is already taken');
-      return;
-    }
 
     setSaving(true);
 
@@ -158,18 +152,20 @@ export default function EditKidScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Name (used as login username)</Text>
+          <Text style={styles.sectionTitle}>Display Name</Text>
           <TextInput
-            style={[styles.textInput, nameError ? styles.textInputError : null]}
+            style={styles.textInput}
             value={name}
-            onChangeText={handleNameChange}
+            onChangeText={setName}
             placeholder="Enter name"
             autoCapitalize="words"
             placeholderTextColor={colors.textLight}
           />
-          {nameError.length > 0 && (
-            <Text style={styles.fieldError}>{nameError}</Text>
-          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Login Email</Text>
+          <Text style={styles.emailDisplay}>{kidEmail ?? 'Loading...'}</Text>
         </View>
 
         <View style={styles.section}>
@@ -355,6 +351,14 @@ const createStyles = (colors: ThemeColors) =>
       shadowOpacity: 0.04,
       shadowRadius: 4,
       elevation: 1,
+    },
+    emailDisplay: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: 14,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.lg,
+      fontSize: 17,
+      color: colors.textSecondary,
     },
     passwordContainer: {
       flexDirection: 'row',

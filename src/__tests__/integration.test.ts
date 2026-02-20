@@ -2,7 +2,6 @@ import { processAllowances } from '../utils/allowance';
 import { computeStats } from '../utils/stats';
 import { rowToKid, txRowToTransaction } from '../utils/transforms';
 import { isNotificationEnabled, shouldFireMilestone, MILESTONE_THRESHOLDS } from '../utils/notifications';
-import { kidEmail, isNameUnique } from '../utils/auth';
 import { Kid, Transaction, KidRow, TransactionRow, NotificationPreferences } from '../types';
 
 /**
@@ -247,31 +246,6 @@ describe('Goal Milestone Tracking', () => {
   });
 });
 
-// ─── Auth & Kid Email Flow ───────────────────────────────────────────────
-
-describe('Auth & Kid Email Flow', () => {
-  it('generates unique emails for different kid IDs', () => {
-    const email1 = kidEmail('kid-1');
-    const email2 = kidEmail('kid-2');
-    expect(email1).not.toBe(email2);
-    expect(email1).toContain('kid-1');
-    expect(email2).toContain('kid-2');
-  });
-
-  it('validates name uniqueness across family', () => {
-    const kids = [
-      { name: 'Alice', id: 'kid-1' },
-      { name: 'Bob', id: 'kid-2' },
-    ];
-
-    expect(isNameUnique('Charlie', kids)).toBe(true);
-    expect(isNameUnique('Alice', kids)).toBe(false);
-    expect(isNameUnique('alice', kids)).toBe(false);
-    expect(isNameUnique('Alice', kids, 'kid-1')).toBe(true); // Editing Alice herself
-    expect(isNameUnique('Bob', kids, 'kid-1')).toBe(false); // Can't rename to Bob
-  });
-});
-
 // ─── Notification Preferences & Filtering ────────────────────────────────
 
 describe('Notification Preferences & Filtering', () => {
@@ -386,17 +360,6 @@ describe('Multi-Kid Family Scenario', () => {
     expect(bobStats.totalIncome).toBe(20);
   });
 
-  it('validates name uniqueness across all family kids', () => {
-    const kids = [
-      { name: 'Alice', id: 'kid-1' },
-      { name: 'Bob', id: 'kid-2' },
-      { name: 'Charlie', id: 'kid-3' },
-    ];
-
-    expect(isNameUnique('Diana', kids)).toBe(true);
-    expect(isNameUnique('alice', kids)).toBe(false);
-    expect(isNameUnique('Bob', kids, 'kid-2')).toBe(true);
-  });
 });
 
 // ─── Transfer Deletion Updates Both Accounts ─────────────────────────────
