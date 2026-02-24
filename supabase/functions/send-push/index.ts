@@ -388,8 +388,8 @@ async function sendWebPush(
 
         if (resp.ok) {
           sent++;
-        } else if (resp.status === 404 || resp.status === 410) {
-          console.warn(`Subscription expired (${resp.status}), removing stale token`);
+        } else if (resp.status === 403 || resp.status === 404 || resp.status === 410) {
+          console.warn(`Subscription invalid (${resp.status}), removing stale token`);
           await adminClient
             .from('push_tokens')
             .delete()
