@@ -419,6 +419,27 @@ serve(async (req: Request) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', ...CORS },
+      });
+    }
+    const verifyClient = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: { user }, error: authError } = await verifyClient.auth.getUser(
+      authHeader.replace('Bearer ', ''),
+    );
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', ...CORS },
+      });
+    }
+
     const { family_id, sender_token, notification } =
       (await req.json()) as PushPayload;
 
@@ -429,9 +450,7 @@ serve(async (req: Request) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    const adminClient = verifyClient;
 
     let query = adminClient
       .from('push_tokens')
