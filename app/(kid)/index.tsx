@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Platform,
   useWindowDimensions,
+  Alert,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -207,8 +208,9 @@ export default function KidDashboardScreen() {
     try {
       await updateSavingsGoal(kidId, goal);
       setShowGoalEditor(false);
-    } catch (e) {
-      console.error('Failed to save goal:', e);
+    } catch (e: any) {
+      const msg = e?.message || 'Failed to save goal';
+      Alert.alert('Error', msg);
     }
   }, [kidId, updateSavingsGoal]);
 
@@ -217,8 +219,9 @@ export default function KidDashboardScreen() {
     try {
       await updateSavingsGoal(kidId, null);
       setShowGoalEditor(false);
-    } catch (e) {
-      console.error('Failed to remove goal:', e);
+    } catch (e: any) {
+      const msg = e?.message || 'Failed to remove goal';
+      Alert.alert('Error', msg);
     }
   }, [kidId, updateSavingsGoal]);
 

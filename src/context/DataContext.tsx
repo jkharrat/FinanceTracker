@@ -306,7 +306,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateKidAvatar = async (id: string, avatar: string) => {
-    const { error } = await supabase.rpc('update_kid_avatar_safe', {
+    const { data, error } = await supabase.rpc('update_kid_avatar_safe', {
       p_kid_id: id,
       p_avatar: avatar,
     });
@@ -316,17 +316,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
 
+    if (data && data !== 'OK') {
+      throw new Error(String(data));
+    }
+
     await loadData(true);
   };
 
   const updateSavingsGoal = async (id: string, savingsGoal: SavingsGoal | null) => {
-    const { error } = await supabase.rpc('update_savings_goal_safe', {
+    const { data, error } = await supabase.rpc('update_savings_goal_safe', {
       p_kid_id: id,
       p_savings_goal_name: savingsGoal?.name ?? null,
       p_savings_goal_target: savingsGoal?.targetAmount ?? null,
     });
 
     if (error) throw error;
+    if (data && data !== 'OK') throw new Error(data);
 
     await loadData(true);
   };
