@@ -14,6 +14,14 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+function subscriptionKeyMatches(subscription: PushSubscription, expectedKey: Uint8Array): boolean {
+  const subKey = subscription.options?.applicationServerKey;
+  if (!subKey) return false;
+  const subKeyBytes = new Uint8Array(subKey);
+  if (subKeyBytes.length !== expectedKey.length) return false;
+  return subKeyBytes.every((byte, i) => byte === expectedKey[i]);
+}
+
 export function isIOSPWA(): boolean {
   if (typeof window === 'undefined') return false;
   const ua = navigator.userAgent;
@@ -64,11 +72,18 @@ async function getWebPushSubscription(): Promise<string | null> {
       return null;
     }
 
+    const expectedKey = urlBase64ToUint8Array(vapidPublicKey);
     let subscription = await registration.pushManager.getSubscription();
+
+    if (subscription && !subscriptionKeyMatches(subscription, expectedKey)) {
+      await subscription.unsubscribe();
+      subscription = null;
+    }
+
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        applicationServerKey: expectedKey as BufferSource,
       });
     }
 
@@ -93,14 +108,21 @@ async function getIOSPWAPushSubscription(): Promise<string | null> {
       return null;
     }
 
+    const expectedKey = urlBase64ToUint8Array(vapidPublicKey);
     let subscription = await registration.pushManager.getSubscription();
+
+    if (subscription && !subscriptionKeyMatches(subscription, expectedKey)) {
+      await subscription.unsubscribe();
+      subscription = null;
+    }
+
     if (!subscription) {
       // On iOS PWA, pushManager.subscribe() triggers the permission prompt.
       // Must NOT call Notification.requestPermission() separately — that
       // would consume the user-gesture context and cause subscribe() to fail.
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        applicationServerKey: expectedKey as BufferSource,
       });
     }
 

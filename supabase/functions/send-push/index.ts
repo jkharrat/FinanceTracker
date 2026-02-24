@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const PUSH_FETCH_TIMEOUT_MS = 10_000;
-const FUNCTION_VERSION = '2';
+const FUNCTION_VERSION = '3';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -327,15 +327,23 @@ async function sendWebPush(
 
   const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
   const vapidPrivateKeyB64 = Deno.env.get('VAPID_PRIVATE_KEY');
+  console.log(`[web-push] VAPID_PUBLIC_KEY present: ${!!vapidPublicKey}, VAPID_PRIVATE_KEY present: ${!!vapidPrivateKeyB64}`);
   if (!vapidPublicKey || !vapidPrivateKeyB64) {
     console.error('Missing VAPID keys – skipping web push');
     return 0;
   }
 
-  const { privateKey: vapidPrivateKey } = await importVapidKeys(
-    vapidPublicKey,
-    vapidPrivateKeyB64,
-  );
+  let vapidPrivateKey: CryptoKey;
+  try {
+    ({ privateKey: vapidPrivateKey } = await importVapidKeys(
+      vapidPublicKey,
+      vapidPrivateKeyB64,
+    ));
+    console.log('[web-push] VAPID key import succeeded');
+  } catch (err) {
+    console.error('[web-push] VAPID key import FAILED:', err);
+    return 0;
+  }
 
   const payload = new TextEncoder().encode(
     JSON.stringify({ title, body, icon: '/assets/icon.png' }),
@@ -444,6 +452,7 @@ serve(async (req: Request) => {
     }
 
     if (!tokens || tokens.length === 0) {
+      console.log(`[send-push] No tokens found for family ${family_id}`);
       return new Response(JSON.stringify({ sent: 0 }), {
         headers: { 'Content-Type': 'application/json', ...CORS },
       });
@@ -455,6 +464,8 @@ serve(async (req: Request) => {
     const webSubscriptions = tokens
       .filter((t) => t.platform === 'web')
       .map((t) => t.token);
+
+    console.log(`[send-push] family=${family_id} mobile=${mobileTokens.length} web=${webSubscriptions.length}`);
 
     const [mobileResult, webResult] = await Promise.allSettled([
       sendExpoPush(mobileTokens, notification.title, notification.message, adminClient),
