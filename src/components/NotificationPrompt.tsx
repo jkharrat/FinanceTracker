@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import { useColors } from '../context/ThemeContext';
-import { isIOSPWA } from '../utils/pushTokens';
 import AnimatedPressable from './AnimatedPressable';
 import { ThemeColors } from '../constants/colors';
 import { FontFamily } from '../constants/fonts';
@@ -14,7 +13,7 @@ import { Spacing } from '../constants/spacing';
 const DISMISSED_KEY = 'notification_prompt_dismissed';
 
 export default function NotificationPrompt() {
-  const { pushPermissionStatus, enablePushNotifications, registerPushToken } = useNotifications();
+  const { pushPermissionStatus, enablePushNotifications } = useNotifications();
   const { session, familyId } = useAuth();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -34,13 +33,10 @@ export default function NotificationPrompt() {
 
   const handleEnable = useCallback(async () => {
     const userId = session?.user?.id;
-    const granted = await enablePushNotifications(userId ?? undefined, familyId ?? undefined);
-    if (granted && userId && familyId && !isIOSPWA()) {
-      await registerPushToken(userId, familyId);
-    }
+    await enablePushNotifications(userId ?? undefined, familyId ?? undefined);
     setDismissed(true);
     await AsyncStorage.setItem(DISMISSED_KEY, 'true');
-  }, [enablePushNotifications, registerPushToken, session, familyId]);
+  }, [enablePushNotifications, session, familyId]);
 
   const handleDismiss = useCallback(async () => {
     setDismissed(true);

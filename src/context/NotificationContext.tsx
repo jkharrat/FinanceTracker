@@ -38,7 +38,7 @@ interface NotificationContextType {
   getUnreadCountForKid: (kidId: string) => number;
   checkGoalMilestones: (kid: Kid, previousBalance: number) => Promise<void>;
   setFamilyId: (id: string | null) => void;
-  registerPushToken: (userId: string, familyId: string) => Promise<void>;
+  registerPushToken: (userId: string, familyId: string) => Promise<string | null>;
   unregisterPushToken: (userId: string) => Promise<void>;
   pushPermissionStatus: 'undetermined' | 'granted' | 'denied';
   enablePushNotifications: (userId?: string, familyId?: string) => Promise<boolean>;
@@ -83,6 +83,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [preferences]);
 
   useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch((err) => {
+        console.warn('Service worker registration failed:', err);
+      });
+    }
+
     (async () => {
       if (Platform.OS === 'web') {
         if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -97,28 +103,36 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const enablePushNotifications = useCallback(async (userId?: string, familyId?: string): Promise<boolean> => {
-    if (Platform.OS === 'web' && isIOSPWA()) {
-      // iOS PWA: pushManager.subscribe() handles the permission prompt.
-      // Doing it all in one call preserves the user-gesture context that iOS requires.
-      if (userId && familyId) {
-        const token = await registerToken(userId, familyId);
-        const granted = token !== null;
+    if (Platform.OS === 'web') {
+      if (isIOSPWA()) {
+        // iOS PWA: pushManager.subscribe() handles the permission prompt.
+        // Doing it all in one call preserves the user-gesture context that iOS requires.
+        if (userId && familyId) {
+          const token = await registerToken(userId, familyId);
+          const granted = token !== null;
+          setPushPermissionStatus(granted ? 'granted' : 'denied');
+          if (granted) currentPushTokenRef.current = token;
+          return granted;
+        }
+        return false;
+      }
+
+      // Regular web: request permission then register the push subscription
+      // in the same call so the token is stored before PushTokenSync fires.
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        const permission = await Notification.requestPermission();
+        const granted = permission === 'granted';
         setPushPermissionStatus(granted ? 'granted' : 'denied');
-        if (granted) currentPushTokenRef.current = token;
+        if (granted && userId && familyId) {
+          const token = await registerToken(userId, familyId);
+          if (token) currentPushTokenRef.current = token;
+        }
         return granted;
       }
       return false;
     }
 
-    let granted = false;
-    if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined' && 'Notification' in window) {
-        const permission = await Notification.requestPermission();
-        granted = permission === 'granted';
-      }
-    } else {
-      granted = await requestPermissions();
-    }
+    const granted = await requestPermissions();
     setPushPermissionStatus(granted ? 'granted' : 'denied');
     return granted;
   }, []);
@@ -127,9 +141,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setCurrentFamilyId(id);
   }, []);
 
-  const registerPushToken = useCallback(async (userId: string, familyId: string) => {
+  const registerPushToken = useCallback(async (userId: string, familyId: string): Promise<string | null> => {
     const token = await registerToken(userId, familyId);
     currentPushTokenRef.current = token;
+    return token;
   }, []);
 
   const unregisterPushToken = useCallback(async (userId: string) => {

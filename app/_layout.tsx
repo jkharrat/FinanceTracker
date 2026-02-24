@@ -39,8 +39,8 @@ function PushTokenSync() {
     const userId = session?.user?.id;
     if (userId && familyId && pushPermissionStatus === 'granted') {
       if (registeredRef.current !== userId) {
-        registerPushToken(userId, familyId).then(() => {
-          registeredRef.current = userId;
+        registerPushToken(userId, familyId).then((token) => {
+          registeredRef.current = token ? userId : null;
         }).catch((err) => {
           console.error('Push token registration failed:', err);
           registeredRef.current = null;
