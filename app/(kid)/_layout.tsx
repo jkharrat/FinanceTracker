@@ -1,12 +1,31 @@
-import { Platform } from 'react-native';
-import { Stack } from 'expo-router';
+import { Platform, View, ActivityIndicator } from 'react-native';
+import { Stack, Redirect, usePathname } from 'expo-router';
+import { useAuth } from '../../src/context/AuthContext';
 import { useColors, useTheme } from '../../src/context/ThemeContext';
 import { FontFamily } from '../../src/constants/fonts';
 import WebSidebarLayout from '../../src/components/WebSidebar';
 
 export default function KidLayout() {
+  const { user, session, loading } = useAuth();
   const { isDark } = useTheme();
   const colors = useColors();
+  const pathname = usePathname();
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!session || !user) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
+  if (user.role === 'admin') {
+    return <Redirect href={`/(admin)${pathname}` as any} />;
+  }
 
   const blurEffect = isDark ? 'systemChromeMaterialDark' : 'systemChromeMaterial';
   const iosBlur = Platform.OS === 'ios'
