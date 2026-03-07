@@ -51,6 +51,7 @@ serve(async (req: Request) => {
         await adminClient.functions.invoke('send-push', {
           body: {
             family_id: row.family_id,
+            kid_id: row.kid_id,
             notification: {
               title: `Allowance for ${row.kid_name}`,
               message: `${row.kid_name} received $${Number(row.amount_added).toFixed(2)} in allowance.`,

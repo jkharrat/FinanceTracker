@@ -14,6 +14,7 @@ const CORS = {
 interface PushPayload {
   family_id: string;
   sender_token?: string | null;
+  kid_id?: string | null;
   notification: { title: string; message: string };
 }
 
@@ -440,7 +441,7 @@ serve(async (req: Request) => {
       });
     }
 
-    const { family_id, sender_token, notification } =
+    const { family_id, sender_token, kid_id, notification } =
       (await req.json()) as PushPayload;
 
     if (!family_id || !notification?.title) {
@@ -452,10 +453,42 @@ serve(async (req: Request) => {
 
     const adminClient = verifyClient;
 
+    // When kid_id is provided, target only the relevant kid + all admins
+    // (not every kid in the family).
+    let targetUserIds: string[] | null = null;
+    if (kid_id) {
+      const [kidResult, adminResult] = await Promise.all([
+        adminClient
+          .from('kids')
+          .select('user_id')
+          .eq('id', kid_id)
+          .single(),
+        adminClient
+          .from('profiles')
+          .select('id')
+          .eq('family_id', family_id)
+          .eq('role', 'admin'),
+      ]);
+
+      targetUserIds = [];
+      if (kidResult.data?.user_id) {
+        targetUserIds.push(kidResult.data.user_id);
+      }
+      if (adminResult.data) {
+        for (const admin of adminResult.data) {
+          targetUserIds.push(admin.id);
+        }
+      }
+    }
+
     let query = adminClient
       .from('push_tokens')
       .select('token, platform')
       .eq('family_id', family_id);
+
+    if (targetUserIds && targetUserIds.length > 0) {
+      query = query.in('user_id', targetUserIds);
+    }
 
     if (sender_token) {
       query = query.neq('token', sender_token);

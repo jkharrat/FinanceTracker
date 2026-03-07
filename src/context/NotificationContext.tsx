@@ -152,7 +152,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     currentPushTokenRef.current = null;
   }, []);
 
-  const sendRemotePush = useCallback(async (title: string, message: string) => {
+  const sendRemotePush = useCallback(async (title: string, message: string, kidId?: string) => {
     if (!currentFamilyId) return;
     if (!prefsRef.current.pushEnabled) return;
     try {
@@ -162,6 +162,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         body: {
           family_id: currentFamilyId,
           sender_token: currentPushTokenRef.current,
+          kid_id: kidId ?? null,
           notification: { title, message },
         },
       });
@@ -369,7 +370,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     if (!options?.skipLocalPush) {
       await scheduleLocalPush(notification.title, notification.message);
     }
-    await sendRemotePush(notification.title, notification.message);
+    await sendRemotePush(notification.title, notification.message, notification.kidId);
   }, [isNotificationEnabled, currentFamilyId, scheduleLocalPush, sendRemotePush]);
 
   const markAsRead = useCallback(async (id: string) => {
@@ -537,7 +538,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         }
 
         await scheduleLocalPush(title, message);
-        await sendRemotePush(title, message);
+        await sendRemotePush(title, message, kid.id);
 
         setReachedMilestones((prev) => ({
           ...prev,
