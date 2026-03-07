@@ -453,6 +453,8 @@ serve(async (req: Request) => {
 
     const adminClient = verifyClient;
 
+    console.log(`[send-push] kid_id=${kid_id ?? 'null'} sender_token=${sender_token ? 'present' : 'null'}`);
+
     // When kid_id is provided, target only the relevant kid + all admins
     // (not every kid in the family).
     let targetUserIds: string[] | null = null;
@@ -470,6 +472,9 @@ serve(async (req: Request) => {
           .eq('role', 'admin'),
       ]);
 
+      console.log(`[send-push] kid user_id=${kidResult.data?.user_id ?? 'null'} kid_error=${kidResult.error?.message ?? 'none'}`);
+      console.log(`[send-push] admins found=${adminResult.data?.length ?? 0} admin_error=${adminResult.error?.message ?? 'none'}`);
+
       targetUserIds = [];
       if (kidResult.data?.user_id) {
         targetUserIds.push(kidResult.data.user_id);
@@ -479,11 +484,14 @@ serve(async (req: Request) => {
           targetUserIds.push(admin.id);
         }
       }
+      console.log(`[send-push] targetUserIds=[${targetUserIds.join(', ')}] (${targetUserIds.length} total)`);
+    } else {
+      console.log('[send-push] no kid_id provided, broadcasting to all family members');
     }
 
     let query = adminClient
       .from('push_tokens')
-      .select('token, platform')
+      .select('token, platform, user_id')
       .eq('family_id', family_id);
 
     if (targetUserIds && targetUserIds.length > 0) {
@@ -495,6 +503,10 @@ serve(async (req: Request) => {
     }
 
     const { data: tokens, error } = await query;
+
+    if (tokens) {
+      console.log(`[send-push] tokens after filtering: ${tokens.length} devices, user_ids=[${tokens.map(t => t.user_id).join(', ')}]`);
+    }
 
     if (error) {
       return new Response(JSON.stringify({ error: error.message }), {
