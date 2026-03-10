@@ -1,15 +1,21 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme } from 'react-native';
-import { LightColors, DarkColors, ThemeColors } from '../constants/colors';
+import { ThemeColors, resolveColors, ACCENT_PALETTES } from '../constants/colors';
+import type { AccentPaletteId } from '../constants/colors';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
 const THEME_STORAGE_KEY = '@finance_tracker_theme';
+const ACCENT_STORAGE_KEY = '@finance_tracker_accent';
+
+const VALID_ACCENT_IDS = new Set<string>(ACCENT_PALETTES.map((p) => p.id));
 
 interface ThemeContextType {
   mode: ThemeMode;
   setMode: (mode: ThemeMode) => void;
+  accentPalette: AccentPaletteId;
+  setAccentPalette: (id: AccentPaletteId) => void;
   colors: ThemeColors;
   isDark: boolean;
 }
@@ -19,17 +25,24 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemColorScheme = useColorScheme();
   const [mode, setModeState] = useState<ThemeMode>('system');
+  const [accentPalette, setAccentState] = useState<AccentPaletteId>('purple');
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem(THEME_STORAGE_KEY)
-      .then((stored) => {
-        if (stored === 'light' || stored === 'dark' || stored === 'system') {
-          setModeState(stored);
+    Promise.all([
+      AsyncStorage.getItem(THEME_STORAGE_KEY),
+      AsyncStorage.getItem(ACCENT_STORAGE_KEY),
+    ])
+      .then(([storedMode, storedAccent]) => {
+        if (storedMode === 'light' || storedMode === 'dark' || storedMode === 'system') {
+          setModeState(storedMode);
+        }
+        if (storedAccent && VALID_ACCENT_IDS.has(storedAccent)) {
+          setAccentState(storedAccent as AccentPaletteId);
         }
       })
       .catch((err) => {
-        console.error('Failed to load theme preference:', err);
+        console.error('Failed to load theme preferences:', err);
       })
       .finally(() => {
         setLoaded(true);
@@ -41,10 +54,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(THEME_STORAGE_KEY, newMode);
   }, []);
 
-  const isDark = mode === 'system' ? systemColorScheme === 'dark' : mode === 'dark';
-  const colors = isDark ? DarkColors : LightColors;
+  const setAccentPalette = useCallback((id: AccentPaletteId) => {
+    setAccentState(id);
+    AsyncStorage.setItem(ACCENT_STORAGE_KEY, id);
+  }, []);
 
-  const value = useMemo(() => ({ mode, setMode, colors, isDark }), [mode, setMode, colors, isDark]);
+  const isDark = mode === 'system' ? systemColorScheme === 'dark' : mode === 'dark';
+  const colors = useMemo(() => resolveColors(isDark, accentPalette), [isDark, accentPalette]);
+
+  const value = useMemo(
+    () => ({ mode, setMode, accentPalette, setAccentPalette, colors, isDark }),
+    [mode, setMode, accentPalette, setAccentPalette, colors, isDark],
+  );
 
   if (!loaded) return null;
 

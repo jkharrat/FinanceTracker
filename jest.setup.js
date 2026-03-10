@@ -32,7 +32,17 @@ jest.mock('react-native-reanimated', () => {
     ScrollView: RN.ScrollView,
     createAnimatedComponent: jest.fn((comp) => comp),
   };
-  const layoutAnim = { duration: jest.fn().mockReturnThis(), delay: jest.fn().mockReturnThis() };
+  function makeLayoutAnim() {
+    const anim = {
+      duration: jest.fn(() => anim),
+      delay: jest.fn(() => anim),
+      springify: jest.fn(() => anim),
+      damping: jest.fn(() => anim),
+      stiffness: jest.fn(() => anim),
+      withCallback: jest.fn(() => anim),
+    };
+    return anim;
+  }
   return {
     __esModule: true,
     default: Animated,
@@ -47,6 +57,7 @@ jest.mock('react-native-reanimated', () => {
     withDelay: jest.fn((_, val) => val),
     withSequence: jest.fn((...vals) => vals[vals.length - 1]),
     withRepeat: jest.fn((val) => val),
+    cancelAnimation: jest.fn(),
     Easing: {
       bezier: jest.fn(() => jest.fn()),
       in: jest.fn(() => jest.fn()),
@@ -56,14 +67,14 @@ jest.mock('react-native-reanimated', () => {
       ease: jest.fn(),
       cubic: jest.fn(),
     },
-    FadeIn: { ...layoutAnim },
-    FadeInUp: { ...layoutAnim },
-    FadeOut: { ...layoutAnim },
-    SlideInRight: { ...layoutAnim },
-    SlideInUp: { ...layoutAnim },
-    SlideOutUp: { ...layoutAnim },
-    SlideOutLeft: { ...layoutAnim },
-    Layout: { springify: jest.fn().mockReturnThis() },
+    FadeIn: makeLayoutAnim(),
+    FadeInUp: makeLayoutAnim(),
+    FadeOut: makeLayoutAnim(),
+    SlideInRight: makeLayoutAnim(),
+    SlideInUp: makeLayoutAnim(),
+    SlideOutUp: makeLayoutAnim(),
+    SlideOutLeft: makeLayoutAnim(),
+    Layout: makeLayoutAnim(),
   };
 });
 

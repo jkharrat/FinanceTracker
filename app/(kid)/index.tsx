@@ -25,7 +25,7 @@ import AnimatedPressable from '../../src/components/AnimatedPressable';
 import GradientCard from '../../src/components/GradientCard';
 import AnimatedNumber from '../../src/components/AnimatedNumber';
 import { groupTransactionsByDate } from '../../src/utils/dateGrouping';
-import { ThemeColors } from '../../src/constants/colors';
+import { ThemeColors, ACCENT_PALETTES } from '../../src/constants/colors';
 import { AllowanceFrequency, TransactionCategory, CATEGORIES, SavingsGoal } from '../../src/types';
 import { Avatars } from '../../src/constants/colors';
 import type { ThemeMode } from '../../src/context/ThemeContext';
@@ -121,7 +121,7 @@ export default function KidDashboardScreen() {
   const { user, logout } = useAuth();
   const { kids, getKid, updateKidAvatar, updateSavingsGoal, refreshData } = useData();
   const [refreshing, setRefreshing] = useState(false);
-  const { mode, setMode } = useTheme();
+  const { mode, setMode, accentPalette, setAccentPalette } = useTheme();
   const router = useRouter();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -289,6 +289,27 @@ export default function KidDashboardScreen() {
             </View>
           </View>
         )}
+
+        <View style={styles.accentRow}>
+          {ACCENT_PALETTES.map((palette) => {
+            const active = accentPalette === palette.id;
+            return (
+              <TouchableOpacity
+                key={palette.id}
+                style={[styles.accentSwatch, active && styles.accentSwatchActive]}
+                onPress={() => setAccentPalette(palette.id)}
+                activeOpacity={0.7}
+                accessibilityLabel={palette.label}
+              >
+                <View style={[styles.accentSwatchInner, { backgroundColor: palette.swatch }]}>
+                  {active && (
+                    <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       <GradientCard
@@ -645,6 +666,31 @@ const createStyles = (colors: ThemeColors) =>
     },
     avatarOptionText: {
       fontSize: 24,
+    },
+    accentRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: Spacing.md,
+      marginTop: Spacing.lg,
+    },
+    accentSwatch: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: 'transparent',
+    },
+    accentSwatchActive: {
+      borderColor: colors.text,
+    },
+    accentSwatchInner: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     kidName: {
       fontSize: 24,

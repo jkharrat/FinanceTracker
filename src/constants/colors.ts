@@ -73,3 +73,129 @@ export const DarkColors: ThemeColors = {
 export const Colors = LightColors;
 
 export const Avatars = ['😊', '🌟', '🎨', '🚀', '🎵', '📚', '⚽', '🎮', '🏀', '🦋', '🐱', '🐶'];
+
+// --- Accent color palettes ---
+
+export type AccentOverrides = Pick<ThemeColors, 'primary' | 'primaryLight' | 'primaryDark' | 'shadow'>;
+
+export type AccentPaletteId = 'purple' | 'blue' | 'green' | 'rose' | 'orange' | 'teal';
+
+export interface AccentPalette {
+  id: AccentPaletteId;
+  label: string;
+  swatch: string;
+  light: AccentOverrides;
+  dark: AccentOverrides;
+}
+
+export const ACCENT_PALETTES: AccentPalette[] = [
+  {
+    id: 'purple',
+    label: 'Purple',
+    swatch: '#6C63FF',
+    light: {
+      primary: '#6C63FF',
+      primaryLight: '#8B85FF',
+      primaryDark: '#4A42DB',
+      shadow: 'rgba(108, 99, 255, 0.08)',
+    },
+    dark: {
+      primary: '#8B85FF',
+      primaryLight: '#A5A0FF',
+      primaryDark: '#6C63FF',
+      shadow: 'rgba(0, 0, 0, 0.3)',
+    },
+  },
+  {
+    id: 'blue',
+    label: 'Blue',
+    swatch: '#3B82F6',
+    light: {
+      primary: '#3B82F6',
+      primaryLight: '#60A5FA',
+      primaryDark: '#2563EB',
+      shadow: 'rgba(59, 130, 246, 0.08)',
+    },
+    dark: {
+      primary: '#60A5FA',
+      primaryLight: '#93BBFD',
+      primaryDark: '#3B82F6',
+      shadow: 'rgba(0, 0, 0, 0.3)',
+    },
+  },
+  {
+    id: 'green',
+    label: 'Green',
+    swatch: '#10B981',
+    light: {
+      primary: '#10B981',
+      primaryLight: '#34D399',
+      primaryDark: '#059669',
+      shadow: 'rgba(16, 185, 129, 0.08)',
+    },
+    dark: {
+      primary: '#34D399',
+      primaryLight: '#6EE7B7',
+      primaryDark: '#10B981',
+      shadow: 'rgba(0, 0, 0, 0.3)',
+    },
+  },
+  {
+    id: 'rose',
+    label: 'Rose',
+    swatch: '#F43F5E',
+    light: {
+      primary: '#F43F5E',
+      primaryLight: '#FB7185',
+      primaryDark: '#E11D48',
+      shadow: 'rgba(244, 63, 94, 0.08)',
+    },
+    dark: {
+      primary: '#FB7185',
+      primaryLight: '#FDA4AF',
+      primaryDark: '#F43F5E',
+      shadow: 'rgba(0, 0, 0, 0.3)',
+    },
+  },
+  {
+    id: 'orange',
+    label: 'Orange',
+    swatch: '#F59E0B',
+    light: {
+      primary: '#F59E0B',
+      primaryLight: '#FBBF24',
+      primaryDark: '#D97706',
+      shadow: 'rgba(245, 158, 11, 0.08)',
+    },
+    dark: {
+      primary: '#FBBF24',
+      primaryLight: '#FCD34D',
+      primaryDark: '#F59E0B',
+      shadow: 'rgba(0, 0, 0, 0.3)',
+    },
+  },
+  {
+    id: 'teal',
+    label: 'Teal',
+    swatch: '#14B8A6',
+    light: {
+      primary: '#14B8A6',
+      primaryLight: '#2DD4BF',
+      primaryDark: '#0D9488',
+      shadow: 'rgba(20, 184, 166, 0.08)',
+    },
+    dark: {
+      primary: '#2DD4BF',
+      primaryLight: '#5EEAD4',
+      primaryDark: '#14B8A6',
+      shadow: 'rgba(0, 0, 0, 0.3)',
+    },
+  },
+];
+
+export function resolveColors(isDark: boolean, accentId: AccentPaletteId): ThemeColors {
+  const base = isDark ? DarkColors : LightColors;
+  const palette = ACCENT_PALETTES.find((p) => p.id === accentId) ?? ACCENT_PALETTES[0];
+  const overrides = isDark ? palette.dark : palette.light;
+  return { ...base, ...overrides };
+}

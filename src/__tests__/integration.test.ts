@@ -763,3 +763,390 @@ describe('Balance Calculation Edge Cases', () => {
     expect(finalBalance).toBe(expectedBalance);
   });
 });
+
+// ─── Savings Goal Edge Cases ─────────────────────────────────────────────
+
+describe('Savings Goal Edge Cases', () => {
+  it('handles goal with zero target gracefully', () => {
+    const reachedMilestones: number[] = [];
+    const triggered: number[] = [];
+    for (const threshold of MILESTONE_THRESHOLDS) {
+      if (shouldFireMilestone(50, 40, 0, threshold, reachedMilestones)) {
+        triggered.push(threshold);
+      }
+    }
+    expect(triggered).toEqual([]);
+  });
+
+  it('handles goal when balance exceeds target significantly', () => {
+    const reachedMilestones: number[] = [];
+    const triggered: number[] = [];
+    for (const threshold of MILESTONE_THRESHOLDS) {
+      if (shouldFireMilestone(500, 0, 100, threshold, reachedMilestones)) {
+        triggered.push(threshold);
+        reachedMilestones.push(threshold);
+      }
+    }
+    expect(triggered).toEqual([25, 50, 75, 100]);
+  });
+
+  it('does not fire milestones when balance decreases', () => {
+    const reachedMilestones = [25, 50];
+    const triggered: number[] = [];
+    for (const threshold of MILESTONE_THRESHOLDS) {
+      if (shouldFireMilestone(40, 60, 100, threshold, reachedMilestones)) {
+        triggered.push(threshold);
+      }
+    }
+    expect(triggered).toEqual([]);
+  });
+
+  it('handles tiny fractional goal amounts', () => {
+    expect(shouldFireMilestone(0.25, 0.2, 1, 25, [])).toBe(true);
+    expect(shouldFireMilestone(0.5, 0.4, 1, 50, [])).toBe(true);
+  });
+});
+
+// ─── Allowance Processing Edge Cases ─────────────────────────────────────
+
+describe('Allowance Processing Edge Cases', () => {
+  it('does not process future-created kids', () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 30);
+
+    const kid = makeKid({
+      allowanceAmount: 10,
+      allowanceFrequency: 'weekly',
+      lastAllowanceDate: null,
+      createdAt: futureDate.toISOString(),
+      balance: 0,
+    });
+
+    const { changed } = processAllowances([kid]);
+    expect(changed).toBe(false);
+  });
+
+  it('handles concurrent processing of the same kid safely', () => {
+    const tenDaysAgo = new Date();
+    tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
+
+    const kid = makeKid({
+      allowanceAmount: 10,
+      allowanceFrequency: 'weekly',
+      lastAllowanceDate: tenDaysAgo.toISOString(),
+      balance: 50,
+    });
+
+    const result1 = processAllowances([kid]);
+    const result2 = processAllowances([kid]);
+    expect(result1.updated[0].balance).toBe(result2.updated[0].balance);
+    expect(result1.updated[0].transactions.length).toBe(result2.updated[0].transactions.length);
+  });
+
+  it('handles kid with very old creation date', () => {
+    const veryOld = new Date('2020-01-01T00:00:00.000Z');
+    const kid = makeKid({
+      allowanceAmount: 100,
+      allowanceFrequency: 'monthly',
+      lastAllowanceDate: null,
+      createdAt: veryOld.toISOString(),
+      balance: 0,
+    });
+
+    const { updated } = processAllowances([kid]);
+    expect(updated[0].transactions.length).toBeLessThanOrEqual(52);
+    expect(updated[0].balance).toBeGreaterThan(0);
+  });
+
+  it('maintains balance precision across many small allowances', () => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const kid = makeKid({
+      allowanceAmount: 0.33,
+      allowanceFrequency: 'weekly',
+      lastAllowanceDate: thirtyDaysAgo.toISOString(),
+      balance: 0.01,
+    });
+
+    const { updated } = processAllowances([kid]);
+    const balStr = updated[0].balance.toString();
+    const decimals = balStr.includes('.') ? balStr.split('.')[1].length : 0;
+    expect(decimals).toBeLessThanOrEqual(2);
+  });
+});
+
+// ─── Full Lifecycle: Kid Creation → Allowance → Spending → Stats ─────────
+
+describe('Full Kid Lifecycle', () => {
+  it('simulates complete kid financial lifecycle', () => {
+    const twoWeeksAgo = new Date();
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+    const kidRow: KidRow = {
+      id: 'kid-lifecycle',
+      family_id: 'fam-1',
+      user_id: 'user-1',
+      name: 'Lifecycle Kid',
+      avatar: '🎮',
+      allowance_amount: 25,
+      allowance_frequency: 'weekly',
+      balance: 0,
+      savings_goal_name: 'Gaming Console',
+      savings_goal_target: 300,
+      last_allowance_date: null,
+      created_at: twoWeeksAgo.toISOString(),
+    };
+
+    const kid = rowToKid(kidRow, []);
+    expect(kid.name).toBe('Lifecycle Kid');
+    expect(kid.balance).toBe(0);
+    expect(kid.savingsGoal?.name).toBe('Gaming Console');
+
+    const { updated, changed, allowanceInfos } = processAllowances([kid]);
+    expect(changed).toBe(true);
+    expect(updated[0].balance).toBeGreaterThan(0);
+    expect(allowanceInfos[0].kidName).toBe('Lifecycle Kid');
+
+    const spendingTxs: Transaction[] = [
+      ...updated[0].transactions,
+      {
+        id: 'spend-1',
+        type: 'subtract',
+        amount: 5,
+        description: 'Snack',
+        category: 'food',
+        date: new Date().toISOString(),
+      },
+      {
+        id: 'spend-2',
+        type: 'subtract',
+        amount: 10,
+        description: 'Game',
+        category: 'entertainment',
+        date: new Date().toISOString(),
+      },
+    ];
+
+    const stats = computeStats(spendingTxs);
+    expect(stats.totalIncome).toBeGreaterThan(0);
+    expect(stats.totalExpense).toBe(15);
+    expect(stats.transactionCount).toBe(spendingTxs.length);
+
+    const foodCat = stats.categoryStats.find((c) => c.id === 'food');
+    const entCat = stats.categoryStats.find((c) => c.id === 'entertainment');
+    expect(foodCat).toBeDefined();
+    expect(foodCat!.amount).toBe(5);
+    expect(entCat).toBeDefined();
+    expect(entCat!.amount).toBe(10);
+
+    const prefs: NotificationPreferences = {
+      allowance: true,
+      transactions: true,
+      transfers: true,
+      goalMilestones: true,
+      pushEnabled: true,
+    };
+    expect(isNotificationEnabled('allowance_received', prefs)).toBe(true);
+    expect(isNotificationEnabled('transaction_added', prefs)).toBe(true);
+  });
+});
+
+// ─── Transform + Stats Consistency ───────────────────────────────────────
+
+describe('Transform + Stats Consistency', () => {
+  it('transformed transactions produce valid stats', () => {
+    const txRows: TransactionRow[] = [
+      {
+        id: 'tx-a',
+        kid_id: 'kid-1',
+        type: 'add',
+        amount: 100,
+        description: 'Deposit',
+        category: 'other',
+        date: '2025-01-15T10:00:00.000Z',
+        transfer_id: null,
+      },
+      {
+        id: 'tx-b',
+        kid_id: 'kid-1',
+        type: 'subtract',
+        amount: 30,
+        description: 'Snack',
+        category: 'food',
+        date: '2025-01-20T10:00:00.000Z',
+        transfer_id: null,
+      },
+      {
+        id: 'tx-c',
+        kid_id: 'kid-1',
+        type: 'subtract',
+        amount: 20,
+        description: 'Book',
+        category: 'education',
+        date: '2025-02-05T10:00:00.000Z',
+        transfer_id: null,
+      },
+    ];
+
+    const transactions = txRows.map(txRowToTransaction);
+    expect(transactions).toHaveLength(3);
+    expect(transactions[0].type).toBe('add');
+    expect(transactions[1].type).toBe('subtract');
+
+    const stats = computeStats(transactions);
+    expect(stats.totalIncome).toBe(100);
+    expect(stats.totalExpense).toBe(50);
+    expect(stats.transactionCount).toBe(3);
+
+    const food = stats.categoryStats.find((c) => c.id === 'food');
+    const edu = stats.categoryStats.find((c) => c.id === 'education');
+    expect(food!.amount).toBe(30);
+    expect(edu!.amount).toBe(20);
+
+    expect(stats.balanceOverTime.length).toBeGreaterThanOrEqual(2);
+    const finalBalance = stats.balanceOverTime[stats.balanceOverTime.length - 1].balance;
+    expect(finalBalance).toBe(50);
+  });
+
+  it('transfer transactions have correct transfer_id after transform', () => {
+    const txRow: TransactionRow = {
+      id: 'tx-transfer',
+      kid_id: 'kid-1',
+      type: 'subtract',
+      amount: 15,
+      description: 'Transfer to Bob',
+      category: 'transfer',
+      date: '2025-03-01T10:00:00.000Z',
+      transfer_id: 'xfer-123',
+    };
+
+    const tx = txRowToTransaction(txRow);
+    expect(tx.transfer_id).toBe('xfer-123');
+    expect(tx.category).toBe('transfer');
+  });
+});
+
+// ─── Notification Filtering with Real Scenario ──────────────────────────
+
+describe('Notification Filtering - Real Scenarios', () => {
+  it('parent disables transaction notifications but keeps allowance', () => {
+    const prefs: NotificationPreferences = {
+      allowance: true,
+      transactions: false,
+      transfers: true,
+      goalMilestones: true,
+      pushEnabled: true,
+    };
+
+    expect(isNotificationEnabled('allowance_received', prefs)).toBe(true);
+    expect(isNotificationEnabled('transaction_added', prefs)).toBe(false);
+    expect(isNotificationEnabled('transaction_updated', prefs)).toBe(false);
+    expect(isNotificationEnabled('transaction_deleted', prefs)).toBe(false);
+    expect(isNotificationEnabled('transfer_received', prefs)).toBe(true);
+    expect(isNotificationEnabled('goal_milestone', prefs)).toBe(true);
+  });
+
+  it('kid only wants goal milestones', () => {
+    const prefs: NotificationPreferences = {
+      allowance: false,
+      transactions: false,
+      transfers: false,
+      goalMilestones: true,
+      pushEnabled: true,
+    };
+
+    expect(isNotificationEnabled('allowance_received', prefs)).toBe(false);
+    expect(isNotificationEnabled('transaction_added', prefs)).toBe(false);
+    expect(isNotificationEnabled('transfer_received', prefs)).toBe(false);
+    expect(isNotificationEnabled('goal_milestone', prefs)).toBe(true);
+  });
+
+  it('all notifications disabled', () => {
+    const prefs: NotificationPreferences = {
+      allowance: false,
+      transactions: false,
+      transfers: false,
+      goalMilestones: false,
+      pushEnabled: false,
+    };
+
+    const types: import('../types').NotificationType[] = [
+      'allowance_received',
+      'transaction_added',
+      'transaction_updated',
+      'transaction_deleted',
+      'transfer_received',
+      'goal_milestone',
+    ];
+
+    types.forEach((type) => {
+      expect(isNotificationEnabled(type, prefs)).toBe(false);
+    });
+  });
+});
+
+// ─── Multiple Transfers Between Multiple Kids ────────────────────────────
+
+describe('Multiple Transfers Between Multiple Kids', () => {
+  it('handles circular transfers correctly (A→B→C→A)', () => {
+    function recalcBalance(transactions: Transaction[]): number {
+      return Math.round(
+        transactions.reduce((sum, t) => sum + (t.type === 'add' ? t.amount : -t.amount), 0) * 100
+      ) / 100;
+    }
+
+    const aliceTxs: Transaction[] = [
+      { id: 'a-dep', type: 'add', amount: 100, description: 'Deposit', category: 'other', date: '2025-01-01' },
+      { id: 'a-send', type: 'subtract', amount: 20, description: 'To Bob', category: 'transfer', date: '2025-01-10', transfer_id: 'xfer-ab' },
+      { id: 'a-recv', type: 'add', amount: 15, description: 'From Charlie', category: 'transfer', date: '2025-01-12', transfer_id: 'xfer-ca' },
+    ];
+
+    const bobTxs: Transaction[] = [
+      { id: 'b-dep', type: 'add', amount: 50, description: 'Deposit', category: 'other', date: '2025-01-01' },
+      { id: 'b-recv', type: 'add', amount: 20, description: 'From Alice', category: 'transfer', date: '2025-01-10', transfer_id: 'xfer-ab' },
+      { id: 'b-send', type: 'subtract', amount: 15, description: 'To Charlie', category: 'transfer', date: '2025-01-11', transfer_id: 'xfer-bc' },
+    ];
+
+    const charlieTxs: Transaction[] = [
+      { id: 'c-dep', type: 'add', amount: 30, description: 'Deposit', category: 'other', date: '2025-01-01' },
+      { id: 'c-recv', type: 'add', amount: 15, description: 'From Bob', category: 'transfer', date: '2025-01-11', transfer_id: 'xfer-bc' },
+      { id: 'c-send', type: 'subtract', amount: 15, description: 'To Alice', category: 'transfer', date: '2025-01-12', transfer_id: 'xfer-ca' },
+    ];
+
+    expect(recalcBalance(aliceTxs)).toBe(95);  // 100 - 20 + 15
+    expect(recalcBalance(bobTxs)).toBe(55);     // 50 + 20 - 15
+    expect(recalcBalance(charlieTxs)).toBe(30); // 30 + 15 - 15
+
+    const totalBefore = 100 + 50 + 30;
+    const totalAfter = recalcBalance(aliceTxs) + recalcBalance(bobTxs) + recalcBalance(charlieTxs);
+    expect(totalAfter).toBe(totalBefore);
+  });
+});
+
+// ─── Stats with All Categories ──────────────────────────────────────────
+
+describe('Stats with All Categories', () => {
+  it('correctly computes stats across all expense categories', () => {
+    const categories = ['fines', 'food', 'toys', 'clothing', 'savings', 'education', 'entertainment', 'transfer', 'other'];
+    const txs: Transaction[] = categories.map((cat, i) => ({
+      id: `tx-${cat}`,
+      type: 'subtract' as const,
+      amount: (i + 1) * 10,
+      description: `${cat} expense`,
+      category: cat as any,
+      date: `2025-03-${String(i + 1).padStart(2, '0')}T10:00:00.000Z`,
+    }));
+
+    const stats = computeStats(txs);
+    expect(stats.categoryStats).toHaveLength(9);
+    expect(stats.categoryStats[0].amount).toBeGreaterThanOrEqual(stats.categoryStats[stats.categoryStats.length - 1].amount);
+
+    const totalCatAmount = stats.categoryStats.reduce((sum, c) => sum + c.amount, 0);
+    expect(totalCatAmount).toBe(stats.totalExpense);
+
+    const totalPercentage = stats.categoryStats.reduce((sum, c) => sum + c.percentage, 0);
+    expect(totalPercentage).toBeGreaterThanOrEqual(97);
+    expect(totalPercentage).toBeLessThanOrEqual(103);
+  });
+});

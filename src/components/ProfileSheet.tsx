@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { useTheme, useColors } from '../context/ThemeContext';
 import type { ThemeMode } from '../context/ThemeContext';
-import { ThemeColors } from '../constants/colors';
+import { ThemeColors, ACCENT_PALETTES } from '../constants/colors';
 import { FontFamily } from '../constants/fonts';
 import { Spacing } from '../constants/spacing';
 import ProfileAvatar from './ProfileAvatar';
@@ -36,7 +36,7 @@ interface ProfileSheetProps {
 
 export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
   const { user, session, updateProfile, logout } = useAuth();
-  const { mode, setMode } = useTheme();
+  const { mode, setMode, accentPalette, setAccentPalette } = useTheme();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
@@ -184,6 +184,28 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
                   <Text style={[styles.themeLabel, active && styles.themeLabelActive]}>
                     {opt.label}
                   </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={[styles.sectionLabel, { marginTop: Spacing.lg }]}>Accent Color</Text>
+          <View style={styles.accentRow}>
+            {ACCENT_PALETTES.map((palette) => {
+              const active = accentPalette === palette.id;
+              return (
+                <TouchableOpacity
+                  key={palette.id}
+                  style={[styles.accentSwatch, active && styles.accentSwatchActive]}
+                  onPress={() => setAccentPalette(palette.id)}
+                  activeOpacity={0.7}
+                  accessibilityLabel={palette.label}
+                >
+                  <View style={[styles.accentSwatchInner, { backgroundColor: palette.swatch }]}>
+                    {active && (
+                      <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                    )}
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -351,6 +373,30 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.primary,
       fontFamily: FontFamily.semiBold,
       fontWeight: '600',
+    },
+    accentRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: Spacing.md,
+    },
+    accentSwatch: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: 'transparent',
+    },
+    accentSwatchActive: {
+      borderColor: colors.text,
+    },
+    accentSwatchInner: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     logoutRow: {
       flexDirection: 'row',
