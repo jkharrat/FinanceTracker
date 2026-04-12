@@ -1,3 +1,4 @@
+// library imports
 import React, { useMemo } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useRouter } from 'expo-router';
