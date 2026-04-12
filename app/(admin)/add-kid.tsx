@@ -26,10 +26,10 @@ import { useToast } from '../../src/context/ToastContext';
 import { useShake } from '../../src/hooks/useShake';
 
 const frequencies: { value: AllowanceFrequency; label: string }[] = [
-  { value: 'weekly', label: 'Weekly' },
+  { value: 'weekly', label:  'Weekly' },
   { value: 'monthly', label: 'Monthly' },
 ];
-
+//password strength
 type PasswordStrength = { level: number; label: string; color: string; width: string };
 
 function getPasswordStrength(pw: string, colors: ThemeColors): PasswordStrength {
