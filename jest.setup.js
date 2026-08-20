@@ -48,6 +48,7 @@ jest.mock('react-native-reanimated', () => {
     default: Animated,
     useSharedValue: jest.fn((init) => ({ value: init })),
     useAnimatedStyle: jest.fn(() => ({})),
+    useAnimatedProps: jest.fn(() => ({})),
     useAnimatedReaction: jest.fn(),
     useReducedMotion: jest.fn(() => false),
     runOnJS: jest.fn((fn) => fn),

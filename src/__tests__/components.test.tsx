@@ -84,10 +84,10 @@ describe('KidCard', () => {
   });
 
   it('renders balance formatted as currency', () => {
-    const { getByText } = render(
+    const { getByLabelText } = render(
       <KidCard kid={makeKid({ balance: 42.50 })} onPress={jest.fn()} />
     );
-    expect(getByText('$42.50')).toBeTruthy();
+    expect(getByLabelText('$42.50')).toBeTruthy();
   });
 
   it('renders allowance amount with frequency', () => {
@@ -105,10 +105,10 @@ describe('KidCard', () => {
   });
 
   it('renders negative balance correctly', () => {
-    const { getByText } = render(
+    const { getByLabelText } = render(
       <KidCard kid={makeKid({ balance: -15.75 })} onPress={jest.fn()} />
     );
-    expect(getByText('-$15.75')).toBeTruthy();
+    expect(getByLabelText('-$15.75')).toBeTruthy();
   });
 
   it('renders savings goal when present', () => {

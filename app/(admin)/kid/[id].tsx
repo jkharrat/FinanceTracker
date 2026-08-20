@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,6 @@ import {
   ScrollView,
   RefreshControl,
 } from 'react-native';
-import ReAnimated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../../../src/context/DataContext';
@@ -20,6 +19,7 @@ import { TransactionModal } from '../../../src/components/TransactionModal';
 import { EmptyState } from '../../../src/components/EmptyState';
 import GradientCard from '../../../src/components/GradientCard';
 import AnimatedNumber from '../../../src/components/AnimatedNumber';
+import GoalRing from '../../../src/components/GoalRing';
 import { ThemeColors } from '../../../src/constants/colors';
 import { AllowanceFrequency, Transaction, TransactionCategory, CATEGORIES } from '../../../src/types';
 import { groupTransactionsByDate } from '../../../src/utils/dateGrouping';
@@ -59,13 +59,6 @@ export default function KidDetailScreen() {
     if (!kid?.savingsGoal) return 0;
     return Math.round(Math.min(Math.max(kid.balance / kid.savingsGoal.targetAmount, 0), 1) * 100);
   }, [kid?.savingsGoal, kid?.balance]);
-  const goalProgressAnim = useSharedValue(0);
-  useEffect(() => {
-    goalProgressAnim.value = withTiming(goalPercent, { duration: 800, easing: Easing.out(Easing.cubic) });
-  }, [goalPercent]);
-  const goalProgressStyle = useAnimatedStyle(() => ({
-    width: `${goalProgressAnim.value}%`,
-  }));
 
   const filteredTransactions = useMemo(() => {
     if (!kid) return [];
@@ -240,25 +233,26 @@ export default function KidDetailScreen() {
 
       {kid.savingsGoal && (
         <View style={styles.goalCard}>
-          <View style={styles.goalHeader}>
-            <Text style={styles.goalLabel}>Savings Goal</Text>
-            <Text style={[styles.goalPercent, goalPercent >= 100 && styles.goalPercentComplete]}>
-              {goalPercent}%
-            </Text>
+          <View style={styles.goalRow}>
+            <GoalRing
+              percent={goalPercent}
+              size={92}
+              strokeWidth={8}
+              color={goalPercent >= 100 ? colors.success : colors.primary}
+              trackColor={colors.surfaceAlt}
+            >
+              <Text style={[styles.goalRingPercent, goalPercent >= 100 && styles.goalPercentComplete]}>
+                {goalPercent}%
+              </Text>
+            </GoalRing>
+            <View style={styles.goalTextBlock}>
+              <Text style={styles.goalLabel}>Savings Goal</Text>
+              <Text style={styles.goalName} numberOfLines={2}>{kid.savingsGoal.name}</Text>
+              <Text style={styles.goalAmounts}>
+                ${Math.max(kid.balance, 0).toFixed(2)} of ${kid.savingsGoal.targetAmount.toFixed(2)}
+              </Text>
+            </View>
           </View>
-          <Text style={styles.goalName}>{kid.savingsGoal.name}</Text>
-          <View style={styles.progressBarBg}>
-            <ReAnimated.View
-              style={[
-                styles.progressBarFill,
-                goalProgressStyle,
-                goalPercent >= 100 && styles.progressBarComplete,
-              ]}
-            />
-          </View>
-          <Text style={styles.goalAmounts}>
-            ${Math.max(kid.balance, 0).toFixed(2)} of ${kid.savingsGoal.targetAmount.toFixed(2)}
-          </Text>
         </View>
       )}
 
@@ -606,10 +600,18 @@ const createStyles = (colors: ThemeColors) =>
       textTransform: 'uppercase',
       letterSpacing: 0.5,
     },
-    goalPercent: {
-      fontSize: 14,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
+    goalRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.lg,
+    },
+    goalTextBlock: {
+      flex: 1,
+    },
+    goalRingPercent: {
+      fontSize: 20,
+      fontFamily: FontFamily.extraBold,
+      fontWeight: '800',
       color: colors.primary,
     },
     goalPercentComplete: {
@@ -620,26 +622,12 @@ const createStyles = (colors: ThemeColors) =>
       fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 10,
-    },
-    progressBarBg: {
-      height: 10,
-      borderRadius: 5,
-      backgroundColor: colors.surfaceAlt,
-      overflow: 'hidden',
-    },
-    progressBarFill: {
-      height: '100%',
-      borderRadius: 5,
-      backgroundColor: colors.primary,
-    },
-    progressBarComplete: {
-      backgroundColor: colors.success,
+      marginTop: Spacing.xs,
+      marginBottom: 6,
     },
     goalAmounts: {
       fontSize: 13,
       color: colors.textSecondary,
-      marginTop: Spacing.sm,
     },
     actionRow: {
       flexDirection: 'row',

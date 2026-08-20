@@ -1,11 +1,11 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { useColors } from '../context/ThemeContext';
 import { ThemeColors } from '../constants/colors';
 import { Kid, AllowanceFrequency } from '../types';
 import AnimatedPressable from './AnimatedPressable';
 import AnimatedNumber from './AnimatedNumber';
+import GoalRing from './GoalRing';
 import { FontFamily } from '../constants/fonts';
 import { Spacing } from '../constants/spacing';
 
@@ -29,21 +29,30 @@ export function KidCard({ kid, onPress }: KidCardProps) {
   const progressPercent = Math.round(progress * 100);
 
   const accentColor = kid.balance > 0 ? colors.success : kid.balance < 0 ? colors.danger : colors.border;
+  const goalComplete = progressPercent >= 100;
 
-  const progressAnim = useSharedValue(0);
-  useEffect(() => {
-    progressAnim.value = withTiming(progressPercent, { duration: 800, easing: Easing.out(Easing.cubic) });
-  }, [progressPercent]);
-  const progressStyle = useAnimatedStyle(() => ({
-    width: `${progressAnim.value}%`,
-  }));
+  const avatar = (
+    <View style={styles.avatarContainer}>
+      <Text style={styles.avatar}>{kid.avatar}</Text>
+    </View>
+  );
 
   return (
     <AnimatedPressable variant="card" style={[styles.card, { borderLeftColor: accentColor }]} onPress={onPress}>
       <View style={styles.leftSection}>
-        <View style={styles.avatarContainer}>
-          <Text style={styles.avatar}>{kid.avatar}</Text>
-        </View>
+        {goal ? (
+          <GoalRing
+            percent={progressPercent}
+            size={62}
+            strokeWidth={4}
+            color={goalComplete ? colors.success : colors.primary}
+            trackColor={colors.surfaceAlt}
+          >
+            {avatar}
+          </GoalRing>
+        ) : (
+          avatar
+        )}
         <View style={styles.info}>
           <Text style={styles.name}>{kid.name}</Text>
           <Text style={styles.allowance}>
@@ -62,16 +71,9 @@ export function KidCard({ kid, onPress }: KidCardProps) {
         <View style={styles.goalSection}>
           <View style={styles.goalHeader}>
             <Text style={styles.goalName} numberOfLines={1}>{goal.name}</Text>
-            <Text style={styles.goalPercent}>{progressPercent}%</Text>
-          </View>
-          <View style={styles.progressBarBg}>
-            <Animated.View
-              style={[
-                styles.progressBarFill,
-                progressStyle,
-                progressPercent >= 100 && styles.progressBarComplete,
-              ]}
-            />
+            <Text style={[styles.goalPercent, goalComplete && styles.goalPercentComplete]}>
+              {progressPercent}%
+            </Text>
           </View>
           <Text style={styles.goalAmounts}>
             ${Math.max(kid.balance, 0).toFixed(2)} of ${goal.targetAmount.toFixed(2)}
@@ -106,9 +108,9 @@ const createStyles = (colors: ThemeColors) =>
       flex: 1,
     },
     avatarContainer: {
-      width: 52,
-      height: 52,
-      borderRadius: 16,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       backgroundColor: colors.surfaceAlt,
       alignItems: 'center',
       justifyContent: 'center',
@@ -178,23 +180,11 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '700',
       color: colors.primary,
     },
-    progressBarBg: {
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: colors.surfaceAlt,
-      overflow: 'hidden',
-    },
-    progressBarFill: {
-      height: '100%',
-      borderRadius: 4,
-      backgroundColor: colors.primary,
-    },
-    progressBarComplete: {
-      backgroundColor: colors.success,
+    goalPercentComplete: {
+      color: colors.success,
     },
     goalAmounts: {
       fontSize: 11,
       color: colors.textLight,
-      marginTop: Spacing.xs,
     },
   });

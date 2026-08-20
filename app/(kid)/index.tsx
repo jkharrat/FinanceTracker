@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -33,7 +33,9 @@ import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
 import { SIDEBAR_BREAKPOINT } from '../../src/components/WebSidebar';
 import AnimatedListItem from '../../src/components/AnimatedListItem';
-import ReAnimated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import GoalRing from '../../src/components/GoalRing';
+import Confetti from '../../src/components/Confetti';
+import { hapticSuccess } from '../../src/utils/haptics';
 
 const frequencyLabel: Record<AllowanceFrequency, string> = {
   weekly: '/wk',
@@ -141,13 +143,22 @@ export default function KidDashboardScreen() {
     if (!kid?.savingsGoal) return 0;
     return Math.round(Math.min(Math.max(kid.balance / kid.savingsGoal.targetAmount, 0), 1) * 100);
   }, [kid?.savingsGoal, kid?.balance]);
-  const kidGoalAnim = useSharedValue(0);
+  const goalComplete = kidGoalPercent >= 100;
+
+  const [celebrating, setCelebrating] = useState(false);
+  const wasCompleteRef = useRef<boolean | null>(null);
+
   useEffect(() => {
-    kidGoalAnim.value = withTiming(kidGoalPercent, { duration: 800, easing: Easing.out(Easing.cubic) });
-  }, [kidGoalPercent]);
-  const kidGoalAnimStyle = useAnimatedStyle(() => ({
-    width: `${kidGoalAnim.value}%`,
-  }));
+    // Only celebrate the moment the goal flips to complete, never on first paint.
+    const previous = wasCompleteRef.current;
+    wasCompleteRef.current = goalComplete;
+    if (previous === false && goalComplete) {
+      setCelebrating(true);
+      hapticSuccess();
+    }
+  }, [goalComplete]);
+
+  const stopCelebrating = useCallback(() => setCelebrating(false), []);
 
   const filteredTransactions = useMemo(() => {
     if (!kid) return [];
@@ -331,28 +342,29 @@ export default function KidDashboardScreen() {
         />
       ) : kid.savingsGoal ? (
           <AnimatedPressable variant="card" style={styles.goalCard} onPress={openGoalEditor}>
-            <View style={styles.goalHeader}>
-              <Text style={styles.goalLabel}>Savings Goal</Text>
-              <View style={styles.goalHeaderRight}>
-                <Text style={[styles.goalPercent, kidGoalPercent >= 100 && styles.goalPercentComplete]}>
+            <View style={styles.goalRow}>
+              <GoalRing
+                percent={kidGoalPercent}
+                size={92}
+                strokeWidth={8}
+                color={goalComplete ? colors.success : colors.primary}
+                trackColor={colors.surfaceAlt}
+              >
+                <Text style={[styles.goalRingPercent, goalComplete && styles.goalPercentComplete]}>
                   {kidGoalPercent}%
                 </Text>
-                <Ionicons name="pencil" size={14} color={colors.textLight} style={{ marginLeft: Spacing.sm }} />
+              </GoalRing>
+              <View style={styles.goalTextBlock}>
+                <View style={styles.goalHeader}>
+                  <Text style={styles.goalLabel}>Savings Goal</Text>
+                  <Ionicons name="pencil" size={14} color={colors.textLight} />
+                </View>
+                <Text style={styles.goalName} numberOfLines={2}>{kid.savingsGoal.name}</Text>
+                <Text style={styles.goalAmounts}>
+                  ${Math.max(kid.balance, 0).toFixed(2)} of ${kid.savingsGoal.targetAmount.toFixed(2)}
+                </Text>
               </View>
             </View>
-            <Text style={styles.goalName}>{kid.savingsGoal.name}</Text>
-            <View style={styles.progressBarBg}>
-              <ReAnimated.View
-                style={[
-                  styles.progressBarFill,
-                  kidGoalAnimStyle,
-                  kidGoalPercent >= 100 && styles.progressBarComplete,
-                ]}
-              />
-            </View>
-            <Text style={styles.goalAmounts}>
-              ${Math.max(kid.balance, 0).toFixed(2)} of ${kid.savingsGoal.targetAmount.toFixed(2)}
-            </Text>
           </AnimatedPressable>
         ) : (
         <AnimatedPressable variant="row" style={styles.setGoalButton} onPress={openGoalEditor}>
@@ -532,6 +544,13 @@ export default function KidDashboardScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
         }
       />
+
+      {celebrating && (
+        <Confetti
+          palette={[colors.primary, colors.success, colors.warning, colors.primaryLight]}
+          onComplete={stopCelebrating}
+        />
+      )}
     </View>
   );
 }
@@ -744,15 +763,25 @@ const createStyles = (colors: ThemeColors) =>
       shadowRadius: 12,
       elevation: 3,
     },
+    goalRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.lg,
+    },
+    goalTextBlock: {
+      flex: 1,
+    },
+    goalRingPercent: {
+      fontSize: 20,
+      fontFamily: FontFamily.extraBold,
+      fontWeight: '800',
+      color: colors.primary,
+    },
     goalHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: Spacing.xs,
-    },
-    goalHeaderRight: {
-      flexDirection: 'row',
-      alignItems: 'center',
     },
     goalLabel: {
       fontSize: 11,
@@ -762,12 +791,6 @@ const createStyles = (colors: ThemeColors) =>
       textTransform: 'uppercase',
       letterSpacing: 0.5,
     },
-    goalPercent: {
-      fontSize: 14,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
-      color: colors.primary,
-    },
     goalPercentComplete: {
       color: colors.success,
     },
@@ -776,26 +799,11 @@ const createStyles = (colors: ThemeColors) =>
       fontFamily: FontFamily.semiBold,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 10,
-    },
-    progressBarBg: {
-      height: 10,
-      borderRadius: 5,
-      backgroundColor: colors.surfaceAlt,
-      overflow: 'hidden',
-    },
-    progressBarFill: {
-      height: '100%',
-      borderRadius: 5,
-      backgroundColor: colors.primary,
-    },
-    progressBarComplete: {
-      backgroundColor: colors.success,
+      marginBottom: 6,
     },
     goalAmounts: {
       fontSize: 13,
       color: colors.textSecondary,
-      marginTop: Spacing.sm,
     },
     setGoalButton: {
       flexDirection: 'row',

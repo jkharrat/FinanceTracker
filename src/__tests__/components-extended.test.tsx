@@ -4,6 +4,8 @@ import { Text, View } from 'react-native';
 import NotificationItem from '../components/NotificationItem';
 import ProfileAvatar from '../components/ProfileAvatar';
 import AnimatedNumber from '../components/AnimatedNumber';
+import GoalRing from '../components/GoalRing';
+import Confetti from '../components/Confetti';
 import AnimatedListItem from '../components/AnimatedListItem';
 import AnimatedPressable from '../components/AnimatedPressable';
 import GradientCard from '../components/GradientCard';
@@ -279,38 +281,105 @@ describe('ProfileAvatar', () => {
 
 describe('AnimatedNumber', () => {
   it('renders positive value formatted as currency', () => {
-    const { getByText } = render(<AnimatedNumber value={42.5} />);
-    expect(getByText('$42.50')).toBeTruthy();
+    const { getByLabelText } = render(<AnimatedNumber value={42.5} />);
+    expect(getByLabelText('$42.50')).toBeTruthy();
   });
 
   it('renders negative value with sign', () => {
-    const { getByText } = render(<AnimatedNumber value={-15.75} />);
-    expect(getByText('-$15.75')).toBeTruthy();
+    const { getByLabelText } = render(<AnimatedNumber value={-15.75} />);
+    expect(getByLabelText('-$15.75')).toBeTruthy();
   });
 
   it('renders zero value', () => {
-    const { getByText } = render(<AnimatedNumber value={0} />);
-    expect(getByText('$0.00')).toBeTruthy();
+    const { getByLabelText } = render(<AnimatedNumber value={0} />);
+    expect(getByLabelText('$0.00')).toBeTruthy();
   });
 
   it('renders with prefix', () => {
-    const { getByText } = render(<AnimatedNumber value={100} prefix="+" />);
-    expect(getByText('+$100.00')).toBeTruthy();
+    const { getByLabelText } = render(<AnimatedNumber value={100} prefix="+" />);
+    expect(getByLabelText('+$100.00')).toBeTruthy();
   });
 
   it('renders with custom decimal places', () => {
-    const { getByText } = render(<AnimatedNumber value={42.5} decimals={0} />);
-    expect(getByText('$43')).toBeTruthy();
+    const { getByLabelText } = render(<AnimatedNumber value={42.5} decimals={0} />);
+    expect(getByLabelText('$43')).toBeTruthy();
   });
 
   it('renders large values', () => {
-    const { getByText } = render(<AnimatedNumber value={99999.99} />);
-    expect(getByText('$99999.99')).toBeTruthy();
+    const { getByLabelText } = render(<AnimatedNumber value={99999.99} />);
+    expect(getByLabelText('$99999.99')).toBeTruthy();
   });
 
   it('handles very small values', () => {
-    const { getByText } = render(<AnimatedNumber value={0.01} />);
-    expect(getByText('$0.01')).toBeTruthy();
+    const { getByLabelText } = render(<AnimatedNumber value={0.01} />);
+    expect(getByLabelText('$0.01')).toBeTruthy();
+  });
+
+  it('renders one rolling column per digit', () => {
+    const { getAllByText } = render(<AnimatedNumber value={1.23} />);
+    // "$1.23" has 3 digits, and every column stacks all ten glyphs.
+    expect(getAllByText('7')).toHaveLength(3);
+  });
+
+  it('falls back to plain text when reduced motion is enabled', () => {
+    const reanimated = require('react-native-reanimated');
+    reanimated.useReducedMotion.mockReturnValueOnce(true);
+    const { getByText } = render(<AnimatedNumber value={42.5} />);
+    expect(getByText('$42.50')).toBeTruthy();
+  });
+});
+
+// ─── GoalRing ─────────────────────────────────────────────────────────────
+
+describe('GoalRing', () => {
+  const ringProps = { color: '#6C63FF', trackColor: '#EEF0F6' };
+
+  it('renders its children in the center', () => {
+    const { getByText } = render(
+      <GoalRing percent={50} {...ringProps}>
+        <Text>50%</Text>
+      </GoalRing>
+    );
+    expect(getByText('50%')).toBeTruthy();
+  });
+
+  it('reports progress to assistive tech', () => {
+    const { getByRole } = render(<GoalRing percent={42} {...ringProps} />);
+    expect(getByRole('progressbar').props.accessibilityValue).toEqual({
+      min: 0,
+      max: 100,
+      now: 42,
+    });
+  });
+
+  it('clamps values above 100', () => {
+    const { getByRole } = render(<GoalRing percent={250} {...ringProps} />);
+    expect(getByRole('progressbar').props.accessibilityValue.now).toBe(100);
+  });
+
+  it('clamps negative values to zero', () => {
+    const { getByRole } = render(<GoalRing percent={-30} {...ringProps} />);
+    expect(getByRole('progressbar').props.accessibilityValue.now).toBe(0);
+  });
+});
+
+// ─── Confetti ─────────────────────────────────────────────────────────────
+
+describe('Confetti', () => {
+  it('renders a burst of pieces', () => {
+    const { toJSON } = render(<Confetti palette={['#6C63FF', '#34D399']} />);
+    expect(toJSON()).toBeTruthy();
+  });
+
+  it('renders nothing and completes immediately when reduced motion is on', () => {
+    const reanimated = require('react-native-reanimated');
+    reanimated.useReducedMotion.mockReturnValueOnce(true);
+    const onComplete = jest.fn();
+    const { toJSON } = render(
+      <Confetti palette={['#6C63FF']} onComplete={onComplete} />
+    );
+    expect(toJSON()).toBeNull();
+    expect(onComplete).toHaveBeenCalled();
   });
 });
 
@@ -740,17 +809,17 @@ describe('TransactionModal', () => {
 
 describe('KidCard Extended', () => {
   it('renders zero balance correctly', () => {
-    const { getByText } = render(
+    const { getByLabelText } = render(
       <KidCard kid={makeKid({ balance: 0 })} onPress={jest.fn()} />
     );
-    expect(getByText('$0.00')).toBeTruthy();
+    expect(getByLabelText('$0.00')).toBeTruthy();
   });
 
   it('renders large balance correctly', () => {
-    const { getByText } = render(
+    const { getByLabelText } = render(
       <KidCard kid={makeKid({ balance: 9999.99 })} onPress={jest.fn()} />
     );
-    expect(getByText('$9999.99')).toBeTruthy();
+    expect(getByLabelText('$9999.99')).toBeTruthy();
   });
 
   it('renders negative balance with negative goal progress as 0%', () => {
