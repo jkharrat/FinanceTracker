@@ -38,6 +38,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const BOOTSTRAP_TIMEOUT_MS = 15000;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -46,10 +48,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const ignoreAuthChanges = React.useRef(false);
+  const bootstrapped = useRef(false);
+  const inFlightProfile = useRef<{ userId: string; promise: Promise<void> } | null>(null);
 
   const familyId = profile?.family_id ?? null;
 
-  const loadProfile = useCallback(async (userId: string, email?: string) => {
+  // Releases the initial full-screen loading gate. Safe to call from any code
+  // path, so every branch can call it without worrying about double-clearing.
+  const finishBootstrap = useCallback(() => {
+    if (bootstrapped.current) return;
+    bootstrapped.current = true;
+    setLoading(false);
+  }, []);
+
+  const fetchProfile = useCallback(async (userId: string, email?: string) => {
     const { data: profileData } = await supabase
       .from('profiles')
       .select('*')
@@ -89,39 +101,99 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Sign-in and bootstrap can both ask for the same profile at once; sharing the
+  // in-flight request avoids duplicate round trips on the login path.
+  const loadProfile = useCallback(
+    (userId: string, email?: string) => {
+      const existing = inFlightProfile.current;
+      if (existing?.userId === userId) return existing.promise;
+
+      const promise = fetchProfile(userId, email).finally(() => {
+        if (inFlightProfile.current?.promise === promise) {
+          inFlightProfile.current = null;
+        }
+      });
+
+      inFlightProfile.current = { userId, promise };
+      return promise;
+    },
+    [fetchProfile]
+  );
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      if (currentSession?.user) {
-        loadProfile(currentSession.user.id, currentSession.user.email ?? undefined).finally(() => setLoading(false));
-      } else {
-        setLoading(false);
-      }
-    });
+    let cancelled = false;
+
+    const settle = () => {
+      if (!cancelled) finishBootstrap();
+    };
+
+    supabase.auth
+      .getSession()
+      .then(async ({ data: { session: currentSession } }) => {
+        if (cancelled) return;
+        setSession(currentSession);
+        if (currentSession?.user) {
+          await loadProfile(currentSession.user.id, currentSession.user.email ?? undefined);
+        }
+      })
+      .catch((error) => {
+        console.error('[auth] failed to restore session', error);
+      })
+      .finally(settle);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
+      (event, newSession) => {
         if (ignoreAuthChanges.current) return;
 
         if (event === 'PASSWORD_RECOVERY') {
           setIsPasswordRecovery(true);
           setSession(newSession);
+          settle();
           return;
         }
 
         setSession(newSession);
-        if (newSession?.user) {
-          await loadProfile(newSession.user.id, newSession.user.email ?? undefined);
-        } else {
+
+        if (!newSession?.user) {
           setProfile(null);
           setFamily(null);
           setUser(null);
+          settle();
+          return;
         }
+
+        const { id, email } = newSession.user;
+
+        // Supabase runs this callback while it still holds its internal auth
+        // lock, and during startup before `initialize()` has resolved. Querying
+        // Supabase from here would wait on that same lock and deadlock forever,
+        // so the profile load is deferred to a later tick.
+        setTimeout(() => {
+          if (cancelled) return;
+          loadProfile(id, email ?? undefined)
+            .catch((error) => {
+              console.error('[auth] failed to load profile', error);
+            })
+            .finally(settle);
+        }, 0);
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, [loadProfile]);
+    // Last resort: never leave the app stuck behind the loading gate. If the
+    // session resolves later, the route guards pick it up and redirect.
+    const watchdog = setTimeout(() => {
+      if (!bootstrapped.current) {
+        console.warn('[auth] session restore timed out, continuing unauthenticated');
+        settle();
+      }
+    }, BOOTSTRAP_TIMEOUT_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(watchdog);
+      subscription.unsubscribe();
+    };
+  }, [loadProfile, finishBootstrap]);
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
