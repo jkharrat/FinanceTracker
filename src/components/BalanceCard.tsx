@@ -105,7 +105,7 @@ function KidBalanceCard({ label, value, caption, children, style }: BalanceCardP
         <View style={[styles.blob, styles.blobLarge]} pointerEvents="none" />
         <View style={[styles.blob, styles.blobSmall]} pointerEvents="none" />
         <Animated.Image
-          source={require('../../assets/icon.png')}
+          source={require('../../assets/logo-mark.png')}
           style={[styles.piggy, piggyStyle]}
           accessibilityIgnoresInvertColors
         />
@@ -242,9 +242,6 @@ const createKidStyles = () =>
       right: Spacing.xl,
       width: 56,
       height: 56,
-      borderRadius: 14,
-      borderWidth: 2,
-      borderColor: 'rgba(255, 255, 255, 0.35)',
       pointerEvents: 'none',
     },
     label: {
