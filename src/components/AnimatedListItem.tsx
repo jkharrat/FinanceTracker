@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
+  FadeInDown,
   FadeOut,
   Keyframe,
   LinearTransition,
@@ -46,6 +48,9 @@ export default function AnimatedListItem({ index, stagger = true, children }: An
   const [entering] = useState(() => {
     if (!stagger) return FadeIn.duration(Durations.quick);
     const delay = Math.min(index, MAX_STAGGERED) * STAGGER_MS;
+    // On web, Reanimated pins custom Keyframe entrances with `position: absolute` once they
+    // finish, pulling rows out of the layout. The predefined preset doesn't get pinned.
+    if (Platform.OS === 'web') return FadeInDown.delay(delay).duration(Durations.base);
     return new Keyframe({
       0: { opacity: 0, transform: [{ translateY: 8 }] },
       100: { opacity: 1, transform: [{ translateY: 0 }], easing: Easing.out(Easing.cubic) },
