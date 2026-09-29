@@ -1,15 +1,43 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import Svg, { Path, Defs, LinearGradient, Stop, Circle, Line } from 'react-native-svg';
+import Animated, {
+  useSharedValue,
+  useAnimatedProps,
+  useAnimatedStyle,
+  withDelay,
+  withSpring,
+  withTiming,
+  useReducedMotion,
+  Easing,
+  FadeIn,
+  ZoomIn,
+} from 'react-native-reanimated';
 import { ThemeColors } from '../constants/colors';
+import { useIsKid } from '../context/ThemeContext';
 import { Transaction } from '../types';
 import { computeStats } from '../utils/stats';
-import { Radius, Type, Elevation } from '../constants/theme';
+import { computeKidBadges } from '../utils/kidBadges';
+import { Radius, Type, Elevation, KidRadius, KidType } from '../constants/theme';
 import { Spacing } from '../constants/spacing';
+import { Durations, Springs } from '../constants/motion';
 import AnimatedListItem from './AnimatedListItem';
+import AnimatedNumber from './AnimatedNumber';
 import GrowIn from './GrowIn';
+import { useSheetStagger } from './SheetEntrance';
+import { kidBubbleTint } from './TransactionItem';
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 const BAR_STAGGER_MS = 60;
+/** Kid summary numbers wait this long before counting up, so the sheet has settled. */
+const COUNT_UP_DELAY_MS = 250;
+const COUNT_UP_MS = 900;
+const LINE_DRAW_MS = 1100;
+const LINE_DRAW_DELAY_MS = 450;
+const BADGE_DELAY_MS = 300;
+const BADGE_STAGGER_MS = 140;
+const END_DOT = 13;
 
 interface StatsViewProps {
   transactions: Transaction[];
@@ -20,7 +48,107 @@ const LINE_CHART_HEIGHT = 140;
 const BAR_CHART_HEIGHT = 120;
 const Y_AXIS_WIDTH = 44;
 
-function smoothPath(points: { x: number; y: number }[]) {
+type ChartPoint = { x: number; y: number };
+
+/** Length of the path `smoothPath` draws, by sampling each curve. Slightly generous is fine for a dash reveal. */
+function smoothPathLength(points: ChartPoint[]) {
+  let length = 0;
+  for (let i = 1; i < points.length; i++) {
+    const p0 = points[i - 1];
+    const p3 = points[i];
+    const midX = (p0.x + p3.x) / 2;
+    let px = p0.x;
+    let py = p0.y;
+    for (let step = 1; step <= 16; step++) {
+      const t = step / 16;
+      const u = 1 - t;
+      const x = u * u * u * p0.x + 3 * u * u * t * midX + 3 * u * t * t * midX + t * t * t * p3.x;
+      const y = u * u * u * p0.y + 3 * u * u * t * p0.y + 3 * u * t * t * p3.y + t * t * t * p3.y;
+      length += Math.hypot(x - px, y - py);
+      px = x;
+      py = y;
+    }
+  }
+  return Math.ceil(length) + 2;
+}
+
+interface KidBalanceLineProps {
+  line: string;
+  area: string;
+  length: number;
+  color: string;
+}
+
+/** Kid balance line: draws itself left to right, then the fill fades in. */
+function KidBalanceLine({ line, area, length, color }: KidBalanceLineProps) {
+  const reducedMotion = useReducedMotion();
+  const draw = useSharedValue(reducedMotion ? 1 : 0);
+  const fill = useSharedValue(reducedMotion ? 1 : 0);
+
+  useEffect(() => {
+    if (reducedMotion) return;
+    draw.value = withDelay(LINE_DRAW_DELAY_MS, withTiming(1, { duration: LINE_DRAW_MS, easing: Easing.inOut(Easing.cubic) }));
+    fill.value = withDelay(LINE_DRAW_DELAY_MS + LINE_DRAW_MS * 0.7, withTiming(1, { duration: Durations.slow }));
+  }, [reducedMotion, draw, fill]);
+
+  const lineProps = useAnimatedProps(() => ({ strokeDashoffset: length * (1 - draw.value) }));
+  const areaProps = useAnimatedProps(() => ({ opacity: fill.value }));
+
+  return (
+    <>
+      <AnimatedPath d={area} fill="url(#balanceFill)" animatedProps={areaProps} />
+      <AnimatedPath
+        d={line}
+        stroke={color}
+        strokeWidth={3.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+        strokeDasharray={length}
+        animatedProps={lineProps}
+      />
+    </>
+  );
+}
+
+/** The kid chart's end point, drawn as a view over the SVG so it can pop with a transform. */
+function KidEndDot({ last, color, ringColor }: { last: ChartPoint; color: string; ringColor: string }) {
+  const reducedMotion = useReducedMotion();
+  const dot = useSharedValue(reducedMotion ? 1 : 0);
+
+  useEffect(() => {
+    if (reducedMotion) return;
+    dot.value = withDelay(LINE_DRAW_DELAY_MS + LINE_DRAW_MS, withSpring(1, Springs.celebrate));
+  }, [reducedMotion, dot]);
+
+  const dotStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(dot.value * 2, 1),
+    transform: [{ scale: dot.value }],
+  }));
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        kidLineStyles.dot,
+        { left: last.x - END_DOT / 2, top: last.y - END_DOT / 2, backgroundColor: color, borderColor: ringColor },
+        dotStyle,
+      ]}
+    />
+  );
+}
+
+const kidLineStyles = StyleSheet.create({
+  dot: {
+    position: 'absolute',
+    width: END_DOT,
+    height: END_DOT,
+    borderRadius: END_DOT / 2,
+    borderWidth: 2.5,
+  },
+});
+
+function smoothPath(points: ChartPoint[]) {
   if (points.length === 0) return '';
   let d = `M ${points[0].x} ${points[0].y}`;
   for (let i = 1; i < points.length; i++) {
@@ -33,9 +161,20 @@ function smoothPath(points: { x: number; y: number }[]) {
 }
 
 export function StatsView({ transactions, colors }: StatsViewProps) {
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const isKid = useIsKid();
+  const reducedMotion = useReducedMotion();
+  const stagger = useSheetStagger();
+  const styles = useMemo(() => createStyles(colors, isKid), [colors, isKid]);
   const stats = useMemo(() => computeStats(transactions), [transactions]);
+  const badges = useMemo(() => (isKid ? computeKidBadges(transactions) : []), [isKid, transactions]);
   const [lineChartWidth, setLineChartWidth] = useState(0);
+  const [counted, setCounted] = useState(!isKid || reducedMotion);
+
+  useEffect(() => {
+    if (counted) return;
+    const timer = setTimeout(() => setCounted(true), COUNT_UP_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [counted]);
 
   const incomeColor = colors.primary;
   const expenseColor = colors.textLight;
@@ -80,7 +219,9 @@ export function StatsView({ transactions, colors }: StatsViewProps) {
       return `${v < 0 ? '-' : ''}$${body}`;
     };
 
-    return { minBal, maxBal, xLabels, lineColor, line, area, last, zeroY, fmtY };
+    const length = smoothPathLength(points);
+
+    return { minBal, maxBal, xLabels, lineColor, line, area, last, zeroY, fmtY, length };
   }, [stats.balanceOverTime, lineChartWidth, colors]);
 
   if (transactions.length === 0) {
@@ -105,13 +246,19 @@ export function StatsView({ transactions, colors }: StatsViewProps) {
   const incomeShare = flowTotal > 0 ? (stats.totalIncome / flowTotal) * 100 : 50;
 
   const summary = [
-    { label: 'Total Income', value: `$${stats.totalIncome.toFixed(2)}` },
-    { label: 'Total Expenses', value: `$${stats.totalExpense.toFixed(2)}` },
-    { label: 'Transactions', value: `${stats.transactionCount}` },
-    { label: 'Avg Amount', value: `$${stats.avgAmount.toFixed(2)}` },
+    { label: 'Total Income', value: `$${stats.totalIncome.toFixed(2)}`, amount: stats.totalIncome, currency: true },
+    { label: 'Total Expenses', value: `$${stats.totalExpense.toFixed(2)}`, amount: stats.totalExpense, currency: true },
+    { label: 'Transactions', value: `${stats.transactionCount}`, amount: stats.transactionCount, currency: false },
+    { label: 'Avg Amount', value: `$${stats.avgAmount.toFixed(2)}`, amount: stats.avgAmount, currency: true },
   ];
 
   let section = 0;
+  const reveal = (order: number, children: React.ReactNode) =>
+    isKid ? (
+      <Animated.View entering={stagger(order)}>{children}</Animated.View>
+    ) : (
+      <AnimatedListItem index={order}>{children}</AnimatedListItem>
+    );
 
   return (
     <ScrollView
@@ -119,18 +266,55 @@ export function StatsView({ transactions, colors }: StatsViewProps) {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <AnimatedListItem index={section++}>
+      {reveal(section++, (
+      <>
         <View style={styles.summaryGrid}>
           {summary.map((item) => (
             <View key={item.label} style={[styles.card, styles.summaryCard]}>
               <Text style={styles.summaryLabel}>{item.label}</Text>
-              <Text style={styles.summaryValue}>{item.value}</Text>
+              {isKid ? (
+                <AnimatedNumber
+                  value={counted ? item.amount : 0}
+                  currency={item.currency}
+                  decimals={item.currency ? 2 : 0}
+                  duration={COUNT_UP_MS}
+                  style={styles.summaryValue}
+                />
+              ) : (
+                <Text style={styles.summaryValue}>{item.value}</Text>
+              )}
             </View>
           ))}
         </View>
-      </AnimatedListItem>
+      </>
+      ))}
 
-      <AnimatedListItem index={section++}>
+      {badges.length > 0 && reveal(section++, (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Your badges</Text>
+          <View style={styles.badgeList}>
+            {badges.map((badge, i) => (
+              <Animated.View
+                key={badge.id}
+                entering={
+                  reducedMotion
+                    ? FadeIn.duration(Durations.base)
+                    : ZoomIn.delay(BADGE_DELAY_MS + i * BADGE_STAGGER_MS).springify().damping(Springs.bouncy.damping)
+                }
+                style={[styles.card, styles.badge]}
+              >
+                <View style={styles.badgeEmojiWrap}>
+                  <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
+                </View>
+                <Text style={styles.badgeText}>{badge.label}</Text>
+              </Animated.View>
+            ))}
+          </View>
+        </View>
+      ))}
+
+      {reveal(section++, (
+      <>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Income vs Expenses</Text>
           <View style={[styles.card, styles.cardPadded, styles.comparisonCard]}>
@@ -154,10 +338,11 @@ export function StatsView({ transactions, colors }: StatsViewProps) {
             </View>
           </View>
         </View>
-      </AnimatedListItem>
+      </>
+      ))}
 
-      {stats.monthlyStats.length > 1 && (
-        <AnimatedListItem index={section++}>
+      {stats.monthlyStats.length > 1 && reveal(section++, (
+        <>
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Monthly Trend</Text>
             <View style={[styles.card, styles.cardPadded]}>
@@ -198,11 +383,11 @@ export function StatsView({ transactions, colors }: StatsViewProps) {
               </View>
             </View>
           </View>
-        </AnimatedListItem>
-      )}
+        </>
+      ))}
 
-      {stats.balanceOverTime.length >= 2 && (
-        <AnimatedListItem index={section++}>
+      {stats.balanceOverTime.length >= 2 && reveal(section++, (
+        <>
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Balance Over Time</Text>
             <View style={[styles.card, styles.cardPadded]}>
@@ -247,24 +432,38 @@ export function StatsView({ transactions, colors }: StatsViewProps) {
                           strokeDasharray="4 4"
                         />
                       )}
-                      <Path d={lineChartData.area} fill="url(#balanceFill)" />
-                      <Path
-                        d={lineChartData.line}
-                        stroke={lineChartData.lineColor}
-                        strokeWidth={2.5}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        fill="none"
-                      />
-                      <Circle
-                        cx={lineChartData.last.x}
-                        cy={lineChartData.last.y}
-                        r={4.5}
-                        fill={lineChartData.lineColor}
-                        stroke={colors.surface}
-                        strokeWidth={2}
-                      />
+                      {isKid ? (
+                        <KidBalanceLine
+                          line={lineChartData.line}
+                          area={lineChartData.area}
+                          length={lineChartData.length}
+                          color={lineChartData.lineColor}
+                        />
+                      ) : (
+                        <>
+                          <Path d={lineChartData.area} fill="url(#balanceFill)" />
+                          <Path
+                            d={lineChartData.line}
+                            stroke={lineChartData.lineColor}
+                            strokeWidth={2.5}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            fill="none"
+                          />
+                          <Circle
+                            cx={lineChartData.last.x}
+                            cy={lineChartData.last.y}
+                            r={4.5}
+                            fill={lineChartData.lineColor}
+                            stroke={colors.surface}
+                            strokeWidth={2}
+                          />
+                        </>
+                      )}
                     </Svg>
+                  )}
+                  {isKid && lineChartData && (
+                    <KidEndDot last={lineChartData.last} color={lineChartData.lineColor} ringColor={colors.surface} />
                   )}
                 </View>
               </View>
@@ -284,17 +483,17 @@ export function StatsView({ transactions, colors }: StatsViewProps) {
               </View>
             </View>
           </View>
-        </AnimatedListItem>
-      )}
+        </>
+      ))}
 
-      {stats.categoryStats.length > 0 && (
-        <AnimatedListItem index={section++}>
+      {stats.categoryStats.length > 0 && reveal(section++, (
+        <>
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Spending by Category</Text>
             <View style={[styles.card, styles.cardPadded, styles.categoryCard]}>
               {stats.categoryStats.map((cat, catIndex) => (
                 <View key={cat.id} style={styles.categoryRow}>
-                  <View style={styles.categoryIcon}>
+                  <View style={[styles.categoryIcon, isKid && { backgroundColor: kidBubbleTint(cat.id) }]}>
                     <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
                   </View>
                   <View style={styles.categoryDetails}>
@@ -315,13 +514,13 @@ export function StatsView({ transactions, colors }: StatsViewProps) {
               ))}
             </View>
           </View>
-        </AnimatedListItem>
-      )}
+        </>
+      ))}
     </ScrollView>
   );
 }
 
-const createStyles = (colors: ThemeColors) =>
+const createStyles = (colors: ThemeColors, isKid: boolean) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -350,7 +549,7 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 32,
     },
     emptyTitle: {
-      ...Type.headline,
+      ...(isKid ? KidType.headline : Type.headline),
       color: colors.text,
       marginBottom: Spacing.xs,
     },
@@ -362,13 +561,13 @@ const createStyles = (colors: ThemeColors) =>
     },
     card: {
       backgroundColor: colors.surface,
-      borderRadius: Radius.lg,
+      borderRadius: isKid ? KidRadius.card : Radius.lg,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.hairline,
-      ...Elevation.card,
+      ...(isKid ? Elevation.kid : Elevation.card),
     },
     cardPadded: {
-      padding: Spacing.lg,
+      padding: isKid ? Spacing.xl : Spacing.lg,
     },
     summaryGrid: {
       flexDirection: 'row',
@@ -379,7 +578,7 @@ const createStyles = (colors: ThemeColors) =>
     summaryCard: {
       flexGrow: 1,
       flexBasis: '45%',
-      padding: Spacing.lg,
+      padding: isKid ? Spacing.xl : Spacing.lg,
     },
     summaryLabel: {
       ...Type.label,
@@ -387,8 +586,8 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: Spacing.xs,
     },
     summaryValue: {
-      ...Type.title,
-      fontSize: 22,
+      ...(isKid ? KidType.title : Type.title),
+      fontSize: isKid ? 24 : 22,
       fontVariant: ['tabular-nums'],
       color: colors.text,
     },
@@ -396,7 +595,7 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: Spacing.xxl,
     },
     sectionTitle: {
-      ...Type.headline,
+      ...(isKid ? KidType.headline : Type.headline),
       color: colors.text,
       marginBottom: Spacing.md,
     },
@@ -424,7 +623,7 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.textSecondary,
     },
     comparisonAmount: {
-      ...Type.amount,
+      ...(isKid ? KidType.amount : Type.amount),
       color: colors.text,
     },
     comparisonBarContainer: {
@@ -456,8 +655,8 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: Spacing.sm,
     },
     bar: {
-      width: 12,
-      borderRadius: 4,
+      width: isKid ? 14 : 12,
+      borderRadius: isKid ? 7 : 4,
     },
     axisLabel: {
       ...Type.caption,
@@ -491,15 +690,15 @@ const createStyles = (colors: ThemeColors) =>
       gap: Spacing.md,
     },
     categoryIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: Radius.md,
+      width: isKid ? 44 : 36,
+      height: isKid ? 44 : 36,
+      borderRadius: isKid ? KidRadius.bubble : Radius.md,
       backgroundColor: colors.surfaceAlt,
       alignItems: 'center',
       justifyContent: 'center',
     },
     categoryEmoji: {
-      fontSize: 17,
+      fontSize: isKid ? 21 : 17,
     },
     categoryDetails: {
       flex: 1,
@@ -516,12 +715,12 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.text,
     },
     categoryAmount: {
-      ...Type.amount,
+      ...(isKid ? KidType.amount : Type.amount),
       fontSize: 14,
       color: colors.text,
     },
     categoryBarBg: {
-      height: 6,
+      height: isKid ? 8 : 6,
       borderRadius: Radius.pill,
       backgroundColor: colors.surfaceAlt,
       overflow: 'hidden',
@@ -550,6 +749,32 @@ const createStyles = (colors: ThemeColors) =>
     lineChartArea: {
       flex: 1,
       height: LINE_CHART_HEIGHT,
+    },
+    badgeList: {
+      gap: Spacing.sm,
+    },
+    badge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+      paddingVertical: Spacing.md,
+      paddingHorizontal: Spacing.lg,
+    },
+    badgeEmojiWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: KidRadius.bubble,
+      backgroundColor: colors.warningLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    badgeEmoji: {
+      fontSize: 22,
+    },
+    badgeText: {
+      ...KidType.button,
+      flex: 1,
+      color: colors.text,
     },
     lineChartXAxis: {
       flexDirection: 'row',

@@ -1427,3 +1427,62 @@ describe('ProfileSheet (kid)', () => {
     expect(mockSetAccentPalette).toHaveBeenCalledWith('rose');
   });
 });
+
+// ─── Kid insights ─────────────────────────────────────────────────────────
+
+describe('StatsView (kid)', () => {
+  const reanimated = require('react-native-reanimated');
+  const DAY = 86400000;
+  const ago = (days: number) => new Date(Date.now() - days * DAY).toISOString();
+  const txs = [
+    makeTx({ id: 'a', type: 'add', amount: 20, date: ago(1) }),
+    makeTx({ id: 'b', type: 'add', amount: 5, date: ago(12), category: 'allowance' }),
+    makeTx({ id: 'c', type: 'subtract', amount: 6, date: ago(14), category: 'food' }),
+  ];
+
+  beforeEach(() => { mockIsKid = true; jest.useFakeTimers(); });
+  afterEach(() => {
+    mockIsKid = false;
+    jest.useRealTimers();
+    reanimated.useReducedMotion.mockReturnValue(false);
+  });
+
+  it('counts the summary numbers up from zero after mount', () => {
+    const { getByLabelText, getAllByLabelText, queryByLabelText } = render(
+      <StatsView transactions={txs} colors={LightColors} />
+    );
+    expect(getAllByLabelText('$0.00')).toHaveLength(3);
+    expect(getByLabelText('0')).toBeTruthy();
+    expect(queryByLabelText('$25.00')).toBeNull();
+    act(() => { jest.advanceTimersByTime(300); });
+    expect(getByLabelText('$25.00')).toBeTruthy();
+    expect(getByLabelText('3')).toBeTruthy();
+  });
+
+  it('shows real values right away with reduced motion', () => {
+    reanimated.useReducedMotion.mockReturnValue(true);
+    const { getAllByText, queryByText } = render(<StatsView transactions={txs} colors={LightColors} />);
+    expect(getAllByText('$25.00').length).toBeGreaterThan(0);
+    expect(queryByText('$0.00')).toBeNull();
+  });
+
+  it('shows only the badges that are true', () => {
+    const { getByText, queryByText } = render(<StatsView transactions={txs} colors={LightColors} />);
+    expect(getByText('No spending for 7 days!')).toBeTruthy();
+    expect(getByText('Biggest savings week!')).toBeTruthy();
+    expect(queryByText('Your badges')).toBeTruthy();
+  });
+
+  it('never shows badges on the admin view', () => {
+    mockIsKid = false;
+    const { queryByText } = render(<StatsView transactions={txs} colors={LightColors} />);
+    expect(queryByText('Your badges')).toBeNull();
+  });
+});
+
+describe('AnimatedNumber without currency', () => {
+  it('formats plain counts', () => {
+    const { getByLabelText } = render(<AnimatedNumber value={12} currency={false} decimals={0} />);
+    expect(getByLabelText('12')).toBeTruthy();
+  });
+});

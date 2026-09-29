@@ -38,6 +38,10 @@ const KID_BUBBLE_TINTS: Record<string, string> = {
 };
 const KID_DEFAULT_TINT = 'rgba(148, 120, 90, 0.14)';
 
+export function kidBubbleTint(category: string) {
+  return KID_BUBBLE_TINTS[category] ?? KID_DEFAULT_TINT;
+}
+
 export function TransactionItem({ transaction, onPress, position = 'only' }: TransactionItemProps) {
   const colors = useColors();
   const isKid = useIsKid();
@@ -76,7 +80,7 @@ export function TransactionItem({ transaction, onPress, position = 'only' }: Tra
       <View
         style={[
           styles.icon,
-          isKid && { backgroundColor: KID_BUBBLE_TINTS[transaction.category] ?? KID_DEFAULT_TINT },
+          isKid && { backgroundColor: kidBubbleTint(transaction.category) },
         ]}
       >
         <Text style={styles.iconEmoji}>{category?.emoji ?? (isAdd ? '💰' : '💸')}</Text>

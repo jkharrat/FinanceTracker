@@ -14,6 +14,8 @@ interface AnimatedNumberProps {
   style?: StyleProp<TextStyle>;
   duration?: number;
   decimals?: number;
+  /** Prepends `$`. Turn off for plain counts. */
+  currency?: boolean;
 }
 
 const DIGITS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
@@ -35,10 +37,10 @@ const LAYOUT_KEYS = new Set([
   'width', 'minWidth', 'maxWidth',
 ]);
 
-function formatValue(v: number, decimals: number, prefix: string) {
+function formatValue(v: number, decimals: number, prefix: string, currency: boolean) {
   const abs = Math.abs(v);
   const sign = v < 0 ? '-' : '';
-  return `${prefix}${sign}$${abs.toFixed(decimals)}`;
+  return `${prefix}${sign}${currency ? '$' : ''}${abs.toFixed(decimals)}`;
 }
 
 interface DigitColumnProps {
@@ -82,9 +84,10 @@ export default function AnimatedNumber({
   style,
   duration = 450,
   decimals = 2,
+  currency = true,
 }: AnimatedNumberProps) {
   const reducedMotion = useReducedMotion();
-  const text = formatValue(value, decimals, prefix);
+  const text = formatValue(value, decimals, prefix, currency);
 
   const { height, glyphStyle, layoutStyle } = useMemo(() => {
     const flat = StyleSheet.flatten(style) ?? {};
