@@ -1486,3 +1486,86 @@ describe('AnimatedNumber without currency', () => {
     expect(getByLabelText('12')).toBeTruthy();
   });
 });
+
+describe('NotificationItem (kid)', () => {
+  const reanimated = require('react-native-reanimated');
+  beforeEach(() => { mockIsKid = true; jest.useFakeTimers(); });
+  afterEach(() => {
+    mockIsKid = false;
+    jest.useRealTimers();
+    reanimated.useReducedMotion.mockReturnValue(false);
+  });
+
+  it('renders the kid card and calls onPress with the id', () => {
+    const onPress = jest.fn();
+    const { getByText, getByLabelText } = render(
+      <NotificationItem notification={makeNotification({ id: 'n-7', read: false })} onPress={onPress} />
+    );
+    expect(getByLabelText('Transaction Added. $10.00 added to Alice. Unread')).toBeTruthy();
+    fireEvent.press(getByText('Transaction Added'));
+    expect(onPress).toHaveBeenCalledWith('n-7');
+  });
+
+  it('shows a pulsing dot only while unread', () => {
+    const { queryByTestId, rerender } = render(
+      <NotificationItem notification={makeNotification({ read: false })} onPress={jest.fn()} />
+    );
+    expect(queryByTestId('unread-dot')).toBeTruthy();
+    rerender(<NotificationItem notification={makeNotification({ read: true })} onPress={jest.fn()} />);
+    expect(queryByTestId('unread-dot')).toBeNull();
+  });
+
+  it('shows the sweep checkmark once mark-all starts', () => {
+    const n = makeNotification({ read: false });
+    const { queryByTestId, rerender } = render(
+      <NotificationItem notification={n} onPress={jest.fn()} sweepDelay={null} />
+    );
+    expect(queryByTestId('sweep-check')).toBeNull();
+    rerender(<NotificationItem notification={n} onPress={jest.fn()} sweepDelay={160} />);
+    expect(queryByTestId('sweep-check')).toBeTruthy();
+    act(() => { jest.advanceTimersByTime(1000); });
+    expect(queryByTestId('unread-dot')).toBeTruthy();
+  });
+
+  it('highlights fresh arrivals', () => {
+    const { queryByTestId, rerender } = render(
+      <NotificationItem notification={makeNotification()} onPress={jest.fn()} fresh />
+    );
+    expect(queryByTestId('fresh-highlight')).toBeTruthy();
+    rerender(<NotificationItem notification={makeNotification()} onPress={jest.fn()} />);
+    expect(queryByTestId('fresh-highlight')).toBeNull();
+  });
+
+  it('only offers the swipe action on native for unread rows with a handler', () => {
+    const { queryByTestId, rerender } = render(
+      <NotificationItem notification={makeNotification({ read: false })} onPress={jest.fn()} onSwipeRead={jest.fn()} />
+    );
+    expect(queryByTestId('swipe-action')).toBeTruthy();
+    rerender(
+      <NotificationItem notification={makeNotification({ read: true })} onPress={jest.fn()} onSwipeRead={jest.fn()} />
+    );
+    expect(queryByTestId('swipe-action')).toBeNull();
+    rerender(<NotificationItem notification={makeNotification({ read: false })} onPress={jest.fn()} />);
+    expect(queryByTestId('swipe-action')).toBeNull();
+  });
+
+  it('renders without the glow under reduced motion', () => {
+    reanimated.useReducedMotion.mockReturnValue(true);
+    const { getByText, queryByTestId } = render(
+      <NotificationItem notification={makeNotification({ read: false })} onPress={jest.fn()} sweepDelay={0} animateIn index={3} />
+    );
+    expect(getByText('Transaction Added')).toBeTruthy();
+    expect(queryByTestId('sweep-check')).toBeTruthy();
+  });
+
+  it('leaves the admin row without kid extras', () => {
+    mockIsKid = false;
+    const { queryByTestId, getByText } = render(
+      <NotificationItem notification={makeNotification({ read: false })} onPress={jest.fn()} fresh sweepDelay={0} onSwipeRead={jest.fn()} />
+    );
+    expect(getByText('Transaction Added')).toBeTruthy();
+    expect(queryByTestId('unread-dot')).toBeNull();
+    expect(queryByTestId('sweep-check')).toBeNull();
+    expect(queryByTestId('swipe-action')).toBeNull();
+  });
+});

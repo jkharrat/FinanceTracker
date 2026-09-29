@@ -1,3 +1,5 @@
+require('react-native-gesture-handler/jestSetup');
+
 jest.mock('@react-native-async-storage/async-storage', () => ({
   setItem: jest.fn(() => Promise.resolve()),
   getItem: jest.fn(() => Promise.resolve(null)),
@@ -54,6 +56,7 @@ jest.mock('react-native-reanimated', () => {
     useSharedValue: jest.fn((init) => ({ value: init })),
     useAnimatedStyle: jest.fn(() => ({})),
     useAnimatedProps: jest.fn(() => ({})),
+    useEvent: jest.fn(() => jest.fn()),
     useAnimatedReaction: jest.fn(),
     useReducedMotion: jest.fn(() => false),
     runOnJS: jest.fn((fn) => fn),
@@ -77,6 +80,7 @@ jest.mock('react-native-reanimated', () => {
     FadeIn: makeLayoutAnim(),
     FadeInUp: makeLayoutAnim(),
     FadeInDown: makeLayoutAnim(),
+    FadeInRight: makeLayoutAnim(),
     FadeOut: makeLayoutAnim(),
     ZoomIn: makeLayoutAnim(),
     ZoomOut: makeLayoutAnim(),
