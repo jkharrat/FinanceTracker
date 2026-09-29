@@ -21,7 +21,7 @@ import Animated, {
   withSpring,
   useReducedMotion,
 } from 'react-native-reanimated';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { useData } from '../../src/context/DataContext';
 import { useAuth } from '../../src/context/AuthContext';
 import { useColors } from '../../src/context/ThemeContext';
@@ -46,6 +46,8 @@ import { SIDEBAR_BREAKPOINT } from '../../src/components/WebSidebar';
 import AnimatedListItem, { useEntranceWindow } from '../../src/components/AnimatedListItem';
 import Confetti from '../../src/components/Confetti';
 import LaunchButton from '../../src/components/LaunchButton';
+import ReceiveCelebration from '../../src/components/ReceiveCelebration';
+import { useMoneyArrived } from '../../src/hooks/useMoneyArrived';
 import { hapticSuccess } from '../../src/utils/haptics';
 
 const frequencyLabel: Record<AllowanceFrequency, string> = {
@@ -78,7 +80,7 @@ function greeting() {
 
 export default function KidDashboardScreen() {
   const { user } = useAuth();
-  const { kids, getKid, updateSavingsGoal, refreshData } = useData();
+  const { kids, loading, getKid, updateSavingsGoal, refreshData } = useData();
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const colors = useColors();
@@ -114,6 +116,15 @@ export default function KidDashboardScreen() {
   const kid = kidId ? getKid(kidId) : undefined;
   const entranceOpen = useEntranceWindow(!!kid);
   const filters = useTransactionFilters(kid?.transactions ?? []);
+
+  const [focused, setFocused] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
+  const { arrival, dismiss: dismissArrival } = useMoneyArrived(kid, focused && !loading);
 
   const goalComplete = !!kid?.savingsGoal && kid.balance >= kid.savingsGoal.targetAmount;
 
@@ -339,6 +350,15 @@ export default function KidDashboardScreen() {
           emoji={CONFETTI_EMOJI}
           count={70}
           onComplete={stopCelebrating}
+        />
+      )}
+
+      {arrival && (
+        <ReceiveCelebration
+          total={arrival.total}
+          sources={arrival.sources}
+          previousBalance={arrival.previousBalance}
+          onDone={dismissArrival}
         />
       )}
     </View>

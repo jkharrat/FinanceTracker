@@ -1131,3 +1131,104 @@ describe('SendCelebration', () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 });
+
+// ─── Money arrived ────────────────────────────────────────────────────────
+
+describe('ReceiveCelebration', () => {
+  const ReceiveCelebration = require('../components/ReceiveCelebration').default;
+  const reanimated = require('react-native-reanimated');
+  const one = [{ label: 'Grandma', subtitle: 'from Grandma', emoji: '🎁', amount: 10 }];
+  const many = [
+    { label: 'Allowance', subtitle: 'from Allowance', emoji: '💰', amount: 5 },
+    { label: 'Leo', subtitle: 'from Leo', emoji: '🤝', amount: 2.5 },
+  ];
+
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => {
+    jest.useRealTimers();
+    reanimated.useReducedMotion.mockReturnValue(false);
+  });
+
+  it('rains coins first, then shows the amount and who sent it', () => {
+    const { queryByText, getByText, getAllByText } = render(
+      <ReceiveCelebration total={10} sources={one} previousBalance={20} onDone={jest.fn()} />
+    );
+    expect(queryByText('You got $10.00!')).toBeNull();
+    expect(getAllByText('🪙').length).toBeGreaterThan(0);
+    act(() => { jest.advanceTimersByTime(2200); });
+    expect(getByText('You got $10.00!')).toBeTruthy();
+    expect(getByText('from Grandma')).toBeTruthy();
+  });
+
+  it('buzzes lightly as coins land and succeeds at the end', () => {
+    const haptics = require('../utils/haptics');
+    const light = jest.spyOn(haptics, 'hapticLight').mockImplementation(() => {});
+    const success = jest.spyOn(haptics, 'hapticSuccess').mockImplementation(() => {});
+    render(<ReceiveCelebration total={10} sources={one} previousBalance={20} onDone={jest.fn()} />);
+    act(() => { jest.advanceTimersByTime(2200); });
+    expect(light).toHaveBeenCalled();
+    expect(success).toHaveBeenCalledTimes(1);
+    light.mockRestore();
+    success.mockRestore();
+  });
+
+  it('lists every source when several payments arrived', () => {
+    const { getByText } = render(
+      <ReceiveCelebration total={7.5} sources={many} previousBalance={20} onDone={jest.fn()} />
+    );
+    act(() => { jest.advanceTimersByTime(2200); });
+    expect(getByText('You got $7.50!')).toBeTruthy();
+    expect(getByText('from Allowance and Leo')).toBeTruthy();
+    expect(getByText('+$5.00')).toBeTruthy();
+    expect(getByText('+$2.50')).toBeTruthy();
+  });
+
+  it('skips to the reveal on a tap during the rain, then closes on the next tap', () => {
+    const onDone = jest.fn();
+    const { getByLabelText, getByText } = render(
+      <ReceiveCelebration total={10} sources={one} previousBalance={20} onDone={onDone} />
+    );
+    act(() => { jest.advanceTimersByTime(500); });
+    fireEvent.press(getByLabelText('Close'));
+    expect(getByText('You got $10.00!')).toBeTruthy();
+    expect(onDone).not.toHaveBeenCalled();
+    fireEvent.press(getByLabelText('Close'));
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a tap that lands right as it opens', () => {
+    const { getByLabelText, queryByText } = render(
+      <ReceiveCelebration total={10} sources={one} previousBalance={20} onDone={jest.fn()} />
+    );
+    fireEvent.press(getByLabelText('Close'));
+    expect(queryByText('You got $10.00!')).toBeNull();
+  });
+
+  it('closes once from Done, and closes itself when left alone', () => {
+    const onDone = jest.fn();
+    const { getByLabelText } = render(
+      <ReceiveCelebration total={10} sources={one} previousBalance={20} onDone={onDone} />
+    );
+    act(() => { jest.advanceTimersByTime(2200); });
+    fireEvent.press(getByLabelText('Done'));
+    fireEvent.press(getByLabelText('Done'));
+    expect(onDone).toHaveBeenCalledTimes(1);
+
+    const onDone2 = jest.fn();
+    render(<ReceiveCelebration total={10} sources={one} previousBalance={20} onDone={onDone2} />);
+    act(() => { jest.advanceTimersByTime(6000); });
+    expect(onDone2).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a plain card with no coin rain under reduced motion', () => {
+    reanimated.useReducedMotion.mockReturnValue(true);
+    const onDone = jest.fn();
+    const { getByText, queryByText } = render(
+      <ReceiveCelebration total={10} sources={one} previousBalance={20} onDone={onDone} />
+    );
+    expect(getByText('You got $10.00!')).toBeTruthy();
+    expect(queryByText('🪙')).toBeNull();
+    act(() => { jest.advanceTimersByTime(3600); });
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+});
