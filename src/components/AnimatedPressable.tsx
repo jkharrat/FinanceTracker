@@ -11,11 +11,18 @@ import Animated, {
   interpolateColor,
 } from 'react-native-reanimated';
 import { Springs, Durations } from '../constants/motion';
+import { useIsKid } from '../context/ThemeContext';
 
 const VARIANTS = {
   button: { press: 0.96, hoverOpacity: 0.88 },
   card: { press: 0.985, hoverOpacity: 0.94 },
   row: { press: 0.98, hoverOpacity: 0.92 },
+} as const;
+
+const KID_VARIANTS = {
+  button: { press: 0.94, hoverOpacity: 0.9 },
+  card: { press: 0.97, hoverOpacity: 0.95 },
+  row: { press: 0.97, hoverOpacity: 0.92 },
 } as const;
 
 export type AnimatedPressableVariant = keyof typeof VARIANTS;
@@ -25,6 +32,8 @@ interface AnimatedPressableProps extends Omit<PressableProps, 'style'> {
   style?: StyleProp<ViewStyle>;
   /** Background to fade to on web hover. Without it, hover dims the element slightly. */
   hoverBackground?: string;
+  /** Pixels the element sinks on press, for buttons drawn with a solid ledge underneath. */
+  pressDepth?: number;
   children: React.ReactNode;
 }
 
@@ -37,6 +46,7 @@ export default function AnimatedPressable({
   variant = 'button',
   style,
   hoverBackground,
+  pressDepth = 0,
   children,
   onPressIn,
   onPressOut,
@@ -44,10 +54,12 @@ export default function AnimatedPressable({
   ...rest
 }: AnimatedPressableProps) {
   const reducedMotion = useReducedMotion();
+  const isKid = useIsKid();
   const pressed = useSharedValue(0);
   const hovered = useSharedValue(0);
 
-  const { press: pressScale, hoverOpacity } = VARIANTS[variant];
+  const { press: pressScale, hoverOpacity } = (isKid ? KID_VARIANTS : VARIANTS)[variant];
+  const pressSpring = isKid ? Springs.bouncy : Springs.snappy;
   const { restBackground, restOpacity } = useMemo(() => {
     const flat = StyleSheet.flatten(style) ?? {};
     return {
@@ -59,26 +71,27 @@ export default function AnimatedPressable({
 
   const animatedStyle = useAnimatedStyle(() => {
     const scale = reducedMotion ? 1 : interpolate(pressed.value, [0, 1], [1, pressScale]);
+    const translateY = interpolate(pressed.value, [0, 1], [0, pressDepth]);
     if (tintOnHover) {
       return {
-        transform: [{ scale }],
+        transform: [{ translateY }, { scale }],
         backgroundColor: interpolateColor(hovered.value, [0, 1], [restBackground!, hoverBackground!]),
       };
     }
     return {
-      transform: [{ scale }],
+      transform: [{ translateY }, { scale }],
       opacity: restOpacity * interpolate(hovered.value, [0, 1], [1, hoverOpacity]),
     };
   });
 
   const handlePressIn: PressableProps['onPressIn'] = (e) => {
-    pressed.value = withSpring(1, Springs.snappy);
+    pressed.value = withSpring(1, pressSpring);
     if (variant === 'button') hapticLight();
     onPressIn?.(e);
   };
 
   const handlePressOut: PressableProps['onPressOut'] = (e) => {
-    pressed.value = withSpring(0, Springs.snappy);
+    pressed.value = withSpring(0, pressSpring);
     onPressOut?.(e);
   };
 

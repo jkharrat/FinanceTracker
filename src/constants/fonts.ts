@@ -8,6 +8,28 @@ export const FontFamily = {
   extraBold: 'Inter_800ExtraBold',
 } as const;
 
+/** Rounded display face for kid headings and amounts. Body text stays Inter. */
+export const KidFontFamily = {
+  bold: 'Nunito_700Bold',
+  extraBold: 'Nunito_800ExtraBold',
+  black: 'Nunito_900Black',
+} as const;
+
+type KidFontWeight = '700' | '800' | '900';
+
+const kidWeightToFamily: Record<KidFontWeight, string> = {
+  '700': KidFontFamily.bold,
+  '800': KidFontFamily.extraBold,
+  '900': KidFontFamily.black,
+};
+
+export function kidFontStyle(weight: KidFontWeight = '800') {
+  return {
+    fontFamily: kidWeightToFamily[weight],
+    ...(Platform.OS === 'web' ? { fontWeight: weight as any } : {}),
+  };
+}
+
 type FontWeight = '400' | '500' | '600' | '700' | '800';
 
 const weightToFamily: Record<FontWeight, string> = {

@@ -12,7 +12,9 @@ jest.mock('../context/ThemeContext', () => ({
     setMode: jest.fn(),
     colors: {},
     isDark: false,
+    variant: 'default',
   }),
+  useIsKid: () => false,
 }));
 
 jest.mock('@expo/vector-icons', () => {

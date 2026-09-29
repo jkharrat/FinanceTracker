@@ -7,6 +7,9 @@ import { computeStats } from '../utils/stats';
 import { Radius, Type, Elevation } from '../constants/theme';
 import { Spacing } from '../constants/spacing';
 import AnimatedListItem from './AnimatedListItem';
+import GrowIn from './GrowIn';
+
+const BAR_STAGGER_MS = 60;
 
 interface StatsViewProps {
   transactions: Transaction[];
@@ -138,10 +141,10 @@ export function StatsView({ transactions, colors }: StatsViewProps) {
               </View>
               <Text style={styles.comparisonAmount}>${stats.totalIncome.toFixed(2)}</Text>
             </View>
-            <View style={styles.comparisonBarContainer}>
+            <GrowIn axis="x" delay={150} style={styles.comparisonBarContainer}>
               <View style={[styles.comparisonBar, { backgroundColor: incomeColor, width: `${incomeShare}%` }]} />
               <View style={[styles.comparisonBar, { backgroundColor: expenseColor, width: `${100 - incomeShare}%` }]} />
-            </View>
+            </GrowIn>
             <View style={styles.comparisonRow}>
               <View style={styles.comparisonLabel}>
                 <View style={[styles.dot, { backgroundColor: expenseColor }]} />
@@ -162,13 +165,17 @@ export function StatsView({ transactions, colors }: StatsViewProps) {
                 {stats.monthlyStats.map((month, index) => (
                   <View key={index} style={styles.barGroup}>
                     <View style={styles.barPair}>
-                      <View
+                      <GrowIn
+                        axis="y"
+                        delay={200 + index * BAR_STAGGER_MS}
                         style={[
                           styles.bar,
                           { height: Math.max((month.income / maxMonthlyValue) * BAR_CHART_HEIGHT, 3), backgroundColor: incomeColor },
                         ]}
                       />
-                      <View
+                      <GrowIn
+                        axis="y"
+                        delay={230 + index * BAR_STAGGER_MS}
                         style={[
                           styles.bar,
                           { height: Math.max((month.expense / maxMonthlyValue) * BAR_CHART_HEIGHT, 3), backgroundColor: expenseColor },
@@ -285,7 +292,7 @@ export function StatsView({ transactions, colors }: StatsViewProps) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Spending by Category</Text>
             <View style={[styles.card, styles.cardPadded, styles.categoryCard]}>
-              {stats.categoryStats.map((cat) => (
+              {stats.categoryStats.map((cat, catIndex) => (
                 <View key={cat.id} style={styles.categoryRow}>
                   <View style={styles.categoryIcon}>
                     <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
@@ -296,7 +303,9 @@ export function StatsView({ transactions, colors }: StatsViewProps) {
                       <Text style={styles.categoryAmount}>${cat.amount.toFixed(2)}</Text>
                     </View>
                     <View style={styles.categoryBarBg}>
-                      <View
+                      <GrowIn
+                        axis="x"
+                        delay={250 + catIndex * BAR_STAGGER_MS}
                         style={[styles.categoryBarFill, { width: `${cat.percentage}%`, backgroundColor: colors.primary }]}
                       />
                     </View>

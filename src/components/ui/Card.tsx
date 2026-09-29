@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
-import { useColors } from '../../context/ThemeContext';
-import { Radius, Elevation } from '../../constants/theme';
+import { useColors, useIsKid } from '../../context/ThemeContext';
+import { Radius, Elevation, KidRadius } from '../../constants/theme';
 import { Spacing } from '../../constants/spacing';
 import AnimatedPressable from '../AnimatedPressable';
 
@@ -15,10 +15,12 @@ interface CardProps {
 
 export default function Card({ children, style, onPress, padded = true, accessibilityLabel }: CardProps) {
   const colors = useColors();
+  const isKid = useIsKid();
   const cardStyle = [
     styles.card,
     { backgroundColor: colors.surface, borderColor: colors.hairline },
-    padded && styles.padded,
+    isKid && styles.kid,
+    padded && (isKid ? styles.kidPadded : styles.padded),
     style,
   ];
 
@@ -49,5 +51,12 @@ const styles = StyleSheet.create({
   },
   padded: {
     padding: Spacing.lg,
+  },
+  kid: {
+    borderRadius: KidRadius.card,
+    ...Elevation.kid,
+  },
+  kidPadded: {
+    padding: Spacing.xl,
   },
 });

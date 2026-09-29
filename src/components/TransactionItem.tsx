@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useColors } from '../context/ThemeContext';
+import { useColors, useIsKid } from '../context/ThemeContext';
 import { ThemeColors } from '../constants/colors';
 import { Transaction, CATEGORIES } from '../types';
-import { Radius, Type } from '../constants/theme';
+import { Radius, Type, KidRadius, KidType } from '../constants/theme';
 import { Spacing } from '../constants/spacing';
 import AnimatedPressable from './AnimatedPressable';
 
@@ -24,10 +24,24 @@ interface TransactionItemProps {
 }
 
 const ICON_SIZE = 40;
+const KID_ICON_SIZE = 46;
+
+const KID_BUBBLE_TINTS: Record<string, string> = {
+  allowance: 'rgba(255, 185, 56, 0.22)',
+  fines: 'rgba(240, 68, 75, 0.16)',
+  gift: 'rgba(236, 72, 153, 0.16)',
+  food: 'rgba(255, 138, 61, 0.18)',
+  toys: 'rgba(124, 92, 255, 0.16)',
+  clothing: 'rgba(56, 189, 248, 0.18)',
+  savings: 'rgba(15, 169, 88, 0.16)',
+  education: 'rgba(59, 130, 246, 0.16)',
+};
+const KID_DEFAULT_TINT = 'rgba(148, 120, 90, 0.14)';
 
 export function TransactionItem({ transaction, onPress, position = 'only' }: TransactionItemProps) {
   const colors = useColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const isKid = useIsKid();
+  const styles = useMemo(() => createStyles(colors, isKid), [colors, isKid]);
 
   const isAdd = transaction.type === 'add';
   const date = new Date(transaction.date);
@@ -59,7 +73,12 @@ export function TransactionItem({ transaction, onPress, position = 'only' }: Tra
 
   const content = (
     <>
-      <View style={styles.icon}>
+      <View
+        style={[
+          styles.icon,
+          isKid && { backgroundColor: KID_BUBBLE_TINTS[transaction.category] ?? KID_DEFAULT_TINT },
+        ]}
+      >
         <Text style={styles.iconEmoji}>{category?.emoji ?? (isAdd ? '💰' : '💸')}</Text>
       </View>
       <View style={styles.content}>
@@ -103,14 +122,16 @@ export function TransactionItem({ transaction, onPress, position = 'only' }: Tra
   );
 }
 
-const createStyles = (colors: ThemeColors) =>
-  StyleSheet.create({
+const createStyles = (colors: ThemeColors, isKid: boolean) => {
+  const iconSize = isKid ? KID_ICON_SIZE : ICON_SIZE;
+  const groupRadius = isKid ? 22 : Radius.lg;
+  return StyleSheet.create({
     container: {
       flexDirection: 'row',
       alignItems: 'center',
       marginHorizontal: Spacing.xl,
       backgroundColor: colors.surface,
-      paddingVertical: Spacing.md,
+      paddingVertical: isKid ? 14 : Spacing.md,
       paddingHorizontal: Spacing.lg,
       borderLeftWidth: StyleSheet.hairlineWidth,
       borderRightWidth: StyleSheet.hairlineWidth,
@@ -118,33 +139,33 @@ const createStyles = (colors: ThemeColors) =>
     },
     top: {
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopLeftRadius: Radius.lg,
-      borderTopRightRadius: Radius.lg,
+      borderTopLeftRadius: groupRadius,
+      borderTopRightRadius: groupRadius,
     },
     bottom: {
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomLeftRadius: Radius.lg,
-      borderBottomRightRadius: Radius.lg,
+      borderBottomLeftRadius: groupRadius,
+      borderBottomRightRadius: groupRadius,
     },
     separator: {
       position: 'absolute',
-      left: Spacing.lg + ICON_SIZE + Spacing.md,
+      left: Spacing.lg + iconSize + Spacing.md,
       right: 0,
       bottom: 0,
       height: StyleSheet.hairlineWidth,
       backgroundColor: colors.hairline,
     },
     icon: {
-      width: ICON_SIZE,
-      height: ICON_SIZE,
-      borderRadius: Radius.md,
+      width: iconSize,
+      height: iconSize,
+      borderRadius: isKid ? KidRadius.bubble : Radius.md,
       backgroundColor: colors.surfaceAlt,
       alignItems: 'center',
       justifyContent: 'center',
       marginRight: Spacing.md,
     },
     iconEmoji: {
-      fontSize: 18,
+      fontSize: isKid ? 22 : 18,
     },
     content: {
       flex: 1,
@@ -180,10 +201,11 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.textLight,
     },
     amount: {
-      ...Type.amount,
+      ...(isKid ? KidType.amount : Type.amount),
       color: colors.text,
     },
     amountAdd: {
       color: colors.success,
     },
   });
+};

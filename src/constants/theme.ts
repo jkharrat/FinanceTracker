@@ -1,5 +1,5 @@
 import { Platform, TextStyle, ViewStyle } from 'react-native';
-import { fontStyle } from './fonts';
+import { fontStyle, kidFontStyle } from './fonts';
 
 export const Radius = {
   sm: 8,
@@ -9,7 +9,7 @@ export const Radius = {
   pill: 999,
 } as const;
 
-type ElevationLevel = 'none' | 'card' | 'raised';
+type ElevationLevel = 'none' | 'card' | 'raised' | 'kid';
 
 const SHADOWS: Record<ElevationLevel, ViewStyle> = {
   none: {},
@@ -31,6 +31,16 @@ const SHADOWS: Record<ElevationLevel, ViewStyle> = {
       shadowOpacity: 0.12,
       shadowRadius: 24,
       elevation: 8,
+    },
+  }),
+  kid: Platform.select<ViewStyle>({
+    web: { boxShadow: '0 6px 20px rgba(120, 72, 20, 0.08), 0 1px 3px rgba(120, 72, 20, 0.06)' } as ViewStyle,
+    default: {
+      shadowColor: '#784814',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.08,
+      shadowRadius: 20,
+      elevation: 3,
     },
   }),
 };
@@ -81,6 +91,42 @@ export const Type = {
   amount: {
     ...fontStyle('600'),
     fontSize: 15,
+    fontVariant: ['tabular-nums'],
+  },
+} satisfies Record<string, TextStyle>;
+
+export const KidRadius = {
+  card: 28,
+  button: 18,
+  bubble: 16,
+} as const;
+
+/** Height of the solid "ledge" under kid buttons that compresses on press. */
+export const KID_BUTTON_LEDGE = 4;
+
+export const KidType = {
+  display: {
+    ...kidFontStyle('900'),
+    fontSize: 50,
+    letterSpacing: -0.5,
+    fontVariant: ['tabular-nums'],
+  },
+  title: {
+    ...kidFontStyle('900'),
+    fontSize: 26,
+    letterSpacing: -0.2,
+  },
+  headline: {
+    ...kidFontStyle('800'),
+    fontSize: 18,
+  },
+  button: {
+    ...kidFontStyle('800'),
+    fontSize: 16,
+  },
+  amount: {
+    ...kidFontStyle('800'),
+    fontSize: 16,
     fontVariant: ['tabular-nums'],
   },
 } satisfies Record<string, TextStyle>;

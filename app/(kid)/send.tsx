@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,8 +18,18 @@ import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
 import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
+import { KidRadius, KidType, KID_BUTTON_LEDGE } from '../../src/constants/theme';
 import { useToast } from '../../src/context/ToastContext';
 import { useShake } from '../../src/hooks/useShake';
+import { hapticSuccess } from '../../src/utils/haptics';
+import AnimatedPressable from '../../src/components/AnimatedPressable';
+import SendSuccess from '../../src/components/SendSuccess';
+
+interface SentInfo {
+  amount: number;
+  name: string;
+  avatar: string;
+}
 
 export default function SendMoneyScreen() {
   const { user } = useAuth();
@@ -36,6 +46,8 @@ export default function SendMoneyScreen() {
   const [error, setError] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const { shakeStyle, triggerShake } = useShake();
+  const [sent, setSent] = useState<SentInfo | null>(null);
+  const finishSend = useCallback(() => router.back(), [router]);
 
   const kidId = user?.role === 'kid' ? user.kidId : null;
   const sender = kidId ? getKid(kidId) : undefined;
@@ -61,8 +73,12 @@ export default function SendMoneyScreen() {
       const result = await transferMoney(kidId, selectedKidId, parsedAmount, desc);
 
       if (result.success) {
-        showToast('success', `$${parsedAmount.toFixed(2)} sent to ${selectedKid?.name ?? 'friend'}`);
-        router.back();
+        hapticSuccess();
+        setSent({
+          amount: parsedAmount,
+          name: selectedKid?.name ?? 'your friend',
+          avatar: selectedKid?.avatar ?? '😊',
+        });
       } else {
         setError(result.error ?? 'Transfer failed');
         showToast('error', result.error ?? 'Transfer failed');
@@ -198,10 +214,12 @@ export default function SendMoneyScreen() {
 
             {/* Send Button */}
             <Animated.View style={shakeStyle}>
-              <TouchableOpacity
+              <AnimatedPressable
+                variant="button"
                 style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+                pressDepth={canSend ? KID_BUTTON_LEDGE / 2 : 0}
                 onPress={() => { if (!canSend && !sending) { triggerShake(); } else { handleSend(); } }}
-                activeOpacity={0.8}
+                accessibilityRole="button"
               >
                 <Ionicons
                   name="send"
@@ -215,13 +233,22 @@ export default function SendMoneyScreen() {
                       ? `Send $${parsedAmount.toFixed(2)}`
                       : 'Send Money'}
                 </Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
             </Animated.View>
           </View>
         }
         keyExtractor={() => 'header'}
         showsVerticalScrollIndicator={false}
       />
+
+      {sent && (
+        <SendSuccess
+          amount={sent.amount}
+          recipientName={sent.name}
+          recipientAvatar={sent.avatar}
+          onDone={finishSend}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -268,9 +295,8 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: Spacing.xs,
     },
     balanceAmount: {
-      fontSize: 32,
-      fontFamily: FontFamily.extraBold,
-      fontWeight: '800',
+      ...KidType.display,
+      fontSize: 36,
       color: colors.success,
     },
     sectionTitle: {
@@ -393,24 +419,19 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: colors.primary,
-      borderRadius: 16,
+      borderRadius: KidRadius.button,
       paddingVertical: Spacing.lg,
       gap: 10,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
-      elevation: 4,
+      borderBottomWidth: KID_BUTTON_LEDGE,
+      borderBottomColor: colors.primaryDark,
     },
     sendButtonDisabled: {
       backgroundColor: colors.surfaceAlt,
-      shadowOpacity: 0,
-      elevation: 0,
+      borderBottomColor: colors.border,
     },
     sendButtonText: {
-      fontSize: 17,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
+      ...KidType.button,
+      fontSize: 18,
       color: colors.textWhite,
     },
     sendButtonTextDisabled: {

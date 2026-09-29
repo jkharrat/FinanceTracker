@@ -47,6 +47,8 @@ const mockColors = {
   shadow: 'rgba(108, 99, 255, 0.08)',
 };
 
+let mockIsKid = false;
+
 jest.mock('../context/ThemeContext', () => ({
   useColors: () => mockColors,
   useTheme: () => ({
@@ -54,7 +56,9 @@ jest.mock('../context/ThemeContext', () => ({
     setMode: jest.fn(),
     colors: mockColors,
     isDark: false,
+    variant: 'default',
   }),
+  useIsKid: () => mockIsKid,
 }));
 
 jest.mock('@expo/vector-icons', () => {
@@ -958,5 +962,51 @@ describe('EmptyState Extended', () => {
       <EmptyState icon="📝" title="Empty" subtitle={longText} />
     );
     expect(getByText(longText)).toBeTruthy();
+  });
+});
+
+// ─── Kid variant ──────────────────────────────────────────────────────────
+
+describe('Kid variant', () => {
+  beforeEach(() => { mockIsKid = true; });
+  afterEach(() => { mockIsKid = false; });
+
+  it('renders the kid balance card with label, amount and actions', () => {
+    const { getByText, getByLabelText } = render(
+      <BalanceCard label="Your balance" value={12}>
+        <Text>Send</Text>
+      </BalanceCard>
+    );
+    expect(getByText('Your balance')).toBeTruthy();
+    expect(getByLabelText('$12.00')).toBeTruthy();
+    expect(getByText('Send')).toBeTruthy();
+  });
+
+  it('shows a delta chip when the kid balance changes', () => {
+    const { rerender, getByText } = render(<BalanceCard label="Your balance" value={10} />);
+    rerender(<BalanceCard label="Your balance" value={15} />);
+    expect(getByText('+$5.00')).toBeTruthy();
+  });
+
+  it('shows how much is left on an unfinished kid goal', () => {
+    const GoalCard = require('../components/GoalCard').default;
+    const { getByText } = render(
+      <GoalCard goal={{ name: 'Bike', targetAmount: 100 }} balance={40} />
+    );
+    expect(getByText('Bike')).toBeTruthy();
+    expect(getByText('$60.00')).toBeTruthy();
+  });
+
+  it('celebrates a completed kid goal', () => {
+    const GoalCard = require('../components/GoalCard').default;
+    const { getByText } = render(
+      <GoalCard goal={{ name: 'Bike', targetAmount: 100 }} balance={120} />
+    );
+    expect(getByText('Goal reached! 🎉')).toBeTruthy();
+  });
+
+  it('still renders empty state text in kid mode', () => {
+    const { getByText } = render(<EmptyState icon="📝" title="Nothing yet" subtitle="Soon!" />);
+    expect(getByText('Nothing yet')).toBeTruthy();
   });
 });

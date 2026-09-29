@@ -9,7 +9,18 @@ import {
   useWindowDimensions,
   Alert,
 } from 'react-native';
-import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  FadeOut,
+  LinearTransition,
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withTiming,
+  withSpring,
+  useReducedMotion,
+} from 'react-native-reanimated';
 import { useRouter, Stack } from 'expo-router';
 import { useData } from '../../src/context/DataContext';
 import { useAuth } from '../../src/context/AuthContext';
@@ -28,7 +39,7 @@ import { Button, ListRow, IconButton, SectionHeader } from '../../src/components
 import { groupTransactionsByDate, flatIndexById } from '../../src/utils/dateGrouping';
 import { ThemeColors } from '../../src/constants/colors';
 import { AllowanceFrequency, SavingsGoal } from '../../src/types';
-import { Type } from '../../src/constants/theme';
+import { Type, KidType } from '../../src/constants/theme';
 import { Durations, Springs } from '../../src/constants/motion';
 import { Spacing } from '../../src/constants/spacing';
 import { SIDEBAR_BREAKPOINT } from '../../src/components/WebSidebar';
@@ -47,6 +58,23 @@ const blockLayout = LinearTransition.springify()
 const blockIn = FadeIn.duration(Durations.base);
 const blockOut = FadeOut.duration(Durations.quick);
 
+/** Dashboard blocks rise in one after another on first load. */
+const entrance = (order: number) =>
+  FadeInDown.delay(order * Durations.stagger)
+    .springify()
+    .damping(Springs.gentle.damping)
+    .stiffness(Springs.gentle.stiffness);
+
+const CONFETTI_EMOJI = ['🎉', '⭐', '💰', '✨'];
+const CONFETTI_PALETTE_EXTRA = ['#FF6B9D', '#38BDF8'];
+
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
 export default function KidDashboardScreen() {
   const { user } = useAuth();
   const { kids, getKid, updateSavingsGoal, refreshData } = useData();
@@ -54,11 +82,32 @@ export default function KidDashboardScreen() {
   const router = useRouter();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const confettiPalette = useMemo(
+    () => [...CONFETTI_PALETTE_EXTRA, colors.primary, colors.success, colors.warning, colors.primaryLight],
+    [colors],
+  );
   const { width } = useWindowDimensions();
   const compactHeader = Platform.OS !== 'web' || width < SIDEBAR_BREAKPOINT;
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [showGoalEditor, setShowGoalEditor] = useState(false);
+
+  const reducedMotion = useReducedMotion();
+  const wiggle = useSharedValue(0);
+  const wiggleStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${wiggle.value}deg` }] }));
+  const enter = (order: number) => (reducedMotion ? undefined : entrance(order));
+
+  const openProfileWithWiggle = useCallback(() => {
+    if (!reducedMotion) {
+      wiggle.value = withSequence(
+        withTiming(-14, { duration: 70 }),
+        withTiming(12, { duration: 90 }),
+        withTiming(-8, { duration: 90 }),
+        withSpring(0, Springs.bouncy),
+      );
+    }
+    setTimeout(() => setProfileOpen(true), reducedMotion ? 0 : 220);
+  }, [reducedMotion, wiggle]);
 
   const kidId = user?.role === 'kid' ? user.kidId : null;
   const kid = kidId ? getKid(kidId) : undefined;
@@ -163,29 +212,34 @@ export default function KidDashboardScreen() {
     <View>
       <NotificationPrompt />
 
-      <View style={styles.profileRow}>
-        <AnimatedPressable
-          variant="button"
-          style={styles.avatar}
-          onPress={() => setProfileOpen(true)}
-          accessibilityLabel="Change avatar and settings"
-        >
-          <Text style={styles.avatarText}>{kid.avatar}</Text>
-        </AnimatedPressable>
+      <Animated.View entering={enter(0)} style={styles.profileRow}>
+        <Animated.View style={wiggleStyle}>
+          <AnimatedPressable
+            variant="button"
+            style={styles.avatar}
+            onPress={openProfileWithWiggle}
+            accessibilityLabel="Change avatar and settings"
+          >
+            <Text style={styles.avatarText}>{kid.avatar}</Text>
+          </AnimatedPressable>
+        </Animated.View>
         <View style={styles.profileText}>
+          <Text style={styles.greeting}>{greeting()} 👋</Text>
           <Text style={styles.kidName} numberOfLines={1}>{kid.name}</Text>
           <Text style={styles.allowanceText}>
             ${kid.allowanceAmount.toFixed(2)} every {frequencyLabel[kid.allowanceFrequency]}
           </Text>
         </View>
-      </View>
+      </Animated.View>
 
+      <Animated.View entering={enter(1)}>
       <BalanceCard label="Your balance" value={kid.balance} style={styles.block}>
         {canSend && (
           <Button
             title="Send"
             icon="arrow-up"
             size="sm"
+            variant="onHero"
             onPress={() => router.push('/(kid)/send')}
             style={styles.flex}
           />
@@ -201,12 +255,13 @@ export default function KidDashboardScreen() {
           />
         )}
       </BalanceCard>
+      </Animated.View>
 
-      <Animated.View layout={blockLayout} style={styles.block}>
+      <Animated.View entering={enter(2)} layout={blockLayout} style={styles.block}>
         {renderGoal()}
       </Animated.View>
 
-      <Animated.View layout={blockLayout}>
+      <Animated.View entering={enter(3)} layout={blockLayout}>
         <SectionHeader
           title="Activity"
           size="large"
@@ -278,7 +333,9 @@ export default function KidDashboardScreen() {
 
       {celebrating && (
         <Confetti
-          palette={[colors.primary, colors.success, colors.warning, colors.primaryLight]}
+          palette={confettiPalette}
+          emoji={CONFETTI_EMOJI}
+          count={70}
           onComplete={stopCelebrating}
         />
       )}
@@ -323,22 +380,27 @@ const createStyles = (colors: ThemeColors) =>
       paddingBottom: Spacing.lg,
     },
     avatar: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: colors.surfaceAlt,
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: colors.surface,
+      borderWidth: 3,
+      borderColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
     },
     avatarText: {
-      fontSize: 26,
+      fontSize: 34,
     },
     profileText: {
       flex: 1,
     },
+    greeting: {
+      ...Type.label,
+      color: colors.textSecondary,
+    },
     kidName: {
-      ...Type.title,
-      fontSize: 22,
+      ...KidType.title,
       color: colors.text,
     },
     allowanceText: {

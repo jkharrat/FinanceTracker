@@ -235,3 +235,50 @@ export function resolveColors(isDark: boolean, accentId: AccentPaletteId): Theme
   const overrides = isDark ? palette.dark : palette.light;
   return { ...base, ...overrides };
 }
+
+// --- Kid palette: warmer surfaces and brighter status colors ---
+
+const KidLightBase: Partial<ThemeColors> = {
+  background: '#FFF8EF',
+  surface: '#FFFFFF',
+  surfaceAlt: '#FFF0DE',
+  surfaceHover: '#FFFBF5',
+  border: '#F1E3CF',
+  borderLight: '#F7ECDD',
+  hairline: 'rgba(120, 72, 20, 0.10)',
+  text: '#2A1E14',
+  textSecondary: '#6E5B4A',
+  textLight: '#A08C78',
+  success: '#0FA958',
+  successLight: '#DDF8E8',
+  warning: '#FF9F1C',
+  warningLight: '#FFF1D6',
+  danger: '#F0444B',
+};
+
+const KidDarkBase: Partial<ThemeColors> = {
+  background: '#130F1C',
+  surface: '#1E1929',
+  surfaceAlt: '#2A2338',
+  surfaceElevated: '#241E31',
+  surfaceHover: '#231D2F',
+  border: '#352D45',
+  borderLight: '#2A2338',
+  success: '#34E08F',
+  warning: '#FFB938',
+};
+
+export function resolveKidColors(isDark: boolean, accentId: AccentPaletteId): ThemeColors {
+  return { ...resolveColors(isDark, accentId), ...(isDark ? KidDarkBase : KidLightBase) };
+}
+
+/**
+ * Two-stop gradient for kid hero surfaces. Always uses the light-mode accent shades:
+ * the dark-mode ones are pastel and would wash out white text.
+ */
+export function kidHeroGradient(accentId: AccentPaletteId): [string, string] {
+  const palette = ACCENT_PALETTES.find((p) => p.id === accentId) ?? ACCENT_PALETTES[0];
+  return [palette.light.primary, palette.light.primaryDark];
+}
+
+export const KidGoalGradient = { start: '#FFB938', end: '#0FA958' } as const;

@@ -11,6 +11,7 @@ import {
   Inter_700Bold,
   Inter_800ExtraBold,
 } from '@expo-google-fonts/inter';
+import { Nunito_700Bold, Nunito_800ExtraBold, Nunito_900Black } from '@expo-google-fonts/nunito';
 import { NotificationProvider, useNotifications } from '../src/context/NotificationContext';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { DataProvider } from '../src/context/DataContext';
@@ -93,6 +94,9 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
     Inter_800ExtraBold,
+    Nunito_700Bold,
+    Nunito_800ExtraBold,
+    Nunito_900Black,
   });
 
   const onLayoutRootView = useCallback(async () => {

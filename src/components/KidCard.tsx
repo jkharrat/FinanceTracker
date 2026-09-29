@@ -22,7 +22,7 @@ const frequencyLabel: Record<AllowanceFrequency, string> = {
 };
 
 function ProgressBar({ progress, color, trackColor }: { progress: number; color: string; trackColor: string }) {
-  const value = useSharedValue(progress);
+  const value = useSharedValue(0);
 
   useEffect(() => {
     value.value = withSpring(progress, Springs.gentle);

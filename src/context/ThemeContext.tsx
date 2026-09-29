@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme } from 'react-native';
-import { ThemeColors, resolveColors, ACCENT_PALETTES } from '../constants/colors';
+import { ThemeColors, resolveColors, resolveKidColors, ACCENT_PALETTES } from '../constants/colors';
 import type { AccentPaletteId } from '../constants/colors';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
+
+/** `kid` switches on the playful look (warmer colors, rounded type, bouncier motion). */
+export type ThemeVariant = 'default' | 'kid';
 
 const THEME_STORAGE_KEY = '@finance_tracker_theme';
 const ACCENT_STORAGE_KEY = '@finance_tracker_accent';
@@ -18,6 +21,7 @@ interface ThemeContextType {
   setAccentPalette: (id: AccentPaletteId) => void;
   colors: ThemeColors;
   isDark: boolean;
+  variant: ThemeVariant;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -63,7 +67,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const colors = useMemo(() => resolveColors(isDark, accentPalette), [isDark, accentPalette]);
 
   const value = useMemo(
-    () => ({ mode, setMode, accentPalette, setAccentPalette, colors, isDark }),
+    () => ({ mode, setMode, accentPalette, setAccentPalette, colors, isDark, variant: 'default' as const }),
     [mode, setMode, accentPalette, setAccentPalette, colors, isDark],
   );
 
@@ -86,4 +90,20 @@ export function useTheme() {
 
 export function useColors() {
   return useTheme().colors;
+}
+
+export function useIsKid() {
+  return useContext(ThemeContext)?.variant === 'kid';
+}
+
+/** Re-provides the theme with the kid palette and `variant: 'kid'` for everything below it. */
+export function KidThemeScope({ children }: { children: React.ReactNode }) {
+  const parent = useTheme();
+  const colors = useMemo(
+    () => resolveKidColors(parent.isDark, parent.accentPalette),
+    [parent.isDark, parent.accentPalette],
+  );
+  const value = useMemo(() => ({ ...parent, colors, variant: 'kid' as const }), [parent, colors]);
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
