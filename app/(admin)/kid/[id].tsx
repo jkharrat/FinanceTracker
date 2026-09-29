@@ -9,7 +9,7 @@ import {
   RefreshControl,
   Platform,
 } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeOut, useReducedMotion } from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../../../src/context/DataContext';
@@ -24,8 +24,8 @@ import { Button, IconButton, SectionHeader } from '../../../src/components/ui';
 import { ThemeColors } from '../../../src/constants/colors';
 import { AllowanceFrequency, Transaction, TransactionCategory } from '../../../src/types';
 import { groupTransactionsByDate, flatIndexById } from '../../../src/utils/dateGrouping';
-import { Radius, Type } from '../../../src/constants/theme';
-import { Durations } from '../../../src/constants/motion';
+import { Type, KidRadius, KidType } from '../../../src/constants/theme';
+import { Durations, Springs } from '../../../src/constants/motion';
 import { Spacing } from '../../../src/constants/spacing';
 import { useToast } from '../../../src/context/ToastContext';
 import AnimatedListItem, { useEntranceWindow } from '../../../src/components/AnimatedListItem';
@@ -35,6 +35,13 @@ const frequencyLabel: Record<AllowanceFrequency, string> = {
   weekly: 'week',
   monthly: 'month',
 };
+
+/** Header blocks rise in one after another on first load. */
+const entrance = (order: number) =>
+  FadeInDown.delay(order * Durations.stagger)
+    .springify()
+    .damping(Springs.gentle.damping)
+    .stiffness(Springs.gentle.stiffness);
 
 export default function KidDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -52,6 +59,8 @@ export default function KidDetailScreen() {
 
   const kid = id ? getKid(id) : undefined;
   const entranceOpen = useEntranceWindow(!!kid);
+  const reducedMotion = useReducedMotion();
+  const enter = (order: number) => (reducedMotion ? undefined : entrance(order));
   const feedback = useMoneyFeedback(kid?.balance ?? 0);
   const filters = useTransactionFilters(kid?.transactions ?? []);
 
@@ -188,7 +197,7 @@ export default function KidDetailScreen() {
 
   const renderListHeader = () => (
     <View>
-      <View style={styles.profileRow}>
+      <Animated.View entering={enter(0)} style={styles.profileRow}>
         <Animated.View style={[styles.avatar, feedback.avatarStyle]}>
           <Text style={styles.avatarText}>{kid.avatar}</Text>
         </Animated.View>
@@ -198,13 +207,15 @@ export default function KidDetailScreen() {
             ${kid.allowanceAmount.toFixed(2)} every {frequencyLabel[kid.allowanceFrequency]}
           </Text>
         </View>
-      </View>
+      </Animated.View>
 
-      <BalanceCard label="Balance" value={feedback.shownBalance} style={styles.block}>
+      <Animated.View entering={enter(1)}>
+      <BalanceCard label={`${kid.name}'s balance`} value={feedback.shownBalance} style={styles.block}>
         <Button
           title="Add"
           icon="add"
           size="sm"
+          variant="onHero"
           onPress={() => handleOpenModal('add')}
           style={styles.flex}
         />
@@ -217,23 +228,26 @@ export default function KidDetailScreen() {
           style={styles.flex}
         />
       </BalanceCard>
+      </Animated.View>
 
       {kid.savingsGoal && (
-        <View style={styles.block}>
+        <Animated.View entering={enter(2)} style={styles.block}>
           <GoalCard goal={kid.savingsGoal} balance={kid.balance} />
-        </View>
+        </Animated.View>
       )}
 
-      <SectionHeader
-        title="Activity"
-        size="large"
-        right={
-          <Text style={styles.transactionsCount}>
-            {kid.transactions.length} {kid.transactions.length === 1 ? 'entry' : 'entries'}
-          </Text>
-        }
-      />
-      {hasTransactions && <TransactionFilters filters={filters} totalCount={kid.transactions.length} />}
+      <Animated.View entering={enter(3)}>
+        <SectionHeader
+          title="Activity"
+          size="large"
+          right={
+            <Text style={styles.transactionsCount}>
+              {kid.transactions.length} {kid.transactions.length === 1 ? 'entry' : 'entries'}
+            </Text>
+          }
+        />
+        {hasTransactions && <TransactionFilters filters={filters} totalCount={kid.transactions.length} />}
+      </Animated.View>
     </View>
   );
 
@@ -338,7 +352,7 @@ const createStyles = (colors: ThemeColors) =>
       margin: Spacing.lg,
       paddingHorizontal: Spacing.lg,
       paddingVertical: Spacing.md,
-      borderRadius: Radius.md,
+      borderRadius: KidRadius.bubble,
     },
     errorText: {
       ...Type.label,
@@ -370,22 +384,23 @@ const createStyles = (colors: ThemeColors) =>
       paddingBottom: Spacing.lg,
     },
     avatar: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: colors.surfaceAlt,
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: colors.surface,
+      borderWidth: 3,
+      borderColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
     },
     avatarText: {
-      fontSize: 26,
+      fontSize: 34,
     },
     profileText: {
       flex: 1,
     },
     kidName: {
-      ...Type.title,
-      fontSize: 22,
+      ...KidType.title,
       color: colors.text,
     },
     allowanceText: {

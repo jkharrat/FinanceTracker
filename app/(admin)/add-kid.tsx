@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
   Pressable,
   ScrollView,
   KeyboardAvoidingView,
@@ -22,6 +21,8 @@ import { ThemeColors } from '../../src/constants/colors';
 import { AllowanceFrequency } from '../../src/types';
 import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
+import { KidRadius, KidType, KID_BUTTON_LEDGE } from '../../src/constants/theme';
+import AnimatedPressable from '../../src/components/AnimatedPressable';
 import { useToast } from '../../src/context/ToastContext';
 import { useShake } from '../../src/hooks/useShake';
 
@@ -135,16 +136,20 @@ export default function AddKidScreen() {
           <Text style={styles.sectionTitle}>Avatar</Text>
           <View style={styles.avatarGrid}>
             {Avatars.map((avatar) => (
-              <TouchableOpacity
+              <AnimatedPressable
                 key={avatar}
+                variant="button"
                 style={[
                   styles.avatarOption,
                   selectedAvatar === avatar && styles.avatarSelected,
                 ]}
                 onPress={() => setSelectedAvatar(avatar)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: selectedAvatar === avatar }}
+                accessibilityLabel={`Avatar ${avatar}`}
               >
                 <Text style={styles.avatarEmoji}>{avatar}</Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
             ))}
           </View>
         </View>
@@ -259,13 +264,17 @@ export default function AddKidScreen() {
           <Text style={styles.sectionTitle}>Frequency</Text>
           <View style={styles.frequencyRow}>
             {frequencies.map((f) => (
-              <TouchableOpacity
+              <AnimatedPressable
                 key={f.value}
+                variant="button"
                 style={[
                   styles.frequencyOption,
                   frequency === f.value && styles.frequencySelected,
                 ]}
                 onPress={() => setFrequency(f.value)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: frequency === f.value }}
+                accessibilityLabel={f.label}
               >
                 <Text
                   style={[
@@ -275,7 +284,7 @@ export default function AddKidScreen() {
                 >
                   {f.label}
                 </Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
             ))}
           </View>
         </View>
@@ -289,17 +298,23 @@ export default function AddKidScreen() {
 
       <View style={styles.footer}>
         <Animated.View style={shakeStyle}>
-          <TouchableOpacity
+          <AnimatedPressable
+            variant="button"
             style={[styles.saveButton, !isValid && styles.saveButtonDisabled]}
+            pressDepth={isValid ? KID_BUTTON_LEDGE / 2 : 0}
             onPress={() => { if (!isValid) { triggerShake(); } else { handleSave(); } }}
-            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Add Person"
           >
             {saving ? (
               <ActivityIndicator color={colors.textWhite} />
             ) : (
-              <Text style={styles.saveButtonText}>Add Person</Text>
+              <>
+                <Ionicons name="person-add" size={20} color={isValid ? colors.textWhite : colors.textLight} />
+                <Text style={[styles.saveButtonText, !isValid && styles.saveButtonTextDisabled]}>Add Person</Text>
+              </>
             )}
-          </TouchableOpacity>
+          </AnimatedPressable>
         </Animated.View>
       </View>
     </KeyboardAvoidingView>
@@ -323,12 +338,9 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: 28,
     },
     sectionTitle: {
-      fontSize: 13,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      color: colors.textSecondary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
+      ...KidType.headline,
+      fontSize: 17,
+      color: colors.text,
       marginBottom: Spacing.md,
     },
     avatarGrid: {
@@ -337,51 +349,46 @@ const createStyles = (colors: ThemeColors) =>
       gap: 10,
     },
     avatarOption: {
-      width: 52,
-      height: 52,
-      borderRadius: 16,
+      width: 56,
+      height: 56,
+      borderRadius: KidRadius.bubble,
       backgroundColor: colors.surface,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 2,
-      borderColor: 'transparent',
+      borderColor: colors.border,
     },
     avatarSelected: {
       borderColor: colors.primary,
-      backgroundColor: colors.shadow,
+      borderWidth: 3,
+      backgroundColor: colors.primarySoft,
     },
     avatarEmoji: {
-      fontSize: 24,
+      fontSize: 28,
     },
     textInput: {
       backgroundColor: colors.surface,
       borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
       paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.lg,
-      fontSize: 17,
+      paddingVertical: 14,
+      fontSize: 16,
       color: colors.text,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
     },
     passwordContainer: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.surface,
       borderRadius: 14,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     passwordInput: {
       flex: 1,
       paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.lg,
-      fontSize: 17,
+      paddingVertical: 14,
+      fontSize: 16,
       color: colors.text,
     },
     eyeButton: {
@@ -389,7 +396,6 @@ const createStyles = (colors: ThemeColors) =>
       paddingVertical: 14,
     },
     textInputFocused: {
-      borderWidth: 1.5,
       borderColor: colors.primary,
       shadowColor: colors.primary,
       shadowOffset: { width: 0, height: 0 },
@@ -398,7 +404,6 @@ const createStyles = (colors: ThemeColors) =>
       elevation: 2,
     },
     textInputError: {
-      borderWidth: 1,
       borderColor: colors.danger,
     },
     fieldError: {
@@ -408,7 +413,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     errorContainer: {
       backgroundColor: colors.dangerLight,
-      borderRadius: 12,
+      borderRadius: KidRadius.bubble,
       padding: 14,
       marginBottom: Spacing.sm,
     },
@@ -453,25 +458,20 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       backgroundColor: colors.surface,
       borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
       paddingHorizontal: Spacing.lg,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
     },
     dollarSign: {
-      fontSize: 22,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+      ...KidType.amount,
+      fontSize: 24,
       color: colors.textSecondary,
       marginRight: Spacing.xs,
     },
     amountInput: {
+      ...KidType.amount,
       flex: 1,
-      fontSize: 22,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+      fontSize: 24,
       color: colors.text,
       paddingVertical: 14,
     },
@@ -481,23 +481,23 @@ const createStyles = (colors: ThemeColors) =>
     },
     frequencyOption: {
       flex: 1,
-      paddingVertical: 14,
-      borderRadius: 14,
+      height: 52,
+      borderRadius: KidRadius.button,
       backgroundColor: colors.surface,
+      borderWidth: 2,
+      borderColor: colors.border,
       alignItems: 'center',
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
+      justifyContent: 'center',
     },
     frequencySelected: {
       backgroundColor: colors.primary,
+      borderColor: colors.primary,
+      borderBottomColor: colors.primaryDark,
+      borderBottomWidth: KID_BUTTON_LEDGE,
     },
     frequencyText: {
-      fontSize: 14,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+      ...KidType.button,
+      fontSize: 15,
       color: colors.textSecondary,
     },
     frequencyTextSelected: {
@@ -509,23 +509,26 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.background,
     },
     saveButton: {
+      flexDirection: 'row',
+      gap: Spacing.sm,
       backgroundColor: colors.primary,
-      borderRadius: 16,
-      paddingVertical: 18,
+      borderRadius: KidRadius.button,
+      height: 58,
       alignItems: 'center',
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 12,
-      elevation: 4,
+      justifyContent: 'center',
+      borderBottomWidth: KID_BUTTON_LEDGE,
+      borderBottomColor: colors.primaryDark,
     },
     saveButtonDisabled: {
-      opacity: 0.5,
+      backgroundColor: colors.surfaceAlt,
+      borderBottomColor: colors.border,
     },
     saveButtonText: {
-      fontSize: 17,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
+      ...KidType.button,
+      fontSize: 18,
       color: colors.textWhite,
+    },
+    saveButtonTextDisabled: {
+      color: colors.textLight,
     },
   });

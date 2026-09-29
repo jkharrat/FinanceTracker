@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +16,8 @@ import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
 import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
+import { KidRadius, KidType, KID_BUTTON_LEDGE } from '../../src/constants/theme';
+import AnimatedPressable from '../../src/components/AnimatedPressable';
 
 function getPasswordStrength(pw: string): { score: number; label: string } {
   let score = 0;
@@ -36,6 +37,11 @@ export default function AddAdminScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const focusProps = (field: string) => ({
+    onFocus: () => setFocusedField(field),
+    onBlur: () => setFocusedField(null),
+  });
 
   const { addAdmin } = useAuth();
   const router = useRouter();
@@ -108,7 +114,8 @@ export default function AddAdminScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Name</Text>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, focusedField === 'name' && styles.textInputFocused]}
+            {...focusProps('name')}
             value={displayName}
             onChangeText={(text) => {
               setDisplayName(text);
@@ -125,7 +132,8 @@ export default function AddAdminScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Email</Text>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, focusedField === 'email' && styles.textInputFocused]}
+            {...focusProps('email')}
             value={email}
             onChangeText={(text) => {
               setEmail(text);
@@ -143,7 +151,8 @@ export default function AddAdminScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Password</Text>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, focusedField === 'password' && styles.textInputFocused]}
+            {...focusProps('password')}
             value={password}
             onChangeText={(text) => {
               setPassword(text);
@@ -194,7 +203,8 @@ export default function AddAdminScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Confirm Password</Text>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, focusedField === 'confirm' && styles.textInputFocused]}
+            {...focusProps('confirm')}
             value={confirmPassword}
             onChangeText={(text) => {
               setConfirmPassword(text);
@@ -219,18 +229,24 @@ export default function AddAdminScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
+        <AnimatedPressable
+          variant="button"
           style={[styles.saveButton, !isValid && styles.saveButtonDisabled]}
+          pressDepth={isValid ? KID_BUTTON_LEDGE / 2 : 0}
           onPress={handleSave}
           disabled={!isValid}
-          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Add Parent"
         >
           {saving ? (
             <ActivityIndicator color={colors.textWhite} />
           ) : (
-            <Text style={styles.saveButtonText}>Add Parent</Text>
+            <>
+              <Ionicons name="person-add" size={20} color={isValid ? colors.textWhite : colors.textLight} />
+              <Text style={[styles.saveButtonText, !isValid && styles.saveButtonTextDisabled]}>Add Parent</Text>
+            </>
           )}
-        </TouchableOpacity>
+        </AnimatedPressable>
       </View>
     </KeyboardAvoidingView>
   );
@@ -253,41 +269,43 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: Spacing.md,
-      backgroundColor: colors.surfaceAlt,
-      borderRadius: 14,
+      backgroundColor: colors.primarySoft,
+      borderRadius: KidRadius.bubble + 4,
       padding: Spacing.lg,
       marginBottom: 28,
     },
     infoText: {
       flex: 1,
       fontSize: 14,
-      color: colors.textSecondary,
+      color: colors.text,
       lineHeight: 20,
     },
     section: {
       marginBottom: Spacing.xxl,
     },
     sectionTitle: {
-      fontSize: 13,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      color: colors.textSecondary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
+      ...KidType.headline,
+      fontSize: 17,
+      color: colors.text,
       marginBottom: Spacing.md,
     },
     textInput: {
       backgroundColor: colors.surface,
       borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
       paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.lg,
-      fontSize: 17,
+      paddingVertical: 14,
+      fontSize: 16,
       color: colors.text,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
+    },
+    textInputFocused: {
+      borderColor: colors.primary,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      elevation: 2,
     },
     strengthSection: {
       marginTop: Spacing.md,
@@ -317,7 +335,7 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       gap: Spacing.sm,
       backgroundColor: colors.dangerLight,
-      borderRadius: 12,
+      borderRadius: KidRadius.bubble,
       padding: 14,
       marginBottom: Spacing.sm,
     },
@@ -334,23 +352,26 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.background,
     },
     saveButton: {
+      flexDirection: 'row',
+      gap: Spacing.sm,
       backgroundColor: colors.primary,
-      borderRadius: 16,
-      paddingVertical: 18,
+      borderRadius: KidRadius.button,
+      height: 58,
       alignItems: 'center',
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 12,
-      elevation: 4,
+      justifyContent: 'center',
+      borderBottomWidth: KID_BUTTON_LEDGE,
+      borderBottomColor: colors.primaryDark,
     },
     saveButtonDisabled: {
-      opacity: 0.5,
+      backgroundColor: colors.surfaceAlt,
+      borderBottomColor: colors.border,
     },
     saveButtonText: {
-      fontSize: 17,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
+      ...KidType.button,
+      fontSize: 18,
       color: colors.textWhite,
+    },
+    saveButtonTextDisabled: {
+      color: colors.textLight,
     },
   });

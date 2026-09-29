@@ -7,7 +7,7 @@ import { ThemeColors } from '../constants/colors';
 import { Kid, AllowanceFrequency } from '../types';
 import AnimatedNumber from './AnimatedNumber';
 import { Card } from './ui';
-import { Radius, Type } from '../constants/theme';
+import { Radius, Type, KidType } from '../constants/theme';
 import { Springs } from '../constants/motion';
 import { Spacing } from '../constants/spacing';
 
@@ -25,7 +25,7 @@ function ProgressBar({ progress, color, trackColor }: { progress: number; color:
   const value = useSharedValue(0);
 
   useEffect(() => {
-    value.value = withSpring(progress, Springs.gentle);
+    value.value = withSpring(progress, Springs.bouncy);
   }, [progress, value]);
 
   const fillStyle = useAnimatedStyle(() => ({
@@ -57,20 +57,24 @@ export function KidCard({ kid, onPress }: KidCardProps) {
         </View>
         <View style={styles.info}>
           <Text style={themed.name} numberOfLines={1}>{kid.name}</Text>
-          <Text style={themed.allowance}>
-            ${kid.allowanceAmount.toFixed(2)} / {frequencyLabel[kid.allowanceFrequency]}
-          </Text>
+          <View style={themed.allowancePill}>
+            <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
+            <Text style={themed.allowance}>
+              ${kid.allowanceAmount.toFixed(2)} / {frequencyLabel[kid.allowanceFrequency]}
+            </Text>
+          </View>
         </View>
         <AnimatedNumber
           value={kid.balance}
           style={[themed.balance, isNegative && themed.balanceNegative]}
         />
-        <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
+        <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
       </View>
 
       {goal && (
         <View style={themed.goalSection}>
           <View style={styles.goalHeader}>
+            <Text style={styles.goalEmoji}>{goalComplete ? '🏆' : '🎯'}</Text>
             <Text style={themed.goalName} numberOfLines={1}>{goal.name}</Text>
             <Text style={[themed.goalPercent, goalComplete && themed.goalPercentComplete]}>
               {progressPercent}%
@@ -100,19 +104,22 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   avatarText: {
-    fontSize: 24,
+    fontSize: 28,
   },
   info: {
     flex: 1,
   },
   goalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 6,
     marginBottom: Spacing.sm,
   },
+  goalEmoji: {
+    fontSize: 16,
+  },
   track: {
-    height: 6,
+    height: 10,
     borderRadius: Radius.pill,
     overflow: 'hidden',
   },
@@ -125,47 +132,60 @@ const styles = StyleSheet.create({
 const createThemedStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     avatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
       backgroundColor: colors.surfaceAlt,
+      borderWidth: 3,
+      borderColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
     },
     name: {
-      ...Type.headline,
+      ...KidType.headline,
+      fontSize: 19,
       color: colors.text,
+    },
+    allowancePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 4,
+      marginTop: 4,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 2,
+      borderRadius: Radius.pill,
+      backgroundColor: colors.surfaceAlt,
     },
     allowance: {
-      ...Type.label,
+      ...Type.caption,
       color: colors.textSecondary,
-      marginTop: 2,
     },
     balance: {
-      ...Type.headline,
-      fontSize: 18,
-      fontVariant: ['tabular-nums'],
-      color: colors.text,
+      ...KidType.amount,
+      fontSize: 21,
+      color: colors.success,
     },
     balanceNegative: {
       color: colors.danger,
     },
     goalSection: {
       marginTop: Spacing.lg,
-      paddingTop: Spacing.md,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: colors.hairline,
+      padding: Spacing.md,
+      borderRadius: 18,
+      backgroundColor: colors.background,
     },
     goalName: {
-      ...Type.label,
+      ...KidType.headline,
+      fontSize: 15,
       color: colors.text,
       flex: 1,
       marginRight: Spacing.sm,
     },
     goalPercent: {
-      ...Type.label,
-      fontVariant: ['tabular-nums'],
-      color: colors.textSecondary,
+      ...KidType.amount,
+      fontSize: 15,
+      color: colors.primary,
     },
     goalPercentComplete: {
       color: colors.success,

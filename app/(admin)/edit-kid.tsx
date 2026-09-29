@@ -5,7 +5,6 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
   Pressable,
   ScrollView,
   KeyboardAvoidingView,
@@ -24,6 +23,8 @@ import { ThemeColors } from '../../src/constants/colors';
 import { AllowanceFrequency, SavingsGoal } from '../../src/types';
 import { FontFamily } from '../../src/constants/fonts';
 import { Spacing } from '../../src/constants/spacing';
+import { KidRadius, KidType, KID_BUTTON_LEDGE } from '../../src/constants/theme';
+import AnimatedPressable from '../../src/components/AnimatedPressable';
 
 type PasswordStrength = { level: number; label: string; color: string; width: string };
 
@@ -66,6 +67,11 @@ export default function EditKidScreen() {
   const [goalName, setGoalName] = useState(kid?.savingsGoal?.name ?? '');
   const [goalAmount, setGoalAmount] = useState(kid?.savingsGoal?.targetAmount?.toString() ?? '');
   const [saving, setSaving] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const focusProps = (field: string) => ({
+    onFocus: () => setFocusedField(field),
+    onBlur: () => setFocusedField(null),
+  });
 
   useEffect(() => {
     if (!id) return;
@@ -138,16 +144,20 @@ export default function EditKidScreen() {
           <Text style={styles.sectionTitle}>Avatar</Text>
           <View style={styles.avatarGrid}>
             {Avatars.map((avatar) => (
-              <TouchableOpacity
+              <AnimatedPressable
                 key={avatar}
+                variant="button"
                 style={[
                   styles.avatarOption,
                   selectedAvatar === avatar && styles.avatarSelected,
                 ]}
                 onPress={() => setSelectedAvatar(avatar)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: selectedAvatar === avatar }}
+                accessibilityLabel={`Avatar ${avatar}`}
               >
                 <Text style={styles.avatarEmoji}>{avatar}</Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
             ))}
           </View>
         </View>
@@ -155,12 +165,13 @@ export default function EditKidScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Display Name</Text>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, focusedField === 'name' && styles.textInputFocused]}
             value={name}
             onChangeText={setName}
             placeholder="Enter name"
             autoCapitalize="words"
             placeholderTextColor={colors.textLight}
+            {...focusProps('name')}
           />
         </View>
 
@@ -171,7 +182,7 @@ export default function EditKidScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Change Password</Text>
-          <View style={styles.passwordContainer}>
+          <View style={[styles.passwordContainer, focusedField === 'password' && styles.textInputFocused]}>
             <TextInput
               style={styles.passwordInput}
               value={newPassword}
@@ -180,6 +191,7 @@ export default function EditKidScreen() {
               placeholderTextColor={colors.textLight}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
+              {...focusProps('password')}
             />
             {newPassword.length > 0 && (
               <Pressable
@@ -207,7 +219,7 @@ export default function EditKidScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Allowance Amount</Text>
-          <View style={styles.amountInputContainer}>
+          <View style={[styles.amountInputContainer, focusedField === 'allowance' && styles.textInputFocused]}>
             <Text style={styles.dollarSign}>$</Text>
             <TextInput
               style={styles.amountInput}
@@ -216,6 +228,7 @@ export default function EditKidScreen() {
               placeholder="0.00"
               placeholderTextColor={colors.textLight}
               keyboardType="decimal-pad"
+              {...focusProps('allowance')}
             />
           </View>
         </View>
@@ -223,13 +236,14 @@ export default function EditKidScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Savings Goal (Optional)</Text>
           <TextInput
-            style={[styles.textInput, { marginBottom: Spacing.md }]}
+            style={[styles.textInput, { marginBottom: Spacing.md }, focusedField === 'goalName' && styles.textInputFocused]}
             value={goalName}
             onChangeText={setGoalName}
             placeholder='e.g. "New bike"'
             placeholderTextColor={colors.textLight}
+            {...focusProps('goalName')}
           />
-          <View style={styles.amountInputContainer}>
+          <View style={[styles.amountInputContainer, focusedField === 'goalAmount' && styles.textInputFocused]}>
             <Text style={styles.dollarSign}>$</Text>
             <TextInput
               style={styles.amountInput}
@@ -238,6 +252,7 @@ export default function EditKidScreen() {
               placeholder="0.00"
               placeholderTextColor={colors.textLight}
               keyboardType="decimal-pad"
+              {...focusProps('goalAmount')}
             />
           </View>
           <Text style={styles.fieldHint}>Clear both fields to remove the savings goal</Text>
@@ -247,13 +262,17 @@ export default function EditKidScreen() {
           <Text style={styles.sectionTitle}>Frequency</Text>
           <View style={styles.frequencyRow}>
             {frequencies.map((f) => (
-              <TouchableOpacity
+              <AnimatedPressable
                 key={f.value}
+                variant="button"
                 style={[
                   styles.frequencyOption,
                   frequency === f.value && styles.frequencySelected,
                 ]}
                 onPress={() => setFrequency(f.value)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: frequency === f.value }}
+                accessibilityLabel={f.label}
               >
                 <Text
                   style={[
@@ -263,25 +282,31 @@ export default function EditKidScreen() {
                 >
                   {f.label}
                 </Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
             ))}
           </View>
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
+        <AnimatedPressable
+          variant="button"
           style={[styles.saveButton, !isValid && styles.saveButtonDisabled]}
+          pressDepth={isValid ? KID_BUTTON_LEDGE / 2 : 0}
           onPress={handleSave}
           disabled={!isValid}
-          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Save Changes"
         >
           {saving ? (
             <ActivityIndicator color={colors.textWhite} />
           ) : (
-            <Text style={styles.saveButtonText}>Save Changes</Text>
+            <>
+              <Ionicons name="checkmark-circle" size={20} color={isValid ? colors.textWhite : colors.textLight} />
+              <Text style={[styles.saveButtonText, !isValid && styles.saveButtonTextDisabled]}>Save Changes</Text>
+            </>
           )}
-        </TouchableOpacity>
+        </AnimatedPressable>
       </View>
     </KeyboardAvoidingView>
   );
@@ -310,12 +335,9 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: 28,
     },
     sectionTitle: {
-      fontSize: 13,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      color: colors.textSecondary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
+      ...KidType.headline,
+      fontSize: 17,
+      color: colors.text,
       marginBottom: Spacing.md,
     },
     avatarGrid: {
@@ -324,41 +346,39 @@ const createStyles = (colors: ThemeColors) =>
       gap: 10,
     },
     avatarOption: {
-      width: 52,
-      height: 52,
-      borderRadius: 16,
+      width: 56,
+      height: 56,
+      borderRadius: KidRadius.bubble,
       backgroundColor: colors.surface,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 2,
-      borderColor: 'transparent',
+      borderColor: colors.border,
     },
     avatarSelected: {
       borderColor: colors.primary,
-      backgroundColor: colors.shadow,
+      borderWidth: 3,
+      backgroundColor: colors.primarySoft,
     },
     avatarEmoji: {
-      fontSize: 24,
+      fontSize: 28,
     },
     textInput: {
       backgroundColor: colors.surface,
       borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
       paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.lg,
-      fontSize: 17,
+      paddingVertical: 14,
+      fontSize: 16,
       color: colors.text,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
     },
     emailDisplay: {
       backgroundColor: colors.surfaceAlt,
       borderRadius: 14,
       paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.lg,
-      fontSize: 17,
+      paddingVertical: 14,
+      fontSize: 16,
       color: colors.textSecondary,
     },
     passwordContainer: {
@@ -366,17 +386,14 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       backgroundColor: colors.surface,
       borderRadius: 14,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     passwordInput: {
       flex: 1,
       paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.lg,
-      fontSize: 17,
+      paddingVertical: 14,
+      fontSize: 16,
       color: colors.text,
     },
     eyeButton: {
@@ -407,8 +424,15 @@ const createStyles = (colors: ThemeColors) =>
       minWidth: 44,
       textAlign: 'right',
     },
+    textInputFocused: {
+      borderColor: colors.primary,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      elevation: 2,
+    },
     textInputError: {
-      borderWidth: 1,
       borderColor: colors.danger,
     },
     fieldError: {
@@ -426,25 +450,20 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       backgroundColor: colors.surface,
       borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
       paddingHorizontal: Spacing.lg,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
     },
     dollarSign: {
-      fontSize: 22,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+      ...KidType.amount,
+      fontSize: 24,
       color: colors.textSecondary,
       marginRight: Spacing.xs,
     },
     amountInput: {
+      ...KidType.amount,
       flex: 1,
-      fontSize: 22,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+      fontSize: 24,
       color: colors.text,
       paddingVertical: 14,
     },
@@ -454,23 +473,23 @@ const createStyles = (colors: ThemeColors) =>
     },
     frequencyOption: {
       flex: 1,
-      paddingVertical: 14,
-      borderRadius: 14,
+      height: 52,
+      borderRadius: KidRadius.button,
       backgroundColor: colors.surface,
+      borderWidth: 2,
+      borderColor: colors.border,
       alignItems: 'center',
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
+      justifyContent: 'center',
     },
     frequencySelected: {
       backgroundColor: colors.primary,
+      borderColor: colors.primary,
+      borderBottomColor: colors.primaryDark,
+      borderBottomWidth: KID_BUTTON_LEDGE,
     },
     frequencyText: {
-      fontSize: 14,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+      ...KidType.button,
+      fontSize: 15,
       color: colors.textSecondary,
     },
     frequencyTextSelected: {
@@ -482,23 +501,26 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.background,
     },
     saveButton: {
+      flexDirection: 'row',
+      gap: Spacing.sm,
       backgroundColor: colors.primary,
-      borderRadius: 16,
-      paddingVertical: 18,
+      borderRadius: KidRadius.button,
+      height: 58,
       alignItems: 'center',
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 12,
-      elevation: 4,
+      justifyContent: 'center',
+      borderBottomWidth: KID_BUTTON_LEDGE,
+      borderBottomColor: colors.primaryDark,
     },
     saveButtonDisabled: {
-      opacity: 0.5,
+      backgroundColor: colors.surfaceAlt,
+      borderBottomColor: colors.border,
     },
     saveButtonText: {
-      fontSize: 17,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
+      ...KidType.button,
+      fontSize: 18,
       color: colors.textWhite,
+    },
+    saveButtonTextDisabled: {
+      color: colors.textLight,
     },
   });

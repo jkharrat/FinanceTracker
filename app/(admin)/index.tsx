@@ -8,6 +8,7 @@ import {
   Platform,
   useWindowDimensions,
 } from 'react-native';
+import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../../src/context/DataContext';
@@ -24,10 +25,25 @@ import { AdminDashboardSkeleton } from '../../src/components/Skeleton';
 import AnimatedListItem, { useEntranceWindow } from '../../src/components/AnimatedListItem';
 import { Card, Button, SectionHeader } from '../../src/components/ui';
 import { ThemeColors } from '../../src/constants/colors';
-import { Radius, Type, Elevation } from '../../src/constants/theme';
+import { Radius, Type, Elevation, KidRadius, KidType, KID_BUTTON_LEDGE } from '../../src/constants/theme';
+import { Durations, Springs } from '../../src/constants/motion';
 import { Spacing } from '../../src/constants/spacing';
 import { SIDEBAR_BREAKPOINT } from '../../src/components/WebSidebar';
 import { supabase } from '../../src/lib/supabase';
+
+/** Dashboard blocks rise in one after another on first load. */
+const entrance = (order: number) =>
+  FadeInDown.delay(order * Durations.stagger)
+    .springify()
+    .damping(Springs.gentle.damping)
+    .stiffness(Springs.gentle.stiffness);
+
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
 
 interface AdminProfile {
   id: string;
@@ -52,6 +68,8 @@ export default function AdminHomeScreen() {
   const { width } = useWindowDimensions();
   const showHeaderBell = Platform.OS !== 'web' || width < SIDEBAR_BREAKPOINT;
   const entranceOpen = useEntranceWindow(!loading);
+  const reducedMotion = useReducedMotion();
+  const enter = (order: number) => (reducedMotion || !entranceOpen ? undefined : entrance(order));
 
   const displayName = user?.role === 'admin' ? user.displayName : '';
   const currentUserId = session?.user?.id;
@@ -137,15 +155,25 @@ export default function AdminHomeScreen() {
           <>
             <NotificationPrompt />
             {kids.length > 0 && (
-              <BalanceCard
-                label="Family balance"
-                value={totalBalance}
-                caption={`Across ${kids.length} ${kids.length === 1 ? 'person' : 'people'}`}
-                style={styles.summaryCard}
-              />
+              <Animated.View entering={enter(0)} style={styles.greetingRow}>
+                <Text style={styles.greeting}>{greeting()} 👋</Text>
+                <Text style={styles.greetingName} numberOfLines={1}>
+                  {displayName || 'Welcome back'}
+                </Text>
+              </Animated.View>
+            )}
+            {kids.length > 0 && (
+              <Animated.View entering={enter(1)}>
+                <BalanceCard
+                  label="Family balance"
+                  value={totalBalance}
+                  caption={`Across ${kids.length} ${kids.length === 1 ? 'person' : 'people'}`}
+                  style={styles.summaryCard}
+                />
+              </Animated.View>
             )}
 
-            <View style={styles.parentsSection}>
+            <Animated.View entering={enter(2)} style={styles.parentsSection}>
               <Text style={styles.sectionLabel}>Parents</Text>
               <View style={styles.parentsRow}>
                 {admins.map((admin) => {
@@ -171,15 +199,17 @@ export default function AdminHomeScreen() {
                   <Text style={styles.addParentChipText}>Add</Text>
                 </AnimatedPressable>
               </View>
-            </View>
+            </Animated.View>
 
             {kids.length > 0 && (
-              <SectionHeader
-                title="People"
-                size="large"
-                style={styles.peopleHeader}
-                right={<Button title="Add" icon="add" size="sm" variant="ghost" onPress={addPerson} />}
-              />
+              <Animated.View entering={enter(3)}>
+                <SectionHeader
+                  title="People"
+                  size="large"
+                  style={styles.peopleHeader}
+                  right={<Button title="Add" icon="add" size="sm" variant="ghost" onPress={addPerson} />}
+                />
+              </Animated.View>
             )}
           </>
         }
@@ -229,6 +259,7 @@ export default function AdminHomeScreen() {
           variant="button"
           style={styles.fab}
           hoverBackground={colors.primaryDark}
+          pressDepth={KID_BUTTON_LEDGE / 2}
           onPress={addPerson}
           accessibilityLabel="Add Person"
         >
@@ -262,6 +293,18 @@ const createStyles = (colors: ThemeColors) =>
       gap: Spacing.sm,
       marginRight: Platform.OS === 'ios' ? 0 : Spacing.sm,
     },
+    greetingRow: {
+      paddingTop: Spacing.sm,
+      paddingBottom: Spacing.lg,
+    },
+    greeting: {
+      ...Type.label,
+      color: colors.textSecondary,
+    },
+    greetingName: {
+      ...KidType.title,
+      color: colors.text,
+    },
     summaryCard: {
       marginBottom: Spacing.xl,
     },
@@ -269,8 +312,9 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: Spacing.xl,
     },
     sectionLabel: {
-      ...Type.overline,
-      color: colors.textSecondary,
+      ...KidType.headline,
+      fontSize: 16,
+      color: colors.text,
       marginBottom: Spacing.sm,
     },
     parentsRow: {
@@ -285,34 +329,43 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.hairline,
       borderRadius: Radius.pill,
-      height: 34,
+      height: 40,
       paddingLeft: 6,
       paddingRight: Spacing.md,
       gap: Spacing.sm,
+      ...Elevation.kid,
     },
     parentChipName: {
-      ...Type.label,
+      ...KidType.headline,
+      fontSize: 14,
       color: colors.text,
       maxWidth: 120,
     },
     parentChipYou: {
-      ...Type.caption,
-      color: colors.textLight,
+      ...KidType.button,
+      fontSize: 11,
+      color: colors.primary,
+      backgroundColor: colors.primarySoft,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+      borderRadius: Radius.pill,
+      overflow: 'hidden',
     },
     addParentChip: {
       flexDirection: 'row',
       alignItems: 'center',
       borderRadius: Radius.pill,
-      height: 34,
+      height: 40,
       paddingHorizontal: Spacing.md,
       gap: Spacing.xs,
-      borderWidth: 1,
+      borderWidth: 1.5,
       borderStyle: 'dashed',
       borderColor: colors.border,
       backgroundColor: colors.background,
     },
     addParentChipText: {
-      ...Type.label,
+      ...KidType.button,
+      fontSize: 14,
       color: colors.textSecondary,
     },
     peopleHeader: {
@@ -333,10 +386,12 @@ const createStyles = (colors: ThemeColors) =>
       position: 'absolute',
       bottom: Spacing.xxxl,
       right: Spacing.xxl,
-      width: 56,
-      height: 56,
-      borderRadius: 28,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
       backgroundColor: colors.primary,
+      borderBottomWidth: KID_BUTTON_LEDGE,
+      borderBottomColor: colors.primaryDark,
       alignItems: 'center',
       justifyContent: 'center',
       ...Elevation.raised,
@@ -347,11 +402,11 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'stretch',
     },
     welcomeEmoji: {
-      fontSize: 36,
+      fontSize: 44,
       marginBottom: Spacing.md,
     },
     welcomeTitle: {
-      ...Type.title,
+      ...KidType.title,
       color: colors.text,
       marginBottom: Spacing.xs,
     },
@@ -369,9 +424,9 @@ const createStyles = (colors: ThemeColors) =>
       gap: Spacing.md,
     },
     stepBadge: {
-      width: 40,
-      height: 40,
-      borderRadius: Radius.md,
+      width: 44,
+      height: 44,
+      borderRadius: KidRadius.bubble,
       backgroundColor: colors.surfaceAlt,
       alignItems: 'center',
       justifyContent: 'center',
@@ -384,7 +439,8 @@ const createStyles = (colors: ThemeColors) =>
       gap: 2,
     },
     stepLabel: {
-      ...Type.bodyStrong,
+      ...KidType.headline,
+      fontSize: 16,
       color: colors.text,
     },
     stepDesc: {

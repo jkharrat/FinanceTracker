@@ -4,6 +4,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useData } from '../../src/context/DataContext';
 import { useColors } from '../../src/context/ThemeContext';
 import { StatsView } from '../../src/components/StatsView';
+import SheetEntrance from '../../src/components/SheetEntrance';
 
 export default function AdminStatsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -22,7 +23,9 @@ export default function AdminStatsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatsView transactions={kid.transactions} colors={colors} />
+      <SheetEntrance>
+        <StatsView transactions={kid.transactions} colors={colors} badgesTitle={`${kid.name}'s badges`} />
+      </SheetEntrance>
     </View>
   );
 }

@@ -42,6 +42,7 @@ const END_DOT = 13;
 interface StatsViewProps {
   transactions: Transaction[];
   colors: ThemeColors;
+  badgesTitle?: string;
 }
 
 const LINE_CHART_HEIGHT = 140;
@@ -160,7 +161,7 @@ function smoothPath(points: ChartPoint[]) {
   return d;
 }
 
-export function StatsView({ transactions, colors }: StatsViewProps) {
+export function StatsView({ transactions, colors, badgesTitle = 'Your badges' }: StatsViewProps) {
   const isKid = useIsKid();
   const reducedMotion = useReducedMotion();
   const stagger = useSheetStagger();
@@ -291,7 +292,7 @@ export function StatsView({ transactions, colors }: StatsViewProps) {
 
       {badges.length > 0 && reveal(section++, (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your badges</Text>
+          <Text style={styles.sectionTitle}>{badgesTitle}</Text>
           <View style={styles.badgeList}>
             {badges.map((badge, i) => (
               <Animated.View

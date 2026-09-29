@@ -1,120 +1,134 @@
 import React, { useMemo } from 'react';
-import { View, Text, Switch, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Switch, StyleSheet, ScrollView, Platform } from 'react-native';
+import Animated from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { useNotifications } from '../../src/context/NotificationContext';
 import { useColors } from '../../src/context/ThemeContext';
 import { ThemeColors } from '../../src/constants/colors';
-import { FontFamily } from '../../src/constants/fonts';
+import { KidRadius, KidType, Type } from '../../src/constants/theme';
 import { Spacing } from '../../src/constants/spacing';
+import SheetEntrance, { useSheetStagger } from '../../src/components/SheetEntrance';
+import { Card } from '../../src/components/ui';
 
 interface SettingRowProps {
+  icon: keyof typeof Ionicons.glyphMap;
+  tint: string;
   label: string;
   description: string;
   value: boolean;
   onValueChange: (value: boolean) => void;
+  last?: boolean;
+  styles: ReturnType<typeof createStyles>;
   colors: ThemeColors;
 }
 
-function SettingRow({ label, description, value, onValueChange, colors }: SettingRowProps) {
+function SettingRow({ icon, tint, label, description, value, onValueChange, last, styles, colors }: SettingRowProps) {
   return (
-    <View style={[rowStyles.container, { borderBottomColor: colors.borderLight }]}>
-      <View style={rowStyles.textContainer}>
-        <Text style={[rowStyles.label, { color: colors.text }]}>{label}</Text>
-        <Text style={[rowStyles.description, { color: colors.textSecondary }]}>{description}</Text>
+    <View style={[styles.row, !last && styles.rowDivider]}>
+      <View style={[styles.iconBubble, { backgroundColor: `${tint}22` }]}>
+        <Ionicons name={icon} size={20} color={tint} />
+      </View>
+      <View style={styles.textContainer}>
+        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.description}>{description}</Text>
       </View>
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: colors.border, true: colors.primaryLight }}
-        thumbColor={value ? colors.primary : colors.textLight}
+        trackColor={{ false: colors.border, true: colors.primary }}
+        thumbColor={colors.textWhite}
+        {...(Platform.OS === 'web' && ({ activeThumbColor: colors.textWhite } as object))}
+        accessibilityLabel={label}
       />
     </View>
   );
 }
 
-const rowStyles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.lg,
-    borderBottomWidth: 1,
-  },
-  textContainer: {
-    flex: 1,
-    marginRight: Spacing.md,
-  },
-  label: {
-    fontSize: 16,
-    fontFamily: FontFamily.semiBold,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  description: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-});
-
 export default function NotificationSettingsScreen() {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const enter = useSheetStagger();
   const { preferences, updatePreferences } = useNotifications();
 
+  const types = [
+    {
+      key: 'allowance' as const,
+      icon: 'cash-outline' as const,
+      tint: colors.success,
+      label: 'Allowance',
+      description: 'When allowance is deposited',
+    },
+    {
+      key: 'transactions' as const,
+      icon: 'receipt-outline' as const,
+      tint: colors.primary,
+      label: 'Transactions',
+      description: 'When transactions are added, edited, or deleted',
+    },
+    {
+      key: 'transfers' as const,
+      icon: 'swap-horizontal-outline' as const,
+      tint: colors.primary,
+      label: 'Transfers',
+      description: 'When money moves between accounts',
+    },
+    {
+      key: 'goalMilestones' as const,
+      icon: 'trophy-outline' as const,
+      tint: colors.warning,
+      label: 'Savings goal milestones',
+      description: 'When a goal hits 25%, 50%, 75%, and 100%',
+    },
+  ];
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={[styles.section, { backgroundColor: colors.surface }]}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          PUSH NOTIFICATIONS
-        </Text>
-        <SettingRow
-          label="Push Notifications"
-          description="Show system notifications even when the app is in the background"
-          value={preferences.pushEnabled}
-          onValueChange={(value) => updatePreferences({ pushEnabled: value })}
-          colors={colors}
-        />
-      </View>
+    <View style={styles.container}>
+      <SheetEntrance>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <Animated.Text entering={enter(0)} style={styles.sectionTitle}>Push notifications</Animated.Text>
+          <Animated.View entering={enter(1)}>
+            <Card padded={false} style={styles.card}>
+              <SettingRow
+                icon="notifications-outline"
+                tint={colors.primary}
+                label="Push notifications"
+                description="Show alerts even when the app is in the background"
+                value={preferences.pushEnabled}
+                onValueChange={(value) => updatePreferences({ pushEnabled: value })}
+                last
+                styles={styles}
+                colors={colors}
+              />
+            </Card>
+          </Animated.View>
 
-      <View style={[styles.section, { backgroundColor: colors.surface }]}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          NOTIFICATION TYPES
-        </Text>
-        <SettingRow
-          label="Allowance"
-          description="Get notified when allowance is deposited"
-          value={preferences.allowance}
-          onValueChange={(value) => updatePreferences({ allowance: value })}
-          colors={colors}
-        />
-        <SettingRow
-          label="Transactions"
-          description="Get notified when transactions are added, edited, or deleted"
-          value={preferences.transactions}
-          onValueChange={(value) => updatePreferences({ transactions: value })}
-          colors={colors}
-        />
-        <SettingRow
-          label="Transfers"
-          description="Get notified when money is transferred between accounts"
-          value={preferences.transfers}
-          onValueChange={(value) => updatePreferences({ transfers: value })}
-          colors={colors}
-        />
-        <SettingRow
-          label="Savings Goal Milestones"
-          description="Get notified when savings goals reach 25%, 50%, 75%, and 100%"
-          value={preferences.goalMilestones}
-          onValueChange={(value) => updatePreferences({ goalMilestones: value })}
-          colors={colors}
-        />
-      </View>
+          <Animated.Text entering={enter(2)} style={styles.sectionTitle}>What to notify about</Animated.Text>
+          <Animated.View entering={enter(3)}>
+            <Card padded={false} style={styles.card}>
+              {types.map((t, i) => (
+                <SettingRow
+                  key={t.key}
+                  icon={t.icon}
+                  tint={t.tint}
+                  label={t.label}
+                  description={t.description}
+                  value={preferences[t.key]}
+                  onValueChange={(value) => updatePreferences({ [t.key]: value })}
+                  last={i === types.length - 1}
+                  styles={styles}
+                  colors={colors}
+                />
+              ))}
+            </Card>
+          </Animated.View>
 
-      <Text style={[styles.footer, { color: colors.textLight }]}>
-        Notification preferences apply to all accounts. Disabling a notification type will prevent
-        both in-app and push notifications for that category.
-      </Text>
-    </ScrollView>
+          <Animated.Text entering={enter(4)} style={styles.footer}>
+            These preferences apply to every account in your family. Turning a type off stops both
+            in-app and push notifications for it.
+          </Animated.Text>
+        </ScrollView>
+      </SheetEntrance>
+    </View>
   );
 }
 
@@ -125,27 +139,54 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.background,
     },
     content: {
-      paddingVertical: Spacing.lg,
-    },
-    section: {
-      marginBottom: Spacing.xxl,
-      borderTopWidth: 1,
-      borderBottomWidth: 1,
-      borderColor: colors.borderLight,
+      padding: Spacing.xl,
+      paddingBottom: Spacing.xxxl,
     },
     sectionTitle: {
-      fontSize: 12,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      letterSpacing: 0.5,
+      ...KidType.headline,
+      color: colors.text,
+      marginBottom: Spacing.md,
+    },
+    card: {
+      marginBottom: 28,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+      paddingVertical: 14,
       paddingHorizontal: Spacing.lg,
-      paddingTop: Spacing.lg,
-      paddingBottom: Spacing.sm,
+    },
+    rowDivider: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.hairline,
+    },
+    iconBubble: {
+      width: 40,
+      height: 40,
+      borderRadius: KidRadius.bubble,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    textContainer: {
+      flex: 1,
+    },
+    label: {
+      ...KidType.headline,
+      fontSize: 16,
+      color: colors.text,
+      marginBottom: 2,
+    },
+    description: {
+      ...Type.caption,
+      lineHeight: 17,
+      color: colors.textSecondary,
     },
     footer: {
-      fontSize: 13,
+      ...Type.caption,
       lineHeight: 18,
-      paddingHorizontal: Spacing.lg,
+      color: colors.textLight,
       textAlign: 'center',
+      paddingHorizontal: Spacing.lg,
     },
   });

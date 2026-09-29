@@ -4,18 +4,21 @@ import {
   Text,
   StyleSheet,
   Modal,
-  TouchableOpacity,
   TextInput,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../context/ThemeContext';
 import { ThemeColors } from '../constants/colors';
 import { Transaction, TransactionCategory, CATEGORIES } from '../types';
 import { FontFamily } from '../constants/fonts';
 import { Spacing } from '../constants/spacing';
+import { KidRadius, KidType, KID_BUTTON_LEDGE } from '../constants/theme';
+import AnimatedPressable from './AnimatedPressable';
+import { Button } from './ui';
 
 interface TransactionModalProps {
   visible: boolean;
@@ -46,6 +49,7 @@ export function TransactionModal({
   const effectiveType = isEditing ? editTransaction.type : type;
   const isAdd = effectiveType === 'add';
   const accentColor = isAdd ? colors.success : colors.danger;
+  const accentLedge = isAdd ? colors.successDark : colors.dangerDark;
 
   useEffect(() => {
     if (visible && editTransaction) {
@@ -94,13 +98,18 @@ export function TransactionModal({
         >
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.handle} />
-            <Text style={[styles.title, { color: accentColor }]}>
-              {isEditing
-                ? 'Edit Transaction'
-                : isAdd
-                  ? 'Add Funds'
-                  : 'Subtract Funds'}
-            </Text>
+            <View style={styles.titleRow}>
+              <View style={[styles.titleIcon, { backgroundColor: `${accentColor}22` }]}>
+                <Ionicons name={isEditing ? 'create-outline' : isAdd ? 'add' : 'remove'} size={22} color={accentColor} />
+              </View>
+              <Text style={styles.title}>
+                {isEditing
+                  ? 'Edit Transaction'
+                  : isAdd
+                    ? 'Add Funds'
+                    : 'Subtract Funds'}
+              </Text>
+            </View>
 
             <View style={styles.field}>
               <Text style={styles.label}>Amount</Text>
@@ -142,15 +151,17 @@ export function TransactionModal({
                 contentContainerStyle={styles.categoryScroll}
               >
                 {CATEGORIES.map((cat) => (
-                  <TouchableOpacity
+                  <AnimatedPressable
                     key={cat.id}
+                    variant="button"
                     style={[
                       styles.categoryChip,
-                      category === cat.id && styles.categoryChipSelected,
-                      category === cat.id && { backgroundColor: accentColor },
+                      category === cat.id && { backgroundColor: accentColor, borderColor: accentColor },
                     ]}
                     onPress={() => setCategory(cat.id)}
-                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: category === cat.id }}
+                    accessibilityLabel={cat.label}
                   >
                     <Text style={styles.categoryChipEmoji}>{cat.emoji}</Text>
                     <Text
@@ -161,34 +172,41 @@ export function TransactionModal({
                     >
                       {cat.label}
                     </Text>
-                  </TouchableOpacity>
+                  </AnimatedPressable>
                 ))}
               </ScrollView>
             </View>
 
             <View style={styles.buttons}>
-              <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              <Button title="Cancel" variant="secondary" onPress={handleClose} style={styles.flex} />
+              <AnimatedPressable
+                variant="button"
                 style={[
                   styles.submitButton,
-                  { backgroundColor: accentColor },
-                  !isValid && styles.submitDisabled,
+                  isValid
+                    ? { backgroundColor: accentColor, borderBottomColor: accentLedge }
+                    : styles.submitDisabled,
                 ]}
+                pressDepth={isValid ? KID_BUTTON_LEDGE / 2 : 0}
                 onPress={handleSubmit}
                 disabled={!isValid || submitting}
+                accessibilityRole="button"
               >
-                <Text style={styles.submitText}>
+                <Text style={[styles.submitText, !isValid && styles.submitTextDisabled]}>
                   {submitting ? 'Saving...' : isEditing ? 'Save' : isAdd ? 'Add' : 'Subtract'}
                 </Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
             </View>
 
             {isEditing && onDelete && (
-              <TouchableOpacity style={styles.deleteButton} onPress={onDelete}>
-                <Text style={styles.deleteText}>Delete Transaction</Text>
-              </TouchableOpacity>
+              <Button
+                title="Delete Transaction"
+                icon="trash-outline"
+                variant="destructive"
+                fullWidth
+                onPress={onDelete}
+                style={styles.deleteButton}
+              />
             )}
           </Pressable>
         </KeyboardAvoidingView>
@@ -201,7 +219,7 @@ const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     overlay: {
       flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.4)',
+      backgroundColor: colors.overlay,
       ...(Platform.OS === 'web' ? { backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' } as any : {}),
       justifyContent: 'flex-end',
     },
@@ -210,39 +228,47 @@ const createStyles = (colors: ThemeColors) =>
     },
     sheet: {
       backgroundColor: colors.surface,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
+      borderTopLeftRadius: KidRadius.card,
+      borderTopRightRadius: KidRadius.card,
       padding: Spacing.xxl,
       paddingBottom: 40,
     },
     handle: {
-      width: 40,
-      height: 4,
-      borderRadius: 2,
+      width: 44,
+      height: 5,
+      borderRadius: 3,
       backgroundColor: colors.border,
       alignSelf: 'center',
       marginBottom: Spacing.xl,
     },
-    title: {
-      fontSize: 22,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
       marginBottom: Spacing.xxl,
+    },
+    titleIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: KidRadius.bubble,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: {
+      ...KidType.title,
+      fontSize: 24,
+      color: colors.text,
     },
     field: {
       marginBottom: Spacing.xl,
     },
     label: {
-      fontSize: 13,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      color: colors.textSecondary,
+      ...KidType.headline,
+      fontSize: 16,
+      color: colors.text,
       marginBottom: Spacing.sm,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
     },
     inputFocused: {
-      borderWidth: 1.5,
       borderColor: colors.primary,
       shadowColor: colors.primary,
       shadowOffset: { width: 0, height: 0 },
@@ -253,29 +279,31 @@ const createStyles = (colors: ThemeColors) =>
     amountInputContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.surfaceAlt,
-      borderRadius: 12,
+      backgroundColor: colors.background,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
       paddingHorizontal: Spacing.lg,
     },
     dollarSign: {
-      fontSize: 22,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+      ...KidType.amount,
+      fontSize: 24,
       color: colors.textSecondary,
       marginRight: Spacing.xs,
     },
     amountInput: {
+      ...KidType.amount,
       flex: 1,
-      fontSize: 22,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+      fontSize: 24,
       color: colors.text,
       paddingVertical: 14,
     },
     textInput: {
       fontFamily: FontFamily.regular,
-      backgroundColor: colors.surfaceAlt,
-      borderRadius: 12,
+      backgroundColor: colors.background,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
       paddingHorizontal: Spacing.lg,
       paddingVertical: 14,
       fontSize: 16,
@@ -288,26 +316,20 @@ const createStyles = (colors: ThemeColors) =>
     categoryChip: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.surfaceAlt,
-      paddingHorizontal: Spacing.md,
-      paddingVertical: Spacing.sm,
-      borderRadius: 20,
+      backgroundColor: colors.background,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      paddingHorizontal: 14,
+      height: 40,
+      borderRadius: KidRadius.bubble,
       gap: 6,
     },
-    categoryChipSelected: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 4,
-      elevation: 3,
-    },
     categoryChipEmoji: {
-      fontSize: 14,
+      fontSize: 16,
     },
     categoryChipText: {
-      fontSize: 13,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+      ...KidType.button,
+      fontSize: 14,
       color: colors.textSecondary,
     },
     categoryChipTextSelected: {
@@ -318,46 +340,30 @@ const createStyles = (colors: ThemeColors) =>
       gap: Spacing.md,
       marginTop: Spacing.sm,
     },
-    cancelButton: {
+    flex: {
       flex: 1,
-      paddingVertical: Spacing.lg,
-      borderRadius: 14,
-      backgroundColor: colors.surfaceAlt,
-      alignItems: 'center',
-    },
-    cancelText: {
-      fontSize: 16,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      color: colors.textSecondary,
     },
     submitButton: {
       flex: 1,
-      paddingVertical: Spacing.lg,
-      borderRadius: 14,
+      height: 54,
+      borderRadius: KidRadius.button,
+      borderBottomWidth: KID_BUTTON_LEDGE,
       alignItems: 'center',
+      justifyContent: 'center',
     },
     submitDisabled: {
-      opacity: 0.5,
+      backgroundColor: colors.surfaceAlt,
+      borderBottomColor: colors.border,
     },
     submitText: {
-      fontSize: 16,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
+      ...KidType.button,
+      fontSize: 17,
       color: colors.textWhite,
+    },
+    submitTextDisabled: {
+      color: colors.textLight,
     },
     deleteButton: {
       marginTop: Spacing.lg,
-      paddingVertical: 14,
-      borderRadius: 14,
-      borderWidth: 1.5,
-      borderColor: colors.danger,
-      alignItems: 'center',
-    },
-    deleteText: {
-      fontSize: 15,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      color: colors.danger,
     },
   });
