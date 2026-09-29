@@ -104,7 +104,11 @@ function KidBalanceCard({ label, value, caption, children, style }: BalanceCardP
       <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
         <View style={[styles.blob, styles.blobLarge]} pointerEvents="none" />
         <View style={[styles.blob, styles.blobSmall]} pointerEvents="none" />
-        <Animated.Text style={[styles.piggy, piggyStyle]} pointerEvents="none">🐷</Animated.Text>
+        <Animated.Image
+          source={require('../../assets/icon.png')}
+          style={[styles.piggy, piggyStyle]}
+          accessibilityIgnoresInvertColors
+        />
 
         <Text style={styles.label}>{label}</Text>
         <View style={styles.amountRow}>
@@ -236,7 +240,12 @@ const createKidStyles = () =>
       position: 'absolute',
       top: Spacing.xl,
       right: Spacing.xl,
-      fontSize: 52,
+      width: 56,
+      height: 56,
+      borderRadius: 14,
+      borderWidth: 2,
+      borderColor: 'rgba(255, 255, 255, 0.35)',
+      pointerEvents: 'none',
     },
     label: {
       ...KidType.headline,
