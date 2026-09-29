@@ -4,8 +4,9 @@ import { usePathname, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { useNotifications } from '../context/NotificationContext';
-import { FontFamily } from '../constants/fonts';
+import { Radius, Type } from '../constants/theme';
 import { Spacing } from '../constants/spacing';
 import AnimatedPressable from './AnimatedPressable';
 import ProfileAvatar from './ProfileAvatar';
@@ -13,7 +14,7 @@ import ProfileSheet from './ProfileSheet';
 
 const appIcon = require('../../assets/icon.png');
 
-const SIDEBAR_WIDTH = 220;
+const SIDEBAR_WIDTH = 232;
 export const SIDEBAR_BREAKPOINT = 768;
 
 interface NavItem {
@@ -58,7 +59,8 @@ function Sidebar({ role }: { role: 'admin' | 'kid' }) {
   const colors = useColors();
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const { getKid } = useData();
   const { unreadCount, getUnreadCountForKid } = useNotifications();
   const navItems = role === 'admin' ? ADMIN_NAV : KID_NAV;
   const [profileOpen, setProfileOpen] = useState(false);
@@ -68,17 +70,10 @@ function Sidebar({ role }: { role: 'admin' | 'kid' }) {
 
   const displayName =
     user?.role === 'admin' ? user.displayName : user?.role === 'kid' ? user.name : '';
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } finally {
-      router.replace('/(auth)/login');
-    }
-  };
+  const kidAvatar = user?.role === 'kid' ? getKid(user.kidId)?.avatar : undefined;
 
   return (
-    <View style={[styles.sidebar, { backgroundColor: colors.surface, borderRightColor: colors.borderLight }]}>
+    <View style={[styles.sidebar, { backgroundColor: colors.background, borderRightColor: colors.hairline }]}>
       <View style={styles.brand}>
         <Image source={appIcon} style={styles.brandIcon} />
         <Text style={[styles.brandText, { color: colors.text }]}>Finance Tracker</Text>
@@ -92,9 +87,10 @@ function Sidebar({ role }: { role: 'admin' | 'kid' }) {
             <AnimatedPressable
               key={item.href}
               variant="row"
+              hoverBackground={isActive ? colors.surfaceAlt : colors.surfaceHover}
               style={[
                 styles.navItem,
-                { backgroundColor: isActive ? colors.primaryLight + '18' : 'transparent' },
+                { backgroundColor: isActive ? colors.surfaceAlt : colors.background },
               ]}
               onPress={() => {
                 const rootHref = role === 'admin' ? '/(admin)' : '/(kid)';
@@ -107,20 +103,19 @@ function Sidebar({ role }: { role: 'admin' | 'kid' }) {
             >
               <Ionicons
                 name={isActive ? item.iconActive : item.icon}
-                size={20}
-                color={isActive ? colors.primary : colors.textSecondary}
+                size={18}
+                color={isActive ? colors.text : colors.textSecondary}
               />
               <Text
                 style={[
                   styles.navLabel,
-                  { color: isActive ? colors.primary : colors.textSecondary },
-                  isActive && styles.navLabelActive,
+                  { color: isActive ? colors.text : colors.textSecondary },
                 ]}
               >
                 {item.label}
               </Text>
               {badgeCount > 0 && (
-                <View style={[styles.navBadge, { backgroundColor: colors.danger }]}>
+                <View style={[styles.navBadge, { backgroundColor: colors.primary }]}>
                   <Text style={styles.navBadgeText}>
                     {badgeCount > 9 ? '9+' : badgeCount}
                   </Text>
@@ -131,42 +126,32 @@ function Sidebar({ role }: { role: 'admin' | 'kid' }) {
         })}
       </View>
 
-      <View style={[styles.profileFooter, { borderTopColor: colors.borderLight }]}>
-        {role === 'admin' ? (
-          <AnimatedPressable
-            variant="row"
-            style={styles.profileInfo}
-            onPress={() => setProfileOpen(true)}
-            accessibilityLabel="Edit profile"
-          >
-            <ProfileAvatar name={displayName || '?'} size={32} />
-            <Text style={[styles.profileName, { color: colors.text }]} numberOfLines={1}>
-              {displayName}
-            </Text>
-            <Ionicons name="pencil" size={13} color={colors.textLight} />
-          </AnimatedPressable>
-        ) : (
-          <View style={styles.profileInfo}>
-            <ProfileAvatar name={displayName || '?'} size={32} />
-            <Text style={[styles.profileName, { color: colors.text }]} numberOfLines={1}>
-              {displayName}
-            </Text>
-          </View>
-        )}
+      <View style={[styles.profileFooter, { borderTopColor: colors.hairline }]}>
         <AnimatedPressable
-          variant="button"
-          onPress={handleLogout}
-          style={[styles.logoutButton, { backgroundColor: colors.danger + '12' }]}
-          accessibilityLabel="Logout"
+          variant="row"
+          hoverBackground={colors.surfaceHover}
+          style={[styles.profileInfo, { backgroundColor: colors.background }]}
+          onPress={() => setProfileOpen(true)}
+          accessibilityLabel="Profile and settings"
         >
-          <Ionicons name="log-out-outline" size={16} color={colors.danger} />
-          <Text style={[styles.logoutButtonText, { color: colors.danger }]}>Log out</Text>
+          {kidAvatar ? (
+            <View style={[styles.emojiAvatar, { backgroundColor: colors.surfaceAlt }]}>
+              <Text style={styles.emojiAvatarText}>{kidAvatar}</Text>
+            </View>
+          ) : (
+            <ProfileAvatar name={displayName || '?'} size={32} />
+          )}
+          <View style={styles.profileText}>
+            <Text style={[styles.profileName, { color: colors.text }]} numberOfLines={1}>
+              {displayName}
+            </Text>
+            <Text style={[styles.profileHint, { color: colors.textLight }]}>Settings</Text>
+          </View>
+          <Ionicons name="chevron-up" size={14} color={colors.textLight} />
         </AnimatedPressable>
       </View>
 
-      {role === 'admin' && (
-        <ProfileSheet visible={profileOpen} onClose={() => setProfileOpen(false)} />
-      )}
+      <ProfileSheet visible={profileOpen} onClose={() => setProfileOpen(false)} />
     </View>
   );
 }
@@ -178,9 +163,9 @@ const styles = StyleSheet.create({
   },
   sidebar: {
     width: SIDEBAR_WIDTH,
-    borderRightWidth: 1,
-    paddingTop: Spacing.xxxl,
-    paddingHorizontal: Spacing.lg,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    paddingTop: Spacing.xxl,
+    paddingHorizontal: Spacing.md,
     justifyContent: 'flex-start',
   },
   main: {
@@ -191,37 +176,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.xxxl,
+    marginBottom: Spacing.xxl,
   },
   brandIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
+    width: 26,
+    height: 26,
+    borderRadius: 7,
   },
   brandText: {
-    fontFamily: FontFamily.extraBold,
-    fontWeight: '800',
-    fontSize: 16,
+    ...Type.headline,
+    fontSize: 15,
   },
   nav: {
-    gap: Spacing.xs,
+    gap: 2,
   },
   navItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
     paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
-    borderRadius: 10,
+    height: 38,
+    borderRadius: Radius.sm + 2,
   },
   navLabel: {
-    fontFamily: FontFamily.medium,
-    fontWeight: '500',
+    ...Type.label,
     fontSize: 14,
-  },
-  navLabelActive: {
-    fontFamily: FontFamily.semiBold,
-    fontWeight: '600',
   },
   navBadge: {
     marginLeft: 'auto',
@@ -230,44 +209,45 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 5,
+    paddingHorizontal: 6,
   },
   navBadgeText: {
-    color: '#FFFFFF',
+    ...Type.overline,
     fontSize: 11,
-    fontFamily: FontFamily.bold,
-    fontWeight: '700',
+    color: '#FFFFFF',
   },
   profileFooter: {
-    borderTopWidth: 1,
-    paddingTop: Spacing.lg,
-    paddingHorizontal: Spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: Spacing.md,
     marginTop: 'auto',
-    paddingBottom: Spacing.xl,
-    gap: Spacing.sm,
+    paddingBottom: Spacing.lg,
   },
   profileInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+    padding: Spacing.sm,
+    borderRadius: Radius.md,
+  },
+  emojiAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emojiAvatarText: {
+    fontSize: 18,
+  },
+  profileText: {
+    flex: 1,
   },
   profileName: {
-    flex: 1,
-    fontFamily: FontFamily.semiBold,
-    fontWeight: '600',
+    ...Type.label,
     fontSize: 13,
   },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingVertical: 8,
-    paddingHorizontal: Spacing.md,
-    borderRadius: 8,
-  },
-  logoutButtonText: {
-    fontFamily: FontFamily.semiBold,
-    fontWeight: '600',
-    fontSize: 13,
+  profileHint: {
+    ...Type.caption,
+    fontSize: 11,
   },
 });

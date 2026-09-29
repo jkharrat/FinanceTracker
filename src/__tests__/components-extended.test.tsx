@@ -8,7 +8,7 @@ import GoalRing from '../components/GoalRing';
 import Confetti from '../components/Confetti';
 import AnimatedListItem from '../components/AnimatedListItem';
 import AnimatedPressable from '../components/AnimatedPressable';
-import GradientCard from '../components/GradientCard';
+import BalanceCard from '../components/BalanceCard';
 import { EmptyState } from '../components/EmptyState';
 import { KidCard } from '../components/KidCard';
 import { TransactionItem } from '../components/TransactionItem';
@@ -472,36 +472,27 @@ describe('AnimatedPressable', () => {
   });
 });
 
-// ─── GradientCard ─────────────────────────────────────────────────────────
+// ─── BalanceCard ──────────────────────────────────────────────────────────
 
-describe('GradientCard', () => {
-  it('renders children', () => {
-    const { getByText } = render(
-      <GradientCard colors={['#6C63FF', '#8B85FF']}>
-        <Text>Gradient Content</Text>
-      </GradientCard>
-    );
-    expect(getByText('Gradient Content')).toBeTruthy();
+describe('BalanceCard', () => {
+  it('renders the label and amount', () => {
+    const { getByText, getByLabelText } = render(<BalanceCard label="Your balance" value={42.5} />);
+    expect(getByText('Your balance')).toBeTruthy();
+    expect(getByLabelText('$42.50')).toBeTruthy();
   });
 
-  it('renders with multiple children', () => {
-    const { getByText } = render(
-      <GradientCard colors={['#34D399', '#059669']}>
-        <Text>Title</Text>
-        <Text>Subtitle</Text>
-      </GradientCard>
-    );
-    expect(getByText('Title')).toBeTruthy();
-    expect(getByText('Subtitle')).toBeTruthy();
+  it('renders a caption when provided', () => {
+    const { getByText } = render(<BalanceCard label="Family balance" value={10} caption="Across 2 people" />);
+    expect(getByText('Across 2 people')).toBeTruthy();
   });
 
-  it('renders with three colors', () => {
+  it('renders action children', () => {
     const { getByText } = render(
-      <GradientCard colors={['#FF0000', '#00FF00', '#0000FF']}>
-        <Text>Rainbow</Text>
-      </GradientCard>
+      <BalanceCard label="Balance" value={0}>
+        <Text>Send</Text>
+      </BalanceCard>
     );
-    expect(getByText('Rainbow')).toBeTruthy();
+    expect(getByText('Send')).toBeTruthy();
   });
 });
 

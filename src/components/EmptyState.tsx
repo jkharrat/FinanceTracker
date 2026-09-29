@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useColors } from '../context/ThemeContext';
 import { ThemeColors } from '../constants/colors';
-import { FontFamily } from '../constants/fonts';
+import { Type } from '../constants/theme';
 import { Spacing } from '../constants/spacing';
 
 interface EmptyStateProps {
@@ -17,7 +17,9 @@ export function EmptyState({ icon, title, subtitle }: EmptyStateProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.icon}>{icon}</Text>
+      <View style={styles.iconWrap}>
+        <Text style={styles.icon}>{icon}</Text>
+      </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
     </View>
@@ -29,25 +31,31 @@ const createStyles = (colors: ThemeColors) =>
     container: {
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 60,
+      paddingVertical: 56,
       paddingHorizontal: 40,
     },
-    icon: {
-      fontSize: 64,
+    iconWrap: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: colors.surfaceAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
       marginBottom: Spacing.lg,
     },
+    icon: {
+      fontSize: 32,
+    },
     title: {
-      fontSize: 20,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+      ...Type.headline,
       color: colors.text,
-      marginBottom: Spacing.sm,
+      marginBottom: Spacing.xs,
       textAlign: 'center',
     },
     subtitle: {
-      fontSize: 15,
+      ...Type.body,
       color: colors.textSecondary,
       textAlign: 'center',
-      lineHeight: 22,
+      maxWidth: 300,
     },
   });

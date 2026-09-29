@@ -2,6 +2,7 @@ export type ThemeColors = {
   primary: string;
   primaryLight: string;
   primaryDark: string;
+  primarySoft: string;
   success: string;
   successLight: string;
   successDark: string;
@@ -13,61 +14,84 @@ export type ThemeColors = {
   background: string;
   surface: string;
   surfaceAlt: string;
+  surfaceElevated: string;
+  surfaceHover: string;
+  inverseSurface: string;
+  inverseText: string;
+  inverseTextSecondary: string;
   text: string;
   textSecondary: string;
   textLight: string;
   textWhite: string;
   border: string;
   borderLight: string;
+  hairline: string;
+  overlay: string;
   shadow: string;
 };
 
 export const LightColors: ThemeColors = {
-  primary: '#6C63FF',
-  primaryLight: '#8B85FF',
-  primaryDark: '#4A42DB',
-  success: '#34D399',
-  successLight: '#D1FAE5',
-  successDark: '#059669',
-  danger: '#F87171',
-  dangerLight: '#FEE2E2',
-  dangerDark: '#DC2626',
-  warning: '#FBBF24',
-  warningLight: '#FEF3C7',
-  background: '#F8F9FD',
+  primary: '#5B5BD6',
+  primaryLight: '#7C7CE8',
+  primaryDark: '#4747B8',
+  primarySoft: 'rgba(91, 91, 214, 0.10)',
+  success: '#12A150',
+  successLight: '#E3F7EA',
+  successDark: '#0B7A3B',
+  danger: '#E5484D',
+  dangerLight: '#FDECEC',
+  dangerDark: '#C4282E',
+  warning: '#F5A524',
+  warningLight: '#FFF4DB',
+  background: '#F7F7F8',
   surface: '#FFFFFF',
-  surfaceAlt: '#F1F3F8',
-  text: '#1F2937',
-  textSecondary: '#6B7280',
-  textLight: '#9CA3AF',
+  surfaceAlt: '#F1F1F3',
+  surfaceElevated: '#FFFFFF',
+  surfaceHover: '#F9F9FA',
+  inverseSurface: '#111113',
+  inverseText: '#FFFFFF',
+  inverseTextSecondary: 'rgba(255, 255, 255, 0.6)',
+  text: '#0A0A0B',
+  textSecondary: '#5E5E68',
+  textLight: '#9B9BA4',
   textWhite: '#FFFFFF',
-  border: '#E5E7EB',
-  borderLight: '#F3F4F6',
-  shadow: 'rgba(108, 99, 255, 0.08)',
+  border: '#E4E4E8',
+  borderLight: '#EFEFF2',
+  hairline: 'rgba(10, 10, 11, 0.08)',
+  overlay: 'rgba(10, 10, 11, 0.40)',
+  shadow: 'rgba(10, 10, 11, 0.08)',
 };
 
 export const DarkColors: ThemeColors = {
-  primary: '#8B85FF',
-  primaryLight: '#A5A0FF',
-  primaryDark: '#6C63FF',
-  success: '#34D399',
-  successLight: '#064E3B',
-  successDark: '#6EE7B7',
-  danger: '#F87171',
-  dangerLight: '#7F1D1D',
-  dangerDark: '#FCA5A5',
-  warning: '#FBBF24',
-  warningLight: '#78350F',
-  background: '#0F172A',
-  surface: '#1E293B',
-  surfaceAlt: '#334155',
-  text: '#F1F5F9',
-  textSecondary: '#94A3B8',
-  textLight: '#64748B',
+  primary: '#8B8BF5',
+  primaryLight: '#A9A9FA',
+  primaryDark: '#6E6EE8',
+  primarySoft: 'rgba(139, 139, 245, 0.14)',
+  success: '#3DD68C',
+  successLight: '#0F2A1C',
+  successDark: '#6EE7A8',
+  danger: '#FF6369',
+  dangerLight: '#361218',
+  dangerDark: '#FF9592',
+  warning: '#FFC53D',
+  warningLight: '#33270A',
+  background: '#0A0A0B',
+  surface: '#141416',
+  surfaceAlt: '#1D1D20',
+  surfaceElevated: '#1A1A1D',
+  surfaceHover: '#19191C',
+  inverseSurface: '#1D1D20',
+  inverseText: '#F4F4F5',
+  inverseTextSecondary: 'rgba(244, 244, 245, 0.55)',
+  text: '#F4F4F5',
+  textSecondary: '#A1A1AA',
+  textLight: '#6B6B75',
   textWhite: '#FFFFFF',
-  border: '#475569',
-  borderLight: '#2D3B50',
-  shadow: 'rgba(0, 0, 0, 0.3)',
+  border: '#27272B',
+  borderLight: '#1F1F23',
+  hairline: 'rgba(255, 255, 255, 0.08)',
+  overlay: 'rgba(0, 0, 0, 0.60)',
+  shadow: 'rgba(0, 0, 0, 0.50)',
 };
 
 export const Colors = LightColors;
@@ -76,7 +100,7 @@ export const Avatars = ['😊', '🌟', '🎨', '🚀', '🎵', '📚', '⚽', '
 
 // --- Accent color palettes ---
 
-export type AccentOverrides = Pick<ThemeColors, 'primary' | 'primaryLight' | 'primaryDark' | 'shadow'>;
+export type AccentOverrides = Pick<ThemeColors, 'primary' | 'primaryLight' | 'primaryDark' | 'primarySoft' | 'shadow'>;
 
 export type AccentPaletteId = 'purple' | 'blue' | 'green' | 'rose' | 'orange' | 'teal';
 
@@ -91,104 +115,116 @@ export interface AccentPalette {
 export const ACCENT_PALETTES: AccentPalette[] = [
   {
     id: 'purple',
-    label: 'Purple',
-    swatch: '#6C63FF',
+    label: 'Indigo',
+    swatch: '#5B5BD6',
     light: {
-      primary: '#6C63FF',
-      primaryLight: '#8B85FF',
-      primaryDark: '#4A42DB',
-      shadow: 'rgba(108, 99, 255, 0.08)',
+      primary: LightColors.primary,
+      primaryLight: LightColors.primaryLight,
+      primaryDark: LightColors.primaryDark,
+      primarySoft: LightColors.primarySoft,
+      shadow: LightColors.shadow,
     },
     dark: {
-      primary: '#8B85FF',
-      primaryLight: '#A5A0FF',
-      primaryDark: '#6C63FF',
-      shadow: 'rgba(0, 0, 0, 0.3)',
+      primary: DarkColors.primary,
+      primaryLight: DarkColors.primaryLight,
+      primaryDark: DarkColors.primaryDark,
+      primarySoft: DarkColors.primarySoft,
+      shadow: DarkColors.shadow,
     },
   },
   {
     id: 'blue',
     label: 'Blue',
-    swatch: '#3B82F6',
+    swatch: '#0A84FF',
     light: {
-      primary: '#3B82F6',
-      primaryLight: '#60A5FA',
-      primaryDark: '#2563EB',
-      shadow: 'rgba(59, 130, 246, 0.08)',
+      primary: '#0A7AEB',
+      primaryLight: '#3D9BF5',
+      primaryDark: '#0862BD',
+      primarySoft: 'rgba(10, 122, 235, 0.10)',
+      shadow: LightColors.shadow,
     },
     dark: {
-      primary: '#60A5FA',
-      primaryLight: '#93BBFD',
-      primaryDark: '#3B82F6',
-      shadow: 'rgba(0, 0, 0, 0.3)',
+      primary: '#3D9BF5',
+      primaryLight: '#70B6F8',
+      primaryDark: '#0A84FF',
+      primarySoft: 'rgba(61, 155, 245, 0.14)',
+      shadow: DarkColors.shadow,
     },
   },
   {
     id: 'green',
     label: 'Green',
-    swatch: '#10B981',
+    swatch: '#12A150',
     light: {
-      primary: '#10B981',
-      primaryLight: '#34D399',
-      primaryDark: '#059669',
-      shadow: 'rgba(16, 185, 129, 0.08)',
+      primary: '#12A150',
+      primaryLight: '#34C06F',
+      primaryDark: '#0B7A3B',
+      primarySoft: 'rgba(18, 161, 80, 0.10)',
+      shadow: LightColors.shadow,
     },
     dark: {
-      primary: '#34D399',
-      primaryLight: '#6EE7B7',
-      primaryDark: '#10B981',
-      shadow: 'rgba(0, 0, 0, 0.3)',
+      primary: '#3DD68C',
+      primaryLight: '#6EE7A8',
+      primaryDark: '#12A150',
+      primarySoft: 'rgba(61, 214, 140, 0.14)',
+      shadow: DarkColors.shadow,
     },
   },
   {
     id: 'rose',
     label: 'Rose',
-    swatch: '#F43F5E',
+    swatch: '#E54666',
     light: {
-      primary: '#F43F5E',
-      primaryLight: '#FB7185',
-      primaryDark: '#E11D48',
-      shadow: 'rgba(244, 63, 94, 0.08)',
+      primary: '#E54666',
+      primaryLight: '#EE6F88',
+      primaryDark: '#C42D4D',
+      primarySoft: 'rgba(229, 70, 102, 0.10)',
+      shadow: LightColors.shadow,
     },
     dark: {
-      primary: '#FB7185',
-      primaryLight: '#FDA4AF',
-      primaryDark: '#F43F5E',
-      shadow: 'rgba(0, 0, 0, 0.3)',
+      primary: '#FF6B88',
+      primaryLight: '#FF94A8',
+      primaryDark: '#E54666',
+      primarySoft: 'rgba(255, 107, 136, 0.14)',
+      shadow: DarkColors.shadow,
     },
   },
   {
     id: 'orange',
     label: 'Orange',
-    swatch: '#F59E0B',
+    swatch: '#F76B15',
     light: {
-      primary: '#F59E0B',
-      primaryLight: '#FBBF24',
-      primaryDark: '#D97706',
-      shadow: 'rgba(245, 158, 11, 0.08)',
+      primary: '#E8590C',
+      primaryLight: '#F7843D',
+      primaryDark: '#C2480A',
+      primarySoft: 'rgba(232, 89, 12, 0.10)',
+      shadow: LightColors.shadow,
     },
     dark: {
-      primary: '#FBBF24',
-      primaryLight: '#FCD34D',
-      primaryDark: '#F59E0B',
-      shadow: 'rgba(0, 0, 0, 0.3)',
+      primary: '#FF8B3E',
+      primaryLight: '#FFA76B',
+      primaryDark: '#F76B15',
+      primarySoft: 'rgba(255, 139, 62, 0.14)',
+      shadow: DarkColors.shadow,
     },
   },
   {
     id: 'teal',
     label: 'Teal',
-    swatch: '#14B8A6',
+    swatch: '#12A594',
     light: {
-      primary: '#14B8A6',
-      primaryLight: '#2DD4BF',
-      primaryDark: '#0D9488',
-      shadow: 'rgba(20, 184, 166, 0.08)',
+      primary: '#0D9B8A',
+      primaryLight: '#2DB9A7',
+      primaryDark: '#0A7D70',
+      primarySoft: 'rgba(13, 155, 138, 0.10)',
+      shadow: LightColors.shadow,
     },
     dark: {
       primary: '#2DD4BF',
       primaryLight: '#5EEAD4',
-      primaryDark: '#14B8A6',
-      shadow: 'rgba(0, 0, 0, 0.3)',
+      primaryDark: '#12A594',
+      primarySoft: 'rgba(45, 212, 191, 0.14)',
+      shadow: DarkColors.shadow,
     },
   },
 ];

@@ -40,3 +40,13 @@ export function groupTransactionsByDate(transactions: Transaction[]): Transactio
 
   return Array.from(grouped.entries()).map(([title, data]) => ({ title, data }));
 }
+
+/** Position of each transaction across all sections, for staggering the whole list rather than per section. */
+export function flatIndexById(sections: TransactionSection[]): Map<string, number> {
+  const map = new Map<string, number>();
+  let i = 0;
+  for (const section of sections) {
+    for (const t of section.data) map.set(t.id, i++);
+  }
+  return map;
+}

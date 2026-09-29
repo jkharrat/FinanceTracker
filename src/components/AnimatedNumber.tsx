@@ -19,7 +19,7 @@ interface AnimatedNumberProps {
 const DIGITS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
 /** Each less-significant digit keeps rolling a little longer, which reads as counting up. */
-const STAGGER_MS = 70;
+const STAGGER_MS = 35;
 const LINE_HEIGHT_RATIO = 1.25;
 const DEFAULT_FONT_SIZE = 16;
 
@@ -49,12 +49,13 @@ interface DigitColumnProps {
 }
 
 function DigitColumn({ digit, height, duration, textStyle }: DigitColumnProps) {
-  const offset = useSharedValue(0);
+  // Start on the real digit so first paint is static; only later changes roll.
+  const offset = useSharedValue(-digit * height);
 
   useEffect(() => {
     offset.value = withTiming(-digit * height, {
       duration,
-      easing: Easing.out(Easing.cubic),
+      easing: Easing.bezier(0.22, 1, 0.36, 1),
     });
   }, [digit, height, duration, offset]);
 
@@ -79,7 +80,7 @@ export default function AnimatedNumber({
   value,
   prefix = '',
   style,
-  duration = 600,
+  duration = 450,
   decimals = 2,
 }: AnimatedNumberProps) {
   const reducedMotion = useReducedMotion();
@@ -118,10 +119,12 @@ export default function AnimatedNumber({
   return (
     <View style={[styles.row, layoutStyle]} accessible accessibilityLabel={text}>
       {text.split('').map((char, index) => {
+        // Keyed from the right so cents stay the same column when the value gains a digit.
+        const key = text.length - index;
         const digit = DIGITS.indexOf(char);
         if (digit === -1) {
           return (
-            <Text key={index} style={glyphStyle}>
+            <Text key={`${key}${char}`} style={glyphStyle}>
               {char}
             </Text>
           );
@@ -130,7 +133,7 @@ export default function AnimatedNumber({
         significance += 1;
         return (
           <DigitColumn
-            key={index}
+            key={key}
             digit={digit}
             height={height}
             duration={columnDuration}

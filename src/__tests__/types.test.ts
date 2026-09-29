@@ -95,7 +95,7 @@ describe('Theme Colors', () => {
     });
 
     it('has a light background', () => {
-      expect(LightColors.background).toBe('#F8F9FD');
+      expect(LightColors.background).toBe('#F7F7F8');
     });
 
     it('has a white surface', () => {
@@ -118,7 +118,7 @@ describe('Theme Colors', () => {
     });
 
     it('has a dark background', () => {
-      expect(DarkColors.background).toBe('#0F172A');
+      expect(DarkColors.background).toBe('#0A0A0B');
     });
 
     it('has matching keys with LightColors', () => {

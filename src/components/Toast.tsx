@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo } from 'react';
-import { Text, StyleSheet, Platform, Pressable } from 'react-native';
-import Animated, { SlideInUp, SlideOutUp, FadeOut } from 'react-native-reanimated';
+import { Text, StyleSheet, Platform, Pressable, View } from 'react-native';
+import Animated, { Easing, FadeOut, Keyframe } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../context/ThemeContext';
 import { ThemeColors } from '../constants/colors';
-import { FontFamily } from '../constants/fonts';
+import { Radius, Type, Elevation } from '../constants/theme';
+import { Durations } from '../constants/motion';
 import { Spacing } from '../constants/spacing';
 
 export type ToastType = 'success' | 'error' | 'info';
@@ -23,18 +24,21 @@ const ICON_MAP: Record<ToastType, keyof typeof Ionicons.glyphMap> = {
   info: 'information-circle',
 };
 
+const toastIn = new Keyframe({
+  0: { opacity: 0, transform: [{ translateY: -16 }, { scale: 0.97 }] },
+  100: { opacity: 1, transform: [{ translateY: 0 }, { scale: 1 }], easing: Easing.out(Easing.cubic) },
+}).duration(Durations.slow);
+
 export default function Toast({ id, type, message, onDismiss }: ToastProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const colorMap: Record<ToastType, { bg: string; icon: string; text: string }> = {
-    success: { bg: colors.successLight, icon: colors.successDark, text: colors.successDark },
-    error: { bg: colors.dangerLight, icon: colors.dangerDark, text: colors.dangerDark },
-    info: { bg: colors.primaryLight + '30', icon: colors.primary, text: colors.primary },
+  const iconColor: Record<ToastType, string> = {
+    success: colors.success,
+    error: colors.danger,
+    info: colors.primary,
   };
-
-  const palette = colorMap[type];
 
   useEffect(() => {
     const timer = setTimeout(() => onDismiss(id), 3000);
@@ -43,16 +47,15 @@ export default function Toast({ id, type, message, onDismiss }: ToastProps) {
 
   return (
     <Animated.View
-      entering={SlideInUp.springify().damping(20).stiffness(150)}
-      exiting={SlideOutUp.duration(200).withCallback(() => {})}
-      style={[
-        styles.container,
-        { backgroundColor: palette.bg, marginTop: insets.top + Spacing.sm },
-      ]}
+      entering={toastIn}
+      exiting={FadeOut.duration(Durations.base)}
+      style={[styles.container, { marginTop: insets.top + Spacing.sm }]}
     >
       <Pressable style={styles.content} onPress={() => onDismiss(id)}>
-        <Ionicons name={ICON_MAP[type]} size={22} color={palette.icon} />
-        <Text style={[styles.message, { color: palette.text }]} numberOfLines={2}>
+        <View style={styles.iconWrap}>
+          <Ionicons name={ICON_MAP[type]} size={20} color={iconColor[type]} />
+        </View>
+        <Text style={styles.message} numberOfLines={2}>
           {message}
         </Text>
       </Pressable>
@@ -67,27 +70,29 @@ const createStyles = (colors: ThemeColors) =>
       top: 0,
       left: Spacing.lg,
       right: Spacing.lg,
-      borderRadius: 14,
+      borderRadius: Radius.lg,
       zIndex: 9999,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.12,
-      shadowRadius: 12,
-      elevation: 6,
-      ...(Platform.OS === 'web' ? { maxWidth: 480, alignSelf: 'center' as const } : {}),
+      backgroundColor: colors.surfaceElevated,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.hairline,
+      ...Elevation.raised,
+      ...(Platform.OS === 'web' ? { maxWidth: 420, alignSelf: 'center' as const } : {}),
     },
     content: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.md,
+      paddingVertical: 14,
       gap: Spacing.md,
     },
+    iconWrap: {
+      width: 20,
+      alignItems: 'center',
+    },
     message: {
+      ...Type.bodyStrong,
       flex: 1,
       fontSize: 14,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      lineHeight: 20,
+      color: colors.text,
     },
   });

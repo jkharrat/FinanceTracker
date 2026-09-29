@@ -8,7 +8,6 @@ import {
   Platform,
   useWindowDimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../../src/context/DataContext';
@@ -18,14 +17,14 @@ import { KidCard } from '../../src/components/KidCard';
 import NotificationBell from '../../src/components/NotificationBell';
 import NotificationPrompt from '../../src/components/NotificationPrompt';
 import AnimatedPressable from '../../src/components/AnimatedPressable';
-import GradientCard from '../../src/components/GradientCard';
-import AnimatedNumber from '../../src/components/AnimatedNumber';
+import BalanceCard from '../../src/components/BalanceCard';
 import ProfileAvatar from '../../src/components/ProfileAvatar';
 import ProfileSheet from '../../src/components/ProfileSheet';
 import { AdminDashboardSkeleton } from '../../src/components/Skeleton';
-import AnimatedListItem from '../../src/components/AnimatedListItem';
+import AnimatedListItem, { useEntranceWindow } from '../../src/components/AnimatedListItem';
+import { Card, Button, SectionHeader } from '../../src/components/ui';
 import { ThemeColors } from '../../src/constants/colors';
-import { FontFamily } from '../../src/constants/fonts';
+import { Radius, Type, Elevation } from '../../src/constants/theme';
 import { Spacing } from '../../src/constants/spacing';
 import { SIDEBAR_BREAKPOINT } from '../../src/components/WebSidebar';
 import { supabase } from '../../src/lib/supabase';
@@ -34,6 +33,12 @@ interface AdminProfile {
   id: string;
   display_name: string;
 }
+
+const SETUP_STEPS = [
+  { icon: 'person-add-outline' as const, label: 'Add a kid', desc: 'Create their profile and avatar' },
+  { icon: 'calendar-outline' as const, label: 'Set their allowance', desc: 'Choose an amount and frequency' },
+  { icon: 'bar-chart-outline' as const, label: 'Track spending', desc: 'Monitor balances and insights' },
+];
 
 export default function AdminHomeScreen() {
   const { kids, loading, refreshData } = useData();
@@ -46,6 +51,7 @@ export default function AdminHomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const showHeaderBell = Platform.OS !== 'web' || width < SIDEBAR_BREAKPOINT;
+  const entranceOpen = useEntranceWindow(!loading);
 
   const displayName = user?.role === 'admin' ? user.displayName : '';
   const currentUserId = session?.user?.id;
@@ -81,11 +87,13 @@ export default function AdminHomeScreen() {
     );
   }
 
+  const addPerson = () => router.push('/(admin)/add-kid');
+
   return (
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: showHeaderBell ? 'Finance Tracker' : 'Dashboard',
+          title: showHeaderBell ? 'Family' : 'Dashboard',
           ...(Platform.OS === 'ios' && {
             headerTransparent: false,
             headerStyle: { backgroundColor: colors.background },
@@ -98,15 +106,17 @@ export default function AdminHomeScreen() {
                   style={styles.avatarButton}
                   accessibilityLabel="Profile"
                 >
-                  <ProfileAvatar name={displayName || '?'} size={34} />
+                  <ProfileAvatar name={displayName || '?'} size={32} />
                 </AnimatedPressable>
               )
             : undefined,
-          headerRight: () => (
-            <View style={styles.headerRight}>
-              {showHeaderBell && <NotificationBell />}
-            </View>
-          ),
+          headerRight: showHeaderBell
+            ? () => (
+                <View style={styles.headerRight}>
+                  <NotificationBell />
+                </View>
+              )
+            : undefined,
         }}
       />
 
@@ -116,7 +126,7 @@ export default function AdminHomeScreen() {
         data={kids}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
-          <AnimatedListItem index={index}>
+          <AnimatedListItem index={index} stagger={entranceOpen}>
             <KidCard
               kid={item}
               onPress={() => router.push(`/(admin)/kid/${item.id}`)}
@@ -125,50 +135,52 @@ export default function AdminHomeScreen() {
         )}
         ListHeaderComponent={
           <>
-            {kids.length > 0 && (
-              <GradientCard
-                colors={[colors.primary, colors.primaryDark]}
-                style={styles.summaryCard}
-              >
-                <Text style={styles.summaryLabel}>Total Balance</Text>
-                <AnimatedNumber
-                  value={totalBalance}
-                  style={[styles.summaryAmount, totalBalance < 0 && styles.summaryNegative]}
-                />
-                <Text style={styles.summaryCount}>
-                  {kids.length} {kids.length === 1 ? 'person' : 'people'} tracked
-                </Text>
-              </GradientCard>
-            )}
             <NotificationPrompt />
+            {kids.length > 0 && (
+              <BalanceCard
+                label="Family balance"
+                value={totalBalance}
+                caption={`Across ${kids.length} ${kids.length === 1 ? 'person' : 'people'}`}
+                style={styles.summaryCard}
+              />
+            )}
+
             <View style={styles.parentsSection}>
-              <Text style={styles.parentsSectionTitle}>Parents</Text>
+              <Text style={styles.sectionLabel}>Parents</Text>
               <View style={styles.parentsRow}>
                 {admins.map((admin) => {
                   const isYou = admin.id === currentUserId;
                   return (
-                    <View
-                      key={admin.id}
-                      style={[styles.parentChip, isYou && styles.parentChipYou]}
-                    >
-                      <ProfileAvatar name={admin.display_name} size={24} />
+                    <View key={admin.id} style={styles.parentChip}>
+                      <ProfileAvatar name={admin.display_name} size={22} />
                       <Text style={styles.parentChipName} numberOfLines={1}>
-                        {admin.display_name}{isYou ? ' (You)' : ''}
+                        {admin.display_name}
                       </Text>
+                      {isYou && <Text style={styles.parentChipYou}>You</Text>}
                     </View>
                   );
                 })}
                 <AnimatedPressable
                   variant="button"
                   style={styles.addParentChip}
+                  hoverBackground={colors.surfaceAlt}
                   onPress={() => router.push('/(admin)/add-admin')}
                   accessibilityLabel="Add Parent"
                 >
-                  <Ionicons name="add" size={18} color={colors.primary} />
+                  <Ionicons name="add" size={16} color={colors.textSecondary} />
                   <Text style={styles.addParentChipText}>Add</Text>
                 </AnimatedPressable>
               </View>
             </View>
+
+            {kids.length > 0 && (
+              <SectionHeader
+                title="People"
+                size="large"
+                style={styles.peopleHeader}
+                right={<Button title="Add" icon="add" size="sm" variant="ghost" onPress={addPerson} />}
+              />
+            )}
           </>
         }
         contentContainerStyle={[
@@ -176,71 +188,53 @@ export default function AdminHomeScreen() {
           kids.length === 0 && styles.emptyListContent,
         ]}
         ListEmptyComponent={
-          <View style={styles.welcomeContainer}>
-            <LinearGradient
-              colors={[colors.primary, colors.primaryDark]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.welcomeCard}
-            >
-              <View style={styles.welcomeDecorCircle} />
-              <Text style={styles.welcomeEmoji}>👋</Text>
-              <Text style={styles.welcomeTitle}>
-                Welcome{displayName ? `, ${displayName}` : ''}!
-              </Text>
-              <Text style={styles.welcomeSubtitle}>
-                Let's get you set up in three easy steps
-              </Text>
-            </LinearGradient>
+          <Card style={styles.welcomeCard}>
+            <Text style={styles.welcomeEmoji}>👋</Text>
+            <Text style={styles.welcomeTitle}>
+              Welcome{displayName ? `, ${displayName}` : ''}
+            </Text>
+            <Text style={styles.welcomeSubtitle}>
+              Get set up in three quick steps.
+            </Text>
 
             <View style={styles.stepsContainer}>
-              {[
-                { num: '1', icon: 'person-add-outline' as const, label: 'Add a kid', desc: 'Create their profile and avatar' },
-                { num: '2', icon: 'calendar-outline' as const, label: 'Set their allowance', desc: 'Choose an amount and frequency' },
-                { num: '3', icon: 'bar-chart-outline' as const, label: 'Track spending', desc: 'Monitor balances and insights' },
-              ].map((step, i) => (
-                <View key={step.num} style={styles.stepRow}>
+              {SETUP_STEPS.map((step, i) => (
+                <View key={step.label} style={styles.stepRow}>
                   <View style={[styles.stepBadge, i === 0 && styles.stepBadgeActive]}>
                     <Ionicons
                       name={step.icon}
                       size={18}
-                      color={i === 0 ? colors.textWhite : colors.primary}
+                      color={i === 0 ? colors.textWhite : colors.textSecondary}
                     />
                   </View>
                   <View style={styles.stepText}>
-                    <Text style={[styles.stepLabel, i === 0 && styles.stepLabelActive]}>
-                      {step.label}
-                    </Text>
+                    <Text style={styles.stepLabel}>{step.label}</Text>
                     <Text style={styles.stepDesc}>{step.desc}</Text>
                   </View>
                 </View>
               ))}
             </View>
 
-            <AnimatedPressable
-              variant="button"
-              style={styles.welcomeCta}
-              onPress={() => router.push('/(admin)/add-kid')}
-            >
-              <Ionicons name="add-circle-outline" size={22} color={colors.textWhite} />
-              <Text style={styles.welcomeCtaText}>Add Your First Kid</Text>
-            </AnimatedPressable>
-          </View>
+            <Button title="Add your first kid" icon="add" fullWidth onPress={addPerson} />
+          </Card>
         }
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textLight} colors={[colors.primary]} />
         }
       />
 
-      <AnimatedPressable
-        variant="button"
-        style={styles.fab}
-        onPress={() => router.push('/(admin)/add-kid')}
-        accessibilityLabel="Add Person"
-      >
-        <Ionicons name="add" size={28} color={colors.textWhite} />
-      </AnimatedPressable>
+      {kids.length > 0 && (
+        <AnimatedPressable
+          variant="button"
+          style={styles.fab}
+          hoverBackground={colors.primaryDark}
+          onPress={addPerson}
+          accessibilityLabel="Add Person"
+        >
+          <Ionicons name="add" size={26} color={colors.textWhite} />
+        </AnimatedPressable>
+      )}
     </View>
   );
 }
@@ -260,52 +254,23 @@ const createStyles = (colors: ThemeColors) =>
     avatarButton: {
       marginLeft: Spacing.sm,
       ...(Platform.OS === 'ios' && { marginRight: Spacing.sm }),
-      borderWidth: 2,
-      borderColor: colors.primary,
-      borderRadius: 21,
-      padding: 2,
+      borderRadius: 16,
     },
     headerRight: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      marginRight: Spacing.sm,
+      gap: Spacing.sm,
+      marginRight: Platform.OS === 'ios' ? 0 : Spacing.sm,
     },
     summaryCard: {
-      marginBottom: Spacing.md,
-      alignItems: 'center',
-    },
-    summaryLabel: {
-      fontSize: 14,
-      fontFamily: FontFamily.medium,
-      fontWeight: '500',
-      color: 'rgba(255,255,255,0.75)',
-      marginBottom: 6,
-    },
-    summaryAmount: {
-      fontSize: 36,
-      fontFamily: FontFamily.extraBold,
-      fontWeight: '800',
-      color: colors.textWhite,
-      marginBottom: Spacing.xs,
-    },
-    summaryNegative: {
-      color: '#FFB4B4',
-    },
-    summaryCount: {
-      fontSize: 13,
-      color: 'rgba(255,255,255,0.6)',
+      marginBottom: Spacing.xl,
     },
     parentsSection: {
-      marginBottom: Spacing.lg,
+      marginBottom: Spacing.xl,
     },
-    parentsSectionTitle: {
-      fontSize: 11,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      color: colors.textLight,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
+    sectionLabel: {
+      ...Type.overline,
+      color: colors.textSecondary,
       marginBottom: Spacing.sm,
     },
     parentsRow: {
@@ -317,111 +282,86 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.surface,
-      borderRadius: 20,
-      paddingVertical: 6,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.hairline,
+      borderRadius: Radius.pill,
+      height: 34,
       paddingLeft: 6,
       paddingRight: Spacing.md,
       gap: Spacing.sm,
     },
-    parentChipYou: {
-      backgroundColor: colors.primaryLight + '18',
-    },
     parentChipName: {
-      fontSize: 13,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+      ...Type.label,
       color: colors.text,
       maxWidth: 120,
+    },
+    parentChipYou: {
+      ...Type.caption,
+      color: colors.textLight,
     },
     addParentChip: {
       flexDirection: 'row',
       alignItems: 'center',
-      borderRadius: 20,
-      paddingVertical: 6,
+      borderRadius: Radius.pill,
+      height: 34,
       paddingHorizontal: Spacing.md,
       gap: Spacing.xs,
       borderWidth: 1,
       borderStyle: 'dashed',
-      borderColor: colors.primary + '50',
+      borderColor: colors.border,
+      backgroundColor: colors.background,
     },
     addParentChipText: {
-      fontSize: 13,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      color: colors.primary,
+      ...Type.label,
+      color: colors.textSecondary,
+    },
+    peopleHeader: {
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      paddingBottom: Spacing.sm,
     },
     listContent: {
       padding: Spacing.xl,
       paddingTop: Spacing.sm,
-      paddingBottom: 100,
+      paddingBottom: 110,
     },
     emptyListContent: {
-      flex: 1,
+      flexGrow: 1,
       justifyContent: 'center',
     },
     fab: {
       position: 'absolute',
       bottom: Spacing.xxxl,
       right: Spacing.xxl,
-      width: 60,
-      height: 60,
-      borderRadius: 30,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
       backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.35,
-      shadowRadius: 16,
-      elevation: 8,
+      ...Elevation.raised,
     },
 
-    welcomeContainer: {
-      gap: Spacing.xl,
-    },
     welcomeCard: {
-      borderRadius: 20,
       padding: Spacing.xxl,
-      alignItems: 'center',
-      overflow: 'hidden',
-    },
-    welcomeDecorCircle: {
-      position: 'absolute',
-      top: -30,
-      right: -20,
-      width: 120,
-      height: 120,
-      borderRadius: 60,
-      backgroundColor: 'rgba(255,255,255,0.1)',
+      alignItems: 'stretch',
     },
     welcomeEmoji: {
-      fontSize: 48,
+      fontSize: 36,
       marginBottom: Spacing.md,
     },
     welcomeTitle: {
-      fontSize: 24,
-      fontFamily: FontFamily.extraBold,
-      fontWeight: '800',
-      color: colors.textWhite,
-      textAlign: 'center',
+      ...Type.title,
+      color: colors.text,
       marginBottom: Spacing.xs,
     },
     welcomeSubtitle: {
-      fontSize: 15,
-      color: 'rgba(255,255,255,0.8)',
-      textAlign: 'center',
+      ...Type.body,
+      color: colors.textSecondary,
     },
-
     stepsContainer: {
-      backgroundColor: colors.surface,
-      borderRadius: 16,
-      padding: Spacing.xl,
       gap: Spacing.lg,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.06,
-      shadowRadius: 8,
-      elevation: 2,
+      marginVertical: Spacing.xxl,
     },
     stepRow: {
       flexDirection: 'row',
@@ -431,8 +371,8 @@ const createStyles = (colors: ThemeColors) =>
     stepBadge: {
       width: 40,
       height: 40,
-      borderRadius: 12,
-      backgroundColor: colors.shadow,
+      borderRadius: Radius.md,
+      backgroundColor: colors.surfaceAlt,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -444,37 +384,11 @@ const createStyles = (colors: ThemeColors) =>
       gap: 2,
     },
     stepLabel: {
-      fontSize: 15,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+      ...Type.bodyStrong,
       color: colors.text,
     },
-    stepLabelActive: {
-      color: colors.primary,
-    },
     stepDesc: {
-      fontSize: 13,
+      ...Type.label,
       color: colors.textSecondary,
-    },
-
-    welcomeCta: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: Spacing.sm,
-      backgroundColor: colors.primary,
-      borderRadius: 16,
-      paddingVertical: 18,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.25,
-      shadowRadius: 12,
-      elevation: 4,
-    },
-    welcomeCtaText: {
-      fontSize: 17,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
-      color: colors.textWhite,
     },
   });

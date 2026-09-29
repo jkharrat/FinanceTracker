@@ -43,6 +43,11 @@ jest.mock('react-native-reanimated', () => {
     };
     return anim;
   }
+  class Keyframe {
+    delay() { return this; }
+    duration() { return this; }
+    withCallback() { return this; }
+  }
   return {
     __esModule: true,
     default: Animated,
@@ -53,6 +58,7 @@ jest.mock('react-native-reanimated', () => {
     useReducedMotion: jest.fn(() => false),
     runOnJS: jest.fn((fn) => fn),
     interpolate: jest.fn((val) => val),
+    interpolateColor: jest.fn((_, __, output) => output[0]),
     withTiming: jest.fn((val) => val),
     withSpring: jest.fn((val) => val),
     withDelay: jest.fn((_, val) => val),
@@ -75,7 +81,11 @@ jest.mock('react-native-reanimated', () => {
     SlideInUp: makeLayoutAnim(),
     SlideOutUp: makeLayoutAnim(),
     SlideOutLeft: makeLayoutAnim(),
+    SlideInDown: makeLayoutAnim(),
+    SlideOutDown: makeLayoutAnim(),
     Layout: makeLayoutAnim(),
+    LinearTransition: makeLayoutAnim(),
+    Keyframe,
   };
 });
 

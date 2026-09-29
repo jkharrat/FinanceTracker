@@ -1,8 +1,8 @@
-import { Platform, View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { Stack, Redirect, usePathname } from 'expo-router';
 import { useAuth } from '../../src/context/AuthContext';
 import { useColors, useTheme } from '../../src/context/ThemeContext';
-import { FontFamily } from '../../src/constants/fonts';
+import { stackScreenOptions, rootTitleOptions, modalScreenOptions } from '../../src/constants/navigation';
 import WebSidebarLayout from '../../src/components/WebSidebar';
 
 export default function AdminLayout() {
@@ -27,97 +27,40 @@ export default function AdminLayout() {
     return <Redirect href={`/(kid)${pathname}` as any} />;
   }
 
-  const blurEffect = isDark ? 'systemChromeMaterialDark' : 'systemChromeMaterial';
-  const iosBlur = Platform.OS === 'ios'
-    ? {
-        headerTransparent: true as const,
-        headerBlurEffect: blurEffect as 'systemChromeMaterialDark' | 'systemChromeMaterial',
-        headerStyle: { backgroundColor: 'transparent' },
-      }
-    : {
-        headerStyle: { backgroundColor: colors.background },
-      };
-
   return (
     <WebSidebarLayout role="admin">
-    <Stack
-      screenOptions={{
-        ...iosBlur,
-        headerTintColor: colors.text,
-        headerTitleStyle: {
-          fontFamily: FontFamily.bold,
-          fontWeight: '700',
-          fontSize: 18,
-        },
-        headerShadowVisible: false,
-        contentStyle: {
-          backgroundColor: colors.background,
-        },
-        animation: 'slide_from_right',
-      }}
-    >
+    <Stack screenOptions={stackScreenOptions(colors, isDark)}>
       <Stack.Screen
         name="index"
-        options={{
-          title: 'Finance Tracker',
-          headerTitleStyle: {
-            fontFamily: FontFamily.extraBold,
-            fontWeight: '800',
-            fontSize: 22,
-          },
-        }}
+        options={{ title: 'Finance Tracker', ...rootTitleOptions }}
       />
       <Stack.Screen
         name="add-kid"
-        options={{
-          title: 'Add Person',
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
+        options={{ title: 'Add Person', ...modalScreenOptions }}
       />
       <Stack.Screen
         name="add-admin"
-        options={{
-          title: 'Add Parent',
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
+        options={{ title: 'Add Parent', ...modalScreenOptions }}
       />
       <Stack.Screen
         name="edit-kid"
-        options={{
-          title: 'Edit Details',
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
+        options={{ title: 'Edit Details', ...modalScreenOptions }}
       />
       <Stack.Screen
         name="kid/[id]"
-        options={{
-          title: '',
-        }}
+        options={{ title: '' }}
       />
       <Stack.Screen
         name="stats"
-        options={{
-          title: 'Spending Insights',
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
+        options={{ title: 'Spending Insights', ...modalScreenOptions }}
       />
       <Stack.Screen
         name="notifications"
-        options={{
-          title: 'Notifications',
-        }}
+        options={{ title: 'Notifications' }}
       />
       <Stack.Screen
         name="notification-settings"
-        options={{
-          title: 'Notification Settings',
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
+        options={{ title: 'Notification Settings', ...modalScreenOptions }}
       />
     </Stack>
     </WebSidebarLayout>

@@ -1,23 +1,41 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import Svg, { Path, Defs, LinearGradient, Stop, Circle, Line } from 'react-native-svg';
 import { ThemeColors } from '../constants/colors';
 import { Transaction } from '../types';
 import { computeStats } from '../utils/stats';
-import { FontFamily } from '../constants/fonts';
+import { Radius, Type, Elevation } from '../constants/theme';
 import { Spacing } from '../constants/spacing';
+import AnimatedListItem from './AnimatedListItem';
 
 interface StatsViewProps {
   transactions: Transaction[];
   colors: ThemeColors;
 }
 
-const LINE_CHART_HEIGHT = 150;
-const DOT_SIZE = 7;
+const LINE_CHART_HEIGHT = 140;
+const BAR_CHART_HEIGHT = 120;
+const Y_AXIS_WIDTH = 44;
+
+function smoothPath(points: { x: number; y: number }[]) {
+  if (points.length === 0) return '';
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const cur = points[i];
+    const midX = (prev.x + cur.x) / 2;
+    d += ` C ${midX} ${prev.y}, ${midX} ${cur.y}, ${cur.x} ${cur.y}`;
+  }
+  return d;
+}
 
 export function StatsView({ transactions, colors }: StatsViewProps) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const stats = useMemo(() => computeStats(transactions), [transactions]);
   const [lineChartWidth, setLineChartWidth] = useState(0);
+
+  const incomeColor = colors.primary;
+  const expenseColor = colors.textLight;
 
   const lineChartData = useMemo(() => {
     const data = stats.balanceOverTime;
@@ -27,34 +45,47 @@ export function StatsView({ transactions, colors }: StatsViewProps) {
     const minBal = Math.min(...balances);
     const maxBal = Math.max(...balances);
     const range = maxBal - minBal || 1;
-    const padY = DOT_SIZE / 2 + 2;
+    const padY = 8;
     const plotH = LINE_CHART_HEIGHT - padY * 2;
+    const toY = (v: number) => padY + plotH - ((v - minBal) / range) * plotH;
 
+    // Inset so the end-point marker isn't clipped by the chart edge.
+    const padX = 6;
+    const plotW = lineChartWidth - padX * 2;
     const points = data.map((p, i) => ({
-      x: (i / (data.length - 1)) * lineChartWidth,
-      y: padY + plotH - ((p.balance - minBal) / range) * plotH,
+      x: padX + (i / (data.length - 1)) * plotW,
+      y: toY(p.balance),
     }));
 
     const labelCount = Math.min(5, data.length);
-    const xLabels: { label: string; x: number }[] = [];
+    const xLabels: string[] = [];
     for (let i = 0; i < labelCount; i++) {
       const idx = Math.round((i / (labelCount - 1)) * (data.length - 1));
-      xLabels.push({ label: data[idx].label, x: points[idx].x });
+      xLabels.push(data[idx].label);
     }
 
     const endBalance = data[data.length - 1].balance;
-    const lineColor = endBalance >= 0 ? colors.success : colors.danger;
+    const lineColor = endBalance >= 0 ? colors.primary : colors.danger;
+    const line = smoothPath(points);
+    const last = points[points.length - 1];
+    const area = `${line} L ${last.x} ${LINE_CHART_HEIGHT} L ${points[0].x} ${LINE_CHART_HEIGHT} Z`;
+    const zeroY = minBal < 0 && maxBal > 0 ? toY(0) : null;
 
-    const fmtY = (v: number) =>
-      `$${Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : v % 1 === 0 ? v.toString() : v.toFixed(2)}`;
+    const fmtY = (v: number) => {
+      const abs = Math.abs(v);
+      const body = abs >= 1000 ? `${(abs / 1000).toFixed(1)}k` : abs % 1 === 0 ? abs.toString() : abs.toFixed(2);
+      return `${v < 0 ? '-' : ''}$${body}`;
+    };
 
-    return { points, minBal, maxBal, xLabels, lineColor, fmtY };
+    return { minBal, maxBal, xLabels, lineColor, line, area, last, zeroY, fmtY };
   }, [stats.balanceOverTime, lineChartWidth, colors]);
 
   if (transactions.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyEmoji}>📊</Text>
+        <View style={styles.emptyIconWrap}>
+          <Text style={styles.emptyEmoji}>📊</Text>
+        </View>
         <Text style={styles.emptyTitle}>No Data Yet</Text>
         <Text style={styles.emptySubtitle}>
           Stats will appear once there are transactions to analyze.
@@ -67,6 +98,17 @@ export function StatsView({ transactions, colors }: StatsViewProps) {
     ...stats.monthlyStats.map((m) => Math.max(m.income, m.expense)),
     1
   );
+  const flowTotal = stats.totalIncome + stats.totalExpense;
+  const incomeShare = flowTotal > 0 ? (stats.totalIncome / flowTotal) * 100 : 50;
+
+  const summary = [
+    { label: 'Total Income', value: `$${stats.totalIncome.toFixed(2)}` },
+    { label: 'Total Expenses', value: `$${stats.totalExpense.toFixed(2)}` },
+    { label: 'Transactions', value: `${stats.transactionCount}` },
+    { label: 'Avg Amount', value: `$${stats.avgAmount.toFixed(2)}` },
+  ];
+
+  let section = 0;
 
   return (
     <ScrollView
@@ -74,257 +116,180 @@ export function StatsView({ transactions, colors }: StatsViewProps) {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Summary Cards */}
-      <View style={styles.summaryGrid}>
-        <View style={[styles.summaryCard, { borderLeftColor: colors.success }]}>
-          <Text style={styles.summaryLabel}>Total Income</Text>
-          <Text style={[styles.summaryValue, { color: colors.success }]}>
-            ${stats.totalIncome.toFixed(2)}
-          </Text>
-        </View>
-        <View style={[styles.summaryCard, { borderLeftColor: colors.danger }]}>
-          <Text style={styles.summaryLabel}>Total Expenses</Text>
-          <Text style={[styles.summaryValue, { color: colors.danger }]}>
-            ${stats.totalExpense.toFixed(2)}
-          </Text>
-        </View>
-        <View style={[styles.summaryCard, { borderLeftColor: colors.primary }]}>
-          <Text style={styles.summaryLabel}>Transactions</Text>
-          <Text style={[styles.summaryValue, { color: colors.primary }]}>
-            {stats.transactionCount}
-          </Text>
-        </View>
-        <View style={[styles.summaryCard, { borderLeftColor: colors.warning }]}>
-          <Text style={styles.summaryLabel}>Avg Amount</Text>
-          <Text style={[styles.summaryValue, { color: colors.warning }]}>
-            ${stats.avgAmount.toFixed(2)}
-          </Text>
-        </View>
-      </View>
-
-      {/* Income vs Expense */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Income vs Expenses</Text>
-        <View style={styles.comparisonCard}>
-          <View style={styles.comparisonRow}>
-            <View style={styles.comparisonLabel}>
-              <View style={[styles.comparisonDot, { backgroundColor: colors.success }]} />
-              <Text style={styles.comparisonText}>Income</Text>
+      <AnimatedListItem index={section++}>
+        <View style={styles.summaryGrid}>
+          {summary.map((item) => (
+            <View key={item.label} style={[styles.card, styles.summaryCard]}>
+              <Text style={styles.summaryLabel}>{item.label}</Text>
+              <Text style={styles.summaryValue}>{item.value}</Text>
             </View>
-            <Text style={[styles.comparisonAmount, { color: colors.success }]}>
-              ${stats.totalIncome.toFixed(2)}
-            </Text>
-          </View>
-          <View style={styles.comparisonBarContainer}>
-            <View
-              style={[
-                styles.comparisonBar,
-                {
-                  backgroundColor: colors.success,
-                  width: stats.totalIncome + stats.totalExpense > 0
-                    ? `${(stats.totalIncome / (stats.totalIncome + stats.totalExpense)) * 100}%`
-                    : '50%',
-                },
-              ]}
-            />
-            <View
-              style={[
-                styles.comparisonBar,
-                {
-                  backgroundColor: colors.danger,
-                  width: stats.totalIncome + stats.totalExpense > 0
-                    ? `${(stats.totalExpense / (stats.totalIncome + stats.totalExpense)) * 100}%`
-                    : '50%',
-                },
-              ]}
-            />
-          </View>
-          <View style={styles.comparisonRow}>
-            <View style={styles.comparisonLabel}>
-              <View style={[styles.comparisonDot, { backgroundColor: colors.danger }]} />
-              <Text style={styles.comparisonText}>Expenses</Text>
+          ))}
+        </View>
+      </AnimatedListItem>
+
+      <AnimatedListItem index={section++}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Income vs Expenses</Text>
+          <View style={[styles.card, styles.cardPadded, styles.comparisonCard]}>
+            <View style={styles.comparisonRow}>
+              <View style={styles.comparisonLabel}>
+                <View style={[styles.dot, { backgroundColor: incomeColor }]} />
+                <Text style={styles.comparisonText}>Income</Text>
+              </View>
+              <Text style={styles.comparisonAmount}>${stats.totalIncome.toFixed(2)}</Text>
             </View>
-            <Text style={[styles.comparisonAmount, { color: colors.danger }]}>
-              ${stats.totalExpense.toFixed(2)}
-            </Text>
+            <View style={styles.comparisonBarContainer}>
+              <View style={[styles.comparisonBar, { backgroundColor: incomeColor, width: `${incomeShare}%` }]} />
+              <View style={[styles.comparisonBar, { backgroundColor: expenseColor, width: `${100 - incomeShare}%` }]} />
+            </View>
+            <View style={styles.comparisonRow}>
+              <View style={styles.comparisonLabel}>
+                <View style={[styles.dot, { backgroundColor: expenseColor }]} />
+                <Text style={styles.comparisonText}>Expenses</Text>
+              </View>
+              <Text style={styles.comparisonAmount}>${stats.totalExpense.toFixed(2)}</Text>
+            </View>
           </View>
         </View>
-      </View>
+      </AnimatedListItem>
 
-      {/* Monthly Trend */}
       {stats.monthlyStats.length > 1 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Monthly Trend</Text>
-          <View style={styles.chartCard}>
-            <View style={styles.barChart}>
-              {stats.monthlyStats.map((month, index) => (
-                <View key={index} style={styles.barGroup}>
-                  <View style={styles.barPair}>
-                    <View
-                      style={[
-                        styles.bar,
-                        {
-                          height: Math.max((month.income / maxMonthlyValue) * 120, 2),
-                          backgroundColor: colors.success,
-                        },
-                      ]}
-                    />
-                    <View
-                      style={[
-                        styles.bar,
-                        {
-                          height: Math.max((month.expense / maxMonthlyValue) * 120, 2),
-                          backgroundColor: colors.danger,
-                        },
-                      ]}
-                    />
-                  </View>
-                  <Text style={styles.barLabel}>{month.label}</Text>
-                </View>
-              ))}
-            </View>
-            <View style={styles.chartLegend}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
-                <Text style={styles.legendText}>Income</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: colors.danger }]} />
-                <Text style={styles.legendText}>Expenses</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* Balance Over Time */}
-      {stats.balanceOverTime.length >= 2 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Balance Over Time</Text>
-          <View style={styles.chartCard}>
-            <View style={styles.lineChartContainer}>
-              <View style={styles.lineChartYAxis}>
-                <Text style={styles.lineChartYLabel}>
-                  {lineChartData ? lineChartData.fmtY(lineChartData.maxBal) : ''}
-                </Text>
-                <Text style={styles.lineChartYLabel}>
-                  {lineChartData ? lineChartData.fmtY(lineChartData.minBal) : ''}
-                </Text>
-              </View>
-              <View
-                style={styles.lineChartArea}
-                onLayout={(e) => setLineChartWidth(e.nativeEvent.layout.width)}
-              >
-                {lineChartData && (
-                  <>
-                    <View style={[styles.lineChartGridLine, { top: 0 }]} />
-                    <View style={[styles.lineChartGridLine, { top: '50%' }]} />
-                    <View style={[styles.lineChartGridLine, { bottom: 0 }]} />
-
-                    {lineChartData.minBal < 0 && lineChartData.maxBal > 0 && (
+        <AnimatedListItem index={section++}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Monthly Trend</Text>
+            <View style={[styles.card, styles.cardPadded]}>
+              <View style={styles.barChart}>
+                {stats.monthlyStats.map((month, index) => (
+                  <View key={index} style={styles.barGroup}>
+                    <View style={styles.barPair}>
                       <View
                         style={[
-                          styles.lineChartZeroLine,
-                          {
-                            bottom:
-                              ((0 - lineChartData.minBal) /
-                                (lineChartData.maxBal - lineChartData.minBal)) *
-                              LINE_CHART_HEIGHT,
-                          },
+                          styles.bar,
+                          { height: Math.max((month.income / maxMonthlyValue) * BAR_CHART_HEIGHT, 3), backgroundColor: incomeColor },
                         ]}
                       />
-                    )}
-
-                    {lineChartData.points.map((point, i) => {
-                      if (i === 0) return null;
-                      const prev = lineChartData.points[i - 1];
-                      const avgY = (prev.y + point.y) / 2;
-                      return (
-                        <View
-                          key={`fill-${i}`}
-                          style={{
-                            position: 'absolute',
-                            left: prev.x,
-                            top: avgY,
-                            width: Math.max(point.x - prev.x, 1),
-                            height: LINE_CHART_HEIGHT - avgY,
-                            backgroundColor: lineChartData.lineColor + '18',
-                          }}
-                        />
-                      );
-                    })}
-
-                    {lineChartData.points.map((point, i) => {
-                      if (i === 0) return null;
-                      const prev = lineChartData.points[i - 1];
-                      const dx = point.x - prev.x;
-                      const dy = point.y - prev.y;
-                      const length = Math.sqrt(dx * dx + dy * dy);
-                      const angle = Math.atan2(dy, dx);
-                      return (
-                        <View
-                          key={`line-${i}`}
-                          style={{
-                            position: 'absolute',
-                            left: (prev.x + point.x) / 2 - length / 2,
-                            top: (prev.y + point.y) / 2 - 1.25,
-                            width: length,
-                            height: 2.5,
-                            backgroundColor: lineChartData.lineColor,
-                            borderRadius: 1.25,
-                            transform: [{ rotate: `${angle}rad` }],
-                          }}
-                        />
-                      );
-                    })}
-
-                    {lineChartData.points.map((point, i) => (
                       <View
-                        key={`dot-${i}`}
-                        style={{
-                          position: 'absolute',
-                          left: point.x - DOT_SIZE / 2,
-                          top: point.y - DOT_SIZE / 2,
-                          width: DOT_SIZE,
-                          height: DOT_SIZE,
-                          borderRadius: DOT_SIZE / 2,
-                          backgroundColor: lineChartData.lineColor,
-                          borderWidth: 2,
-                          borderColor: colors.surface,
-                        }}
+                        style={[
+                          styles.bar,
+                          { height: Math.max((month.expense / maxMonthlyValue) * BAR_CHART_HEIGHT, 3), backgroundColor: expenseColor },
+                        ]}
                       />
-                    ))}
-                  </>
-                )}
+                    </View>
+                    <Text style={styles.axisLabel}>{month.label}</Text>
+                  </View>
+                ))}
+              </View>
+              <View style={styles.chartLegend}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.dot, { backgroundColor: incomeColor }]} />
+                  <Text style={styles.legendText}>Income</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.dot, { backgroundColor: expenseColor }]} />
+                  <Text style={styles.legendText}>Expenses</Text>
+                </View>
               </View>
             </View>
-            <View style={styles.lineChartXAxis}>
-              {lineChartData?.xLabels.map((lbl, i) => (
-                <Text
-                  key={i}
-                  style={[
-                    styles.lineChartXLabel,
-                    i === 0 && { textAlign: 'left' },
-                    i === (lineChartData.xLabels.length - 1) && { textAlign: 'right' },
-                  ]}
-                >
-                  {lbl.label}
-                </Text>
-              ))}
-            </View>
           </View>
-        </View>
+        </AnimatedListItem>
       )}
 
-      {/* Spending by Category */}
+      {stats.balanceOverTime.length >= 2 && (
+        <AnimatedListItem index={section++}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Balance Over Time</Text>
+            <View style={[styles.card, styles.cardPadded]}>
+              <View style={styles.lineChartContainer}>
+                <View style={styles.lineChartYAxis}>
+                  <Text style={[styles.axisLabel, styles.yLabel]}>
+                    {lineChartData ? lineChartData.fmtY(lineChartData.maxBal) : ''}
+                  </Text>
+                  <Text style={[styles.axisLabel, styles.yLabel]}>
+                    {lineChartData ? lineChartData.fmtY(lineChartData.minBal) : ''}
+                  </Text>
+                </View>
+                <View
+                  style={styles.lineChartArea}
+                  onLayout={(e) => setLineChartWidth(e.nativeEvent.layout.width)}
+                >
+                  {lineChartData && (
+                    <Svg width={lineChartWidth} height={LINE_CHART_HEIGHT}>
+                      <Defs>
+                        <LinearGradient id="balanceFill" x1="0" y1="0" x2="0" y2="1">
+                          <Stop offset="0" stopColor={lineChartData.lineColor} stopOpacity={0.18} />
+                          <Stop offset="1" stopColor={lineChartData.lineColor} stopOpacity={0} />
+                        </LinearGradient>
+                      </Defs>
+                      <Line x1={0} x2={lineChartWidth} y1={0.5} y2={0.5} stroke={colors.hairline} strokeWidth={1} />
+                      <Line
+                        x1={0}
+                        x2={lineChartWidth}
+                        y1={LINE_CHART_HEIGHT - 0.5}
+                        y2={LINE_CHART_HEIGHT - 0.5}
+                        stroke={colors.hairline}
+                        strokeWidth={1}
+                      />
+                      {lineChartData.zeroY !== null && (
+                        <Line
+                          x1={0}
+                          x2={lineChartWidth}
+                          y1={lineChartData.zeroY}
+                          y2={lineChartData.zeroY}
+                          stroke={colors.textLight}
+                          strokeWidth={1}
+                          strokeDasharray="4 4"
+                        />
+                      )}
+                      <Path d={lineChartData.area} fill="url(#balanceFill)" />
+                      <Path
+                        d={lineChartData.line}
+                        stroke={lineChartData.lineColor}
+                        strokeWidth={2.5}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                      />
+                      <Circle
+                        cx={lineChartData.last.x}
+                        cy={lineChartData.last.y}
+                        r={4.5}
+                        fill={lineChartData.lineColor}
+                        stroke={colors.surface}
+                        strokeWidth={2}
+                      />
+                    </Svg>
+                  )}
+                </View>
+              </View>
+              <View style={styles.lineChartXAxis}>
+                {lineChartData?.xLabels.map((label, i) => (
+                  <Text
+                    key={i}
+                    style={[
+                      styles.axisLabel,
+                      i === 0 && { textAlign: 'left' },
+                      i === lineChartData.xLabels.length - 1 && { textAlign: 'right' },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          </View>
+        </AnimatedListItem>
+      )}
+
       {stats.categoryStats.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Spending by Category</Text>
-          <View style={styles.categoryCard}>
-            {stats.categoryStats.map((cat) => (
-              <View key={cat.id} style={styles.categoryRow}>
-                <View style={styles.categoryInfo}>
-                  <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
+        <AnimatedListItem index={section++}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Spending by Category</Text>
+            <View style={[styles.card, styles.cardPadded, styles.categoryCard]}>
+              {stats.categoryStats.map((cat) => (
+                <View key={cat.id} style={styles.categoryRow}>
+                  <View style={styles.categoryIcon}>
+                    <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
+                  </View>
                   <View style={styles.categoryDetails}>
                     <View style={styles.categoryHeader}>
                       <Text style={styles.categoryName}>{cat.label}</Text>
@@ -332,22 +297,16 @@ export function StatsView({ transactions, colors }: StatsViewProps) {
                     </View>
                     <View style={styles.categoryBarBg}>
                       <View
-                        style={[
-                          styles.categoryBarFill,
-                          {
-                            width: `${cat.percentage}%`,
-                            backgroundColor: colors.primary,
-                          },
-                        ]}
+                        style={[styles.categoryBarFill, { width: `${cat.percentage}%`, backgroundColor: colors.primary }]}
                       />
                     </View>
                   </View>
+                  <Text style={styles.categoryPercentage}>{cat.percentage}%</Text>
                 </View>
-                <Text style={styles.categoryPercentage}>{cat.percentage}%</Text>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
-        </View>
+        </AnimatedListItem>
       )}
     </ScrollView>
   );
@@ -360,7 +319,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     content: {
       padding: Spacing.xl,
-      paddingBottom: 40,
+      paddingBottom: 48,
     },
     emptyContainer: {
       flex: 1,
@@ -369,22 +328,38 @@ const createStyles = (colors: ThemeColors) =>
       paddingVertical: 80,
       paddingHorizontal: 40,
     },
-    emptyEmoji: {
-      fontSize: 64,
+    emptyIconWrap: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: colors.surfaceAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
       marginBottom: Spacing.lg,
     },
+    emptyEmoji: {
+      fontSize: 32,
+    },
     emptyTitle: {
-      fontSize: 20,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+      ...Type.headline,
       color: colors.text,
-      marginBottom: Spacing.sm,
+      marginBottom: Spacing.xs,
     },
     emptySubtitle: {
-      fontSize: 15,
+      ...Type.body,
       color: colors.textSecondary,
       textAlign: 'center',
-      lineHeight: 22,
+      maxWidth: 300,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: Radius.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.hairline,
+      ...Elevation.card,
+    },
+    cardPadded: {
+      padding: Spacing.lg,
     },
     summaryGrid: {
       flexDirection: 'row',
@@ -393,52 +368,31 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: Spacing.xxl,
     },
     summaryCard: {
-      flex: 1,
-      minWidth: '45%',
-      backgroundColor: colors.surface,
-      borderRadius: 16,
+      flexGrow: 1,
+      flexBasis: '45%',
       padding: Spacing.lg,
-      borderLeftWidth: 4,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
     },
     summaryLabel: {
-      fontSize: 12,
-      fontFamily: FontFamily.medium,
-      fontWeight: '500',
+      ...Type.label,
       color: colors.textSecondary,
-      marginBottom: 6,
-      textTransform: 'uppercase',
-      letterSpacing: 0.3,
+      marginBottom: Spacing.xs,
     },
     summaryValue: {
+      ...Type.title,
       fontSize: 22,
-      fontFamily: FontFamily.extraBold,
-      fontWeight: '800',
+      fontVariant: ['tabular-nums'],
+      color: colors.text,
     },
     section: {
       marginBottom: Spacing.xxl,
     },
     sectionTitle: {
-      fontSize: 17,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
+      ...Type.headline,
       color: colors.text,
       marginBottom: Spacing.md,
     },
     comparisonCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 16,
-      padding: Spacing.xl,
       gap: Spacing.md,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
     },
     comparisonRow: {
       flexDirection: 'row',
@@ -450,48 +404,36 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       gap: Spacing.sm,
     },
-    comparisonDot: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
+    dot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
     },
     comparisonText: {
+      ...Type.label,
       fontSize: 14,
-      fontFamily: FontFamily.medium,
-      fontWeight: '500',
-      color: colors.text,
+      color: colors.textSecondary,
     },
     comparisonAmount: {
-      fontSize: 16,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
+      ...Type.amount,
+      color: colors.text,
     },
     comparisonBarContainer: {
       flexDirection: 'row',
-      height: 12,
-      borderRadius: 6,
+      height: 8,
+      borderRadius: Radius.pill,
       overflow: 'hidden',
-      gap: 2,
+      gap: 3,
     },
     comparisonBar: {
       height: '100%',
-      borderRadius: 6,
-    },
-    chartCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 16,
-      padding: Spacing.xl,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
+      borderRadius: Radius.pill,
     },
     barChart: {
       flexDirection: 'row',
       justifyContent: 'space-around',
       alignItems: 'flex-end',
-      height: 140,
+      height: BAR_CHART_HEIGHT + 24,
       marginBottom: Spacing.lg,
     },
     barGroup: {
@@ -505,15 +447,17 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: Spacing.sm,
     },
     bar: {
-      width: 14,
+      width: 12,
       borderRadius: 4,
-      minHeight: 2,
     },
-    barLabel: {
+    axisLabel: {
+      ...Type.caption,
       fontSize: 11,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+      fontVariant: ['tabular-nums'],
       color: colors.textLight,
+    },
+    yLabel: {
+      textAlign: 'right',
     },
     chartLegend: {
       flexDirection: 'row',
@@ -525,41 +469,28 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       gap: 6,
     },
-    legendDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-    },
     legendText: {
-      fontSize: 12,
-      fontFamily: FontFamily.medium,
-      fontWeight: '500',
+      ...Type.caption,
       color: colors.textSecondary,
     },
     categoryCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 16,
-      padding: Spacing.lg,
       gap: Spacing.lg,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
     },
     categoryRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: Spacing.md,
     },
-    categoryInfo: {
-      flex: 1,
-      flexDirection: 'row',
+    categoryIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: Radius.md,
+      backgroundColor: colors.surfaceAlt,
       alignItems: 'center',
-      gap: Spacing.md,
+      justifyContent: 'center',
     },
     categoryEmoji: {
-      fontSize: 22,
+      fontSize: 17,
     },
     categoryDetails: {
       flex: 1,
@@ -571,33 +502,31 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
     },
     categoryName: {
+      ...Type.label,
       fontSize: 14,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
       color: colors.text,
     },
     categoryAmount: {
+      ...Type.amount,
       fontSize: 14,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
       color: colors.text,
     },
     categoryBarBg: {
       height: 6,
-      borderRadius: 3,
+      borderRadius: Radius.pill,
       backgroundColor: colors.surfaceAlt,
+      overflow: 'hidden',
     },
     categoryBarFill: {
       height: '100%',
-      borderRadius: 3,
-      minWidth: 2,
+      borderRadius: Radius.pill,
+      minWidth: 3,
     },
     categoryPercentage: {
-      fontSize: 13,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
+      ...Type.label,
+      fontVariant: ['tabular-nums'],
       color: colors.textSecondary,
-      width: 38,
+      width: 40,
       textAlign: 'right',
     },
     lineChartContainer: {
@@ -605,49 +534,18 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'stretch',
     },
     lineChartYAxis: {
-      width: 48,
+      width: Y_AXIS_WIDTH,
       justifyContent: 'space-between',
       paddingRight: Spacing.sm,
-    },
-    lineChartYLabel: {
-      fontSize: 11,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      color: colors.textLight,
-      textAlign: 'right',
     },
     lineChartArea: {
       flex: 1,
       height: LINE_CHART_HEIGHT,
-      position: 'relative' as const,
-      overflow: 'hidden',
-    },
-    lineChartGridLine: {
-      position: 'absolute' as const,
-      left: 0,
-      right: 0,
-      height: 1,
-      backgroundColor: colors.borderLight,
-    },
-    lineChartZeroLine: {
-      position: 'absolute' as const,
-      left: 0,
-      right: 0,
-      height: 1,
-      backgroundColor: colors.textLight,
-      opacity: 0.5,
     },
     lineChartXAxis: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       marginTop: 10,
-      paddingLeft: 48,
-    },
-    lineChartXLabel: {
-      fontSize: 10,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      color: colors.textLight,
-      textAlign: 'center',
+      paddingLeft: Y_AXIS_WIDTH,
     },
   });

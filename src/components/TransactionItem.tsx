@@ -1,17 +1,31 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useColors } from '../context/ThemeContext';
 import { ThemeColors } from '../constants/colors';
 import { Transaction, CATEGORIES } from '../types';
-import { FontFamily } from '../constants/fonts';
+import { Radius, Type } from '../constants/theme';
 import { Spacing } from '../constants/spacing';
+import AnimatedPressable from './AnimatedPressable';
+
+/** Where the row sits in its date group, so the group reads as one card. */
+export type GroupPosition = 'first' | 'middle' | 'last' | 'only';
+
+export function groupPosition(index: number, count: number): GroupPosition {
+  if (count <= 1) return 'only';
+  if (index === 0) return 'first';
+  if (index === count - 1) return 'last';
+  return 'middle';
+}
 
 interface TransactionItemProps {
   transaction: Transaction;
   onPress?: () => void;
+  position?: GroupPosition;
 }
 
-export function TransactionItem({ transaction, onPress }: TransactionItemProps) {
+const ICON_SIZE = 40;
+
+export function TransactionItem({ transaction, onPress, position = 'only' }: TransactionItemProps) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -20,7 +34,6 @@ export function TransactionItem({ transaction, onPress }: TransactionItemProps) 
   const formattedDate = date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
-    year: 'numeric',
   });
   const formattedTime = date.toLocaleTimeString('en-US', {
     hour: 'numeric',
@@ -28,8 +41,6 @@ export function TransactionItem({ transaction, onPress }: TransactionItemProps) 
   });
 
   const category = CATEGORIES.find((c) => c.id === transaction.category);
-  const iconBg = isAdd ? colors.successLight : colors.dangerLight;
-  const iconColor = isAdd ? colors.successDark : colors.dangerDark;
 
   const transferLabel = transaction.transfer
     ? isAdd
@@ -37,44 +48,58 @@ export function TransactionItem({ transaction, onPress }: TransactionItemProps) 
       : `Sent to ${transaction.transfer.toKidName}`
     : null;
 
-  return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={onPress}
-      activeOpacity={onPress ? 0.6 : 1}
-      disabled={!onPress}
-    >
-      <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
+  const isTop = position === 'first' || position === 'only';
+  const isBottom = position === 'last' || position === 'only';
+
+  const containerStyle = [
+    styles.container,
+    isTop && styles.top,
+    isBottom && styles.bottom,
+  ];
+
+  const content = (
+    <>
+      <View style={styles.icon}>
         <Text style={styles.iconEmoji}>{category?.emoji ?? (isAdd ? '💰' : '💸')}</Text>
       </View>
       <View style={styles.content}>
         <View style={styles.topRow}>
-          <View style={styles.descriptionRow}>
-            <Text style={styles.description} numberOfLines={1}>
-              {transaction.description}
-            </Text>
-            {transferLabel && (
-              <Text style={[styles.transferLabel, isAdd ? styles.transferLabelAdd : styles.transferLabelSubtract]}>
-                {transferLabel}
-              </Text>
-            )}
-          </View>
-          <Text style={[styles.amount, isAdd ? styles.amountAdd : styles.amountSubtract]}>
+          <Text style={styles.description} numberOfLines={1}>
+            {transaction.description}
+          </Text>
+          <Text style={[styles.amount, isAdd && styles.amountAdd]}>
             {isAdd ? '+' : '-'}${transaction.amount.toFixed(2)}
           </Text>
         </View>
+        {transferLabel && (
+          <Text style={styles.transferLabel} numberOfLines={1}>{transferLabel}</Text>
+        )}
         <View style={styles.bottomRow}>
-          {category && (
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryLabel}>{category.label}</Text>
-            </View>
-          )}
-          <Text style={styles.date}>
-            {formattedDate} at {formattedTime}
+          {category && <Text style={styles.meta}>{category.label}</Text>}
+          {category && <Text style={styles.metaDot}>·</Text>}
+          <Text style={styles.meta}>
+            {formattedDate}, {formattedTime}
           </Text>
         </View>
       </View>
-    </TouchableOpacity>
+      {!isBottom && <View style={styles.separator} />}
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={containerStyle}>{content}</View>;
+  }
+
+  return (
+    <AnimatedPressable
+      variant="row"
+      style={containerStyle}
+      hoverBackground={colors.surfaceHover}
+      onPress={onPress}
+      accessibilityRole="button"
+    >
+      {content}
+    </AnimatedPressable>
   );
 }
 
@@ -84,21 +109,36 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       marginHorizontal: Spacing.xl,
-      marginBottom: 6,
       backgroundColor: colors.surface,
       paddingVertical: Spacing.md,
       paddingHorizontal: Spacing.lg,
-      borderRadius: 12,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.03,
-      shadowRadius: 4,
-      elevation: 1,
+      borderLeftWidth: StyleSheet.hairlineWidth,
+      borderRightWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.hairline,
     },
-    iconCircle: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
+    top: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopLeftRadius: Radius.lg,
+      borderTopRightRadius: Radius.lg,
+    },
+    bottom: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomLeftRadius: Radius.lg,
+      borderBottomRightRadius: Radius.lg,
+    },
+    separator: {
+      position: 'absolute',
+      left: Spacing.lg + ICON_SIZE + Spacing.md,
+      right: 0,
+      bottom: 0,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.hairline,
+    },
+    icon: {
+      width: ICON_SIZE,
+      height: ICON_SIZE,
+      borderRadius: Radius.md,
+      backgroundColor: colors.surfaceAlt,
       alignItems: 'center',
       justifyContent: 'center',
       marginRight: Spacing.md,
@@ -112,61 +152,38 @@ const createStyles = (colors: ThemeColors) =>
     topRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: Spacing.xs,
-    },
-    descriptionRow: {
-      flex: 1,
-      marginRight: Spacing.md,
+      alignItems: 'center',
+      gap: Spacing.md,
     },
     description: {
-      fontSize: 15,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+      ...Type.bodyStrong,
+      flex: 1,
       color: colors.text,
     },
     transferLabel: {
-      fontSize: 12,
-      fontFamily: FontFamily.medium,
-      fontWeight: '500',
+      ...Type.caption,
+      color: colors.textSecondary,
       marginTop: 2,
-    },
-    transferLabelAdd: {
-      color: colors.successDark,
-    },
-    transferLabelSubtract: {
-      color: colors.dangerDark,
     },
     bottomRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: Spacing.sm,
+      gap: Spacing.xs,
+      marginTop: 3,
     },
-    categoryBadge: {
-      backgroundColor: colors.surfaceAlt,
-      paddingHorizontal: Spacing.sm,
-      paddingVertical: 2,
-      borderRadius: 6,
+    meta: {
+      ...Type.caption,
+      color: colors.textLight,
     },
-    categoryLabel: {
-      fontSize: 11,
-      fontFamily: FontFamily.medium,
-      fontWeight: '500',
-      color: colors.textSecondary,
+    metaDot: {
+      ...Type.caption,
+      color: colors.textLight,
     },
     amount: {
-      fontSize: 16,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
+      ...Type.amount,
+      color: colors.text,
     },
     amountAdd: {
-      color: colors.successDark,
-    },
-    amountSubtract: {
-      color: colors.dangerDark,
-    },
-    date: {
-      fontSize: 12,
-      color: colors.textLight,
+      color: colors.success,
     },
   });

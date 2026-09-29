@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,43 +6,123 @@ import {
   StyleSheet,
   Modal,
   Pressable,
-  TouchableOpacity,
-  ActivityIndicator,
   Platform,
+  useWindowDimensions,
+  LayoutChangeEvent,
 } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  Keyframe,
+  SlideInDown,
+  SlideOutDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { useTheme, useColors } from '../context/ThemeContext';
 import type { ThemeMode } from '../context/ThemeContext';
-import { ThemeColors, ACCENT_PALETTES } from '../constants/colors';
-import { FontFamily } from '../constants/fonts';
+import { ThemeColors, ACCENT_PALETTES, Avatars } from '../constants/colors';
+import { Radius, Type, Elevation } from '../constants/theme';
+import { Springs, Durations } from '../constants/motion';
 import { Spacing } from '../constants/spacing';
 import ProfileAvatar from './ProfileAvatar';
+import AnimatedPressable from './AnimatedPressable';
+import { Button } from './ui';
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const AnimatedBackdrop = Animated.createAnimatedComponent(Pressable);
 
 const THEME_OPTIONS: { mode: ThemeMode; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
-  { mode: 'light', icon: 'sunny', label: 'Light' },
-  { mode: 'dark', icon: 'moon', label: 'Dark' },
-  { mode: 'system', icon: 'phone-portrait-outline', label: 'Auto' },
+  { mode: 'light', icon: 'sunny-outline', label: 'Light' },
+  { mode: 'dark', icon: 'moon-outline', label: 'Dark' },
+  { mode: 'system', icon: 'contrast-outline', label: 'Auto' },
 ];
+
+const SHEET_BREAKPOINT = 600;
+
+const dialogIn = new Keyframe({
+  0: { opacity: 0, transform: [{ scale: 0.96 }] },
+  100: { opacity: 1, transform: [{ scale: 1 }], easing: Easing.out(Easing.cubic) },
+}).duration(Durations.base);
 
 interface ProfileSheetProps {
   visible: boolean;
   onClose: () => void;
 }
 
+function ThemeSegmented({ colors }: { colors: ThemeColors }) {
+  const { mode, setMode } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const [segmentWidth, setSegmentWidth] = useState(0);
+  const activeIndex = THEME_OPTIONS.findIndex((o) => o.mode === mode);
+  const offset = useSharedValue(0);
+  const measured = useRef(false);
+
+  useEffect(() => {
+    if (segmentWidth === 0) return;
+    const target = activeIndex * segmentWidth;
+    // Snap into place on first measure; only user changes should slide.
+    offset.value = measured.current ? withSpring(target, Springs.snappy) : target;
+    measured.current = true;
+  }, [activeIndex, segmentWidth, offset]);
+
+  const indicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: offset.value }],
+  }));
+
+  const onLayout = (e: LayoutChangeEvent) => {
+    setSegmentWidth((e.nativeEvent.layout.width - 4) / THEME_OPTIONS.length);
+  };
+
+  return (
+    <View style={styles.segmented} onLayout={onLayout}>
+      {segmentWidth > 0 && (
+        <Animated.View style={[styles.segmentIndicator, { width: segmentWidth }, indicatorStyle]} />
+      )}
+      {THEME_OPTIONS.map((opt) => {
+        const active = mode === opt.mode;
+        return (
+          <Pressable
+            key={opt.mode}
+            style={styles.segment}
+            onPress={() => setMode(opt.mode)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={`${opt.label} theme`}
+          >
+            <Ionicons name={opt.icon} size={16} color={active ? colors.text : colors.textSecondary} />
+            <Text style={[styles.segmentLabel, { color: active ? colors.text : colors.textSecondary }]}>
+              {opt.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
   const { user, session, updateProfile, logout } = useAuth();
-  const { mode, setMode, accentPalette, setAccentPalette } = useTheme();
+  const { getKid, updateKidAvatar } = useData();
+  const kid = user?.role === 'kid' ? getKid(user.kidId) : undefined;
+  const avatar = kid?.avatar;
+  const { accentPalette, setAccentPalette } = useTheme();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const asSheet = Platform.OS !== 'web' || width < SHEET_BREAKPOINT;
 
+  const isAdmin = user?.role === 'admin';
   const displayName = user?.role === 'admin' ? user.displayName : user?.role === 'kid' ? user.name : '';
-  const email = session?.user?.email ?? '';
+  const email = isAdmin ? session?.user?.email ?? '' : '';
 
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(displayName);
@@ -95,131 +175,136 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <AnimatedPressable
-        entering={FadeIn.duration(150)}
-        exiting={FadeOut.duration(150)}
-        style={styles.overlay}
+      <AnimatedBackdrop
+        entering={FadeIn.duration(Durations.base)}
+        exiting={FadeOut.duration(Durations.quick)}
+        style={[styles.overlay, asSheet ? styles.overlaySheet : styles.overlayDialog]}
         onPress={onClose}
       >
         <Animated.View
-          entering={SlideInDown.springify().damping(20).stiffness(180)}
-          exiting={SlideOutDown.duration(200)}
-          style={styles.sheet}
+          entering={asSheet ? SlideInDown.springify().damping(Springs.sheet.damping).stiffness(Springs.sheet.stiffness) : dialogIn}
+          exiting={asSheet ? SlideOutDown.duration(Durations.base) : FadeOut.duration(Durations.quick)}
+          style={[
+            styles.panel,
+            asSheet ? [styles.sheet, { paddingBottom: Spacing.xxl + insets.bottom }] : styles.dialog,
+          ]}
         >
           <Pressable onPress={(e) => e.stopPropagation()}>
-          <View style={styles.profileSection}>
-            <ProfileAvatar name={editName || '?'} size={56} />
+            {asSheet && <View style={styles.grabber} />}
 
-            {editing ? (
-              <View style={styles.editNameContainer}>
-                <TextInput
-                  style={styles.nameInput}
-                  value={editName}
-                  onChangeText={(t) => { setEditName(t); setError(''); }}
-                  placeholder="Your name"
-                  placeholderTextColor={colors.textLight}
-                  autoFocus
-                  returnKeyType="done"
-                  onSubmitEditing={handleSave}
-                  editable={!saving}
-                  selectTextOnFocus
-                />
-                <View style={styles.editActions}>
-                  <TouchableOpacity
-                    style={styles.cancelButton}
-                    onPress={handleCancelEdit}
-                    disabled={saving}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-                    onPress={handleSave}
-                    disabled={saving}
-                    activeOpacity={0.7}
-                  >
-                    {saving ? (
-                      <ActivityIndicator size="small" color={colors.textWhite} />
-                    ) : (
-                      <Text style={styles.saveButtonText}>Save</Text>
-                    )}
-                  </TouchableOpacity>
+            <View style={styles.profileSection}>
+              {avatar ? (
+                <View style={styles.emojiAvatar}>
+                  <Text style={styles.emojiAvatarText}>{avatar}</Text>
                 </View>
-                {error !== '' && <Text style={styles.errorText}>{error}</Text>}
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.nameRow}
-                onPress={() => setEditing(true)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.name}>{displayName}</Text>
-                <Ionicons name="pencil" size={14} color={colors.textLight} />
-              </TouchableOpacity>
+              ) : (
+                <ProfileAvatar name={editName || '?'} size={56} />
+              )}
+
+              {editing ? (
+                <Animated.View entering={FadeIn.duration(Durations.base)} style={styles.editNameContainer}>
+                  <TextInput
+                    style={styles.nameInput}
+                    value={editName}
+                    onChangeText={(t) => { setEditName(t); setError(''); }}
+                    placeholder="Your name"
+                    placeholderTextColor={colors.textLight}
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={handleSave}
+                    editable={!saving}
+                    selectTextOnFocus
+                  />
+                  <View style={styles.editActions}>
+                    <Button title="Cancel" variant="secondary" size="sm" onPress={handleCancelEdit} disabled={saving} />
+                    <Button title="Save" size="sm" onPress={handleSave} loading={saving} />
+                  </View>
+                  {error !== '' && <Text style={styles.errorText}>{error}</Text>}
+                </Animated.View>
+              ) : (
+                <AnimatedPressable
+                  variant="row"
+                  style={styles.nameRow}
+                  onPress={isAdmin ? () => setEditing(true) : undefined}
+                  disabled={!isAdmin}
+                  accessibilityLabel={isAdmin ? 'Edit name' : displayName}
+                >
+                  <Text style={styles.name}>{displayName}</Text>
+                  {isAdmin && <Ionicons name="pencil" size={13} color={colors.textLight} />}
+                </AnimatedPressable>
+              )}
+
+              {email !== '' && <Text style={styles.email}>{email}</Text>}
+              <Text style={styles.role}>{isAdmin ? 'Parent' : 'Kid'}</Text>
+            </View>
+
+            {kid && (
+              <>
+                <Text style={styles.sectionLabel}>Avatar</Text>
+                <View style={styles.avatarGrid}>
+                  {Avatars.map((emoji) => {
+                    const active = kid.avatar === emoji;
+                    return (
+                      <AnimatedPressable
+                        key={emoji}
+                        variant="button"
+                        style={[
+                          styles.avatarOption,
+                          active && { backgroundColor: colors.primarySoft, borderColor: colors.primary },
+                        ]}
+                        onPress={() => {
+                          if (!active) {
+                            updateKidAvatar(kid.id, emoji).catch((err) =>
+                              console.error('Failed to update avatar:', err),
+                            );
+                          }
+                        }}
+                        accessibilityLabel={`Avatar ${emoji}`}
+                        accessibilityState={{ selected: active }}
+                      >
+                        <Text style={styles.avatarOptionText}>{emoji}</Text>
+                      </AnimatedPressable>
+                    );
+                  })}
+                </View>
+              </>
             )}
 
-            {email !== '' && <Text style={styles.email}>{email}</Text>}
-            <Text style={styles.role}>Parent</Text>
-          </View>
+            <Text style={[styles.sectionLabel, kid && styles.sectionLabelSpaced]}>Appearance</Text>
+            <ThemeSegmented colors={colors} />
 
-          <View style={styles.divider} />
+            <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Accent</Text>
+            <View style={styles.accentRow}>
+              {ACCENT_PALETTES.map((palette) => {
+                const active = accentPalette === palette.id;
+                return (
+                  <AnimatedPressable
+                    key={palette.id}
+                    variant="button"
+                    style={[styles.accentSwatch, { borderColor: active ? palette.swatch : 'transparent' }]}
+                    onPress={() => setAccentPalette(palette.id)}
+                    accessibilityLabel={palette.label}
+                    accessibilityState={{ selected: active }}
+                  >
+                    <View style={[styles.accentSwatchInner, { backgroundColor: palette.swatch }]}>
+                      {active && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                    </View>
+                  </AnimatedPressable>
+                );
+              })}
+            </View>
 
-          <Text style={styles.sectionLabel}>Appearance</Text>
-          <View style={styles.themeRow}>
-            {THEME_OPTIONS.map((opt) => {
-              const active = mode === opt.mode;
-              return (
-                <TouchableOpacity
-                  key={opt.mode}
-                  style={[styles.themeOption, active && styles.themeOptionActive]}
-                  onPress={() => setMode(opt.mode)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={opt.icon}
-                    size={18}
-                    color={active ? colors.primary : colors.textSecondary}
-                  />
-                  <Text style={[styles.themeLabel, active && styles.themeLabelActive]}>
-                    {opt.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <Text style={[styles.sectionLabel, { marginTop: Spacing.lg }]}>Accent Color</Text>
-          <View style={styles.accentRow}>
-            {ACCENT_PALETTES.map((palette) => {
-              const active = accentPalette === palette.id;
-              return (
-                <TouchableOpacity
-                  key={palette.id}
-                  style={[styles.accentSwatch, active && styles.accentSwatchActive]}
-                  onPress={() => setAccentPalette(palette.id)}
-                  activeOpacity={0.7}
-                  accessibilityLabel={palette.label}
-                >
-                  <View style={[styles.accentSwatchInner, { backgroundColor: palette.swatch }]}>
-                    {active && (
-                      <Ionicons name="checkmark" size={14} color="#FFFFFF" />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <View style={styles.divider} />
-
-          <TouchableOpacity style={styles.logoutRow} onPress={handleLogout} activeOpacity={0.7}>
-            <Ionicons name="log-out-outline" size={20} color={colors.danger} />
-            <Text style={styles.logoutText}>Log Out</Text>
-          </TouchableOpacity>
+            <Button
+              title="Log out"
+              icon="log-out-outline"
+              variant="destructive"
+              fullWidth
+              onPress={handleLogout}
+              style={styles.logout}
+            />
           </Pressable>
         </Animated.View>
-      </AnimatedPressable>
+      </AnimatedBackdrop>
     </Modal>
   );
 }
@@ -228,52 +313,79 @@ const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     overlay: {
       flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.35)',
-      ...(Platform.OS === 'web' ? { backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' } as any : {}),
+      backgroundColor: colors.overlay,
+      ...(Platform.OS === 'web' ? { backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' } as any : {}),
+    },
+    overlaySheet: {
+      justifyContent: 'flex-end',
+    },
+    overlayDialog: {
       justifyContent: 'center',
       alignItems: 'center',
       padding: Spacing.xxl,
     },
-    sheet: {
-      backgroundColor: colors.surface,
-      borderRadius: 20,
+    panel: {
+      backgroundColor: colors.surfaceElevated,
       padding: Spacing.xxl,
+      ...Elevation.raised,
+    },
+    sheet: {
+      borderTopLeftRadius: Radius.xl,
+      borderTopRightRadius: Radius.xl,
+      paddingTop: Spacing.md,
+    },
+    dialog: {
       width: '100%',
-      maxWidth: 340,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.15,
-      shadowRadius: 24,
-      elevation: 12,
+      maxWidth: 360,
+      borderRadius: Radius.xl,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.hairline,
+    },
+    grabber: {
+      alignSelf: 'center',
+      width: 36,
+      height: 5,
+      borderRadius: 3,
+      backgroundColor: colors.border,
+      marginBottom: Spacing.lg,
     },
     profileSection: {
       alignItems: 'center',
-      paddingBottom: Spacing.xl,
+      paddingBottom: Spacing.xxl,
+    },
+    emojiAvatar: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: colors.surfaceAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emojiAvatarText: {
+      fontSize: 34,
     },
     nameRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
       marginTop: Spacing.md,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 2,
+      borderRadius: Radius.sm,
     },
     name: {
+      ...Type.title,
       fontSize: 20,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
       color: colors.text,
     },
     email: {
-      fontSize: 13,
-      fontFamily: FontFamily.medium,
-      fontWeight: '500',
-      color: colors.textLight,
-      marginTop: 4,
+      ...Type.label,
+      color: colors.textSecondary,
+      marginTop: 2,
     },
     role: {
-      fontSize: 13,
-      fontFamily: FontFamily.medium,
-      fontWeight: '500',
-      color: colors.textSecondary,
+      ...Type.caption,
+      color: colors.textLight,
       marginTop: 2,
     },
     editNameContainer: {
@@ -282,14 +394,13 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
     },
     nameInput: {
+      ...Type.bodyStrong,
       width: '100%',
+      height: 44,
       backgroundColor: colors.surfaceAlt,
-      borderRadius: 12,
+      borderRadius: Radius.md,
       paddingHorizontal: 14,
-      paddingVertical: 10,
       fontSize: 16,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
       color: colors.text,
       textAlign: 'center',
     },
@@ -298,98 +409,75 @@ const createStyles = (colors: ThemeColors) =>
       gap: Spacing.sm,
       marginTop: Spacing.md,
     },
-    cancelButton: {
-      paddingHorizontal: Spacing.lg,
-      paddingVertical: 8,
-      borderRadius: 10,
-      backgroundColor: colors.surfaceAlt,
-    },
-    cancelButtonText: {
-      fontSize: 14,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      color: colors.textSecondary,
-    },
-    saveButton: {
-      paddingHorizontal: Spacing.xl,
-      paddingVertical: 8,
-      borderRadius: 10,
-      backgroundColor: colors.primary,
-      minWidth: 70,
-      alignItems: 'center',
-    },
-    saveButtonDisabled: {
-      opacity: 0.6,
-    },
-    saveButtonText: {
-      fontSize: 14,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      color: colors.textWhite,
-    },
     errorText: {
-      fontSize: 13,
+      ...Type.label,
       color: colors.danger,
       marginTop: Spacing.sm,
     },
-    divider: {
-      height: 1,
-      backgroundColor: colors.borderLight,
-      marginVertical: Spacing.lg,
-    },
     sectionLabel: {
-      fontSize: 11,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      color: colors.textLight,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
+      ...Type.overline,
+      color: colors.textSecondary,
       marginBottom: Spacing.sm,
     },
-    themeRow: {
+    sectionLabelSpaced: {
+      marginTop: Spacing.xl,
+    },
+    avatarGrid: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
       gap: Spacing.sm,
     },
-    themeOption: {
+    avatarOption: {
+      width: 44,
+      height: 44,
+      borderRadius: Radius.md,
+      backgroundColor: colors.surfaceAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1.5,
+      borderColor: 'transparent',
+    },
+    avatarOptionText: {
+      fontSize: 22,
+    },
+    segmented: {
+      flexDirection: 'row',
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: Radius.md,
+      padding: 2,
+    },
+    segmentIndicator: {
+      position: 'absolute',
+      top: 2,
+      bottom: 2,
+      left: 2,
+      borderRadius: Radius.md - 2,
+      backgroundColor: colors.surfaceElevated,
+      ...Elevation.card,
+    },
+    segment: {
       flex: 1,
+      height: 36,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 6,
-      paddingVertical: 10,
-      borderRadius: 10,
-      backgroundColor: colors.surfaceAlt,
     },
-    themeOptionActive: {
-      backgroundColor: colors.primaryLight + '20',
-    },
-    themeLabel: {
-      fontSize: 13,
-      fontFamily: FontFamily.medium,
-      fontWeight: '500',
-      color: colors.textSecondary,
-    },
-    themeLabelActive: {
-      color: colors.primary,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+    segmentLabel: {
+      ...Type.label,
     },
     accentRow: {
       flexDirection: 'row',
-      justifyContent: 'center',
-      gap: Spacing.md,
+      justifyContent: 'space-between',
     },
     accentSwatch: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 38,
+      height: 38,
+      borderRadius: 19,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 2,
-      borderColor: 'transparent',
-    },
-    accentSwatchActive: {
-      borderColor: colors.text,
     },
     accentSwatchInner: {
       width: 28,
@@ -398,16 +486,7 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    logoutRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: Spacing.md,
-      paddingVertical: Spacing.md,
-    },
-    logoutText: {
-      fontSize: 15,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      color: colors.danger,
+    logout: {
+      marginTop: Spacing.xxl,
     },
   });

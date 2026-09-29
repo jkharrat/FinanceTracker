@@ -1,12 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import { useColors } from '../context/ThemeContext';
-import AnimatedPressable from './AnimatedPressable';
-import { FontFamily } from '../constants/fonts';
+import { IconButton } from './ui';
+import { fontStyle } from '../constants/fonts';
 
 export default function NotificationBell() {
   const router = useRouter();
@@ -26,39 +25,38 @@ export default function NotificationBell() {
   };
 
   return (
-    <AnimatedPressable variant="button" onPress={handlePress} style={styles.container} hitSlop={8}>
-      <Ionicons name="notifications-outline" size={24} color={colors.text} />
+    <IconButton
+      icon="notifications-outline"
+      onPress={handlePress}
+      accessibilityLabel={count > 0 ? `Notifications, ${count} unread` : 'Notifications'}
+    >
       {count > 0 && (
-        <View style={[styles.badge, { backgroundColor: colors.danger }]}>
+        <View style={[styles.badge, { backgroundColor: colors.primary, borderColor: colors.background }]}>
           <Text style={styles.badgeText}>
             {count > 9 ? '9+' : count}
           </Text>
         </View>
       )}
-    </AnimatedPressable>
+    </IconButton>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    marginRight: 4,
-    padding: 4,
-  },
   badge: {
     position: 'absolute',
-    top: 0,
-    right: 0,
+    top: -3,
+    right: -3,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
   badgeText: {
+    ...fontStyle('700'),
     color: '#FFFFFF',
     fontSize: 10,
-    fontFamily: FontFamily.bold,
-    fontWeight: '700',
   },
 });

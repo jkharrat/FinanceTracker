@@ -1,12 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../context/ThemeContext';
 import { ThemeColors } from '../constants/colors';
 import { Kid, AllowanceFrequency } from '../types';
-import AnimatedPressable from './AnimatedPressable';
 import AnimatedNumber from './AnimatedNumber';
-import GoalRing from './GoalRing';
-import { FontFamily } from '../constants/fonts';
+import { Card } from './ui';
+import { Radius, Type } from '../constants/theme';
+import { Springs } from '../constants/motion';
 import { Spacing } from '../constants/spacing';
 
 interface KidCardProps {
@@ -15,176 +17,162 @@ interface KidCardProps {
 }
 
 const frequencyLabel: Record<AllowanceFrequency, string> = {
-  weekly: 'Weekly',
-  monthly: 'Monthly',
+  weekly: 'week',
+  monthly: 'month',
 };
+
+function ProgressBar({ progress, color, trackColor }: { progress: number; color: string; trackColor: string }) {
+  const value = useSharedValue(progress);
+
+  useEffect(() => {
+    value.value = withSpring(progress, Springs.gentle);
+  }, [progress, value]);
+
+  const fillStyle = useAnimatedStyle(() => ({
+    width: `${Math.round(value.value * 1000) / 10}%`,
+  }));
+
+  return (
+    <View style={[styles.track, { backgroundColor: trackColor }]}>
+      <Animated.View style={[styles.fill, { backgroundColor: color }, fillStyle]} />
+    </View>
+  );
+}
 
 export function KidCard({ kid, onPress }: KidCardProps) {
   const colors = useColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const themed = useMemo(() => createThemedStyles(colors), [colors]);
   const isNegative = kid.balance < 0;
 
   const goal = kid.savingsGoal;
   const progress = goal ? Math.min(Math.max(kid.balance / goal.targetAmount, 0), 1) : 0;
   const progressPercent = Math.round(progress * 100);
-
-  const accentColor = kid.balance > 0 ? colors.success : kid.balance < 0 ? colors.danger : colors.border;
   const goalComplete = progressPercent >= 100;
 
-  const avatar = (
-    <View style={styles.avatarContainer}>
-      <Text style={styles.avatar}>{kid.avatar}</Text>
-    </View>
-  );
-
   return (
-    <AnimatedPressable variant="card" style={[styles.card, { borderLeftColor: accentColor }]} onPress={onPress}>
-      <View style={styles.leftSection}>
-        {goal ? (
-          <GoalRing
-            percent={progressPercent}
-            size={62}
-            strokeWidth={4}
-            color={goalComplete ? colors.success : colors.primary}
-            trackColor={colors.surfaceAlt}
-          >
-            {avatar}
-          </GoalRing>
-        ) : (
-          avatar
-        )}
+    <Card onPress={onPress} style={styles.card} accessibilityLabel={`${kid.name}, balance ${kid.balance.toFixed(2)}`}>
+      <View style={styles.row}>
+        <View style={themed.avatar}>
+          <Text style={styles.avatarText}>{kid.avatar}</Text>
+        </View>
         <View style={styles.info}>
-          <Text style={styles.name}>{kid.name}</Text>
-          <Text style={styles.allowance}>
-            ${kid.allowanceAmount.toFixed(2)} {frequencyLabel[kid.allowanceFrequency]}
+          <Text style={themed.name} numberOfLines={1}>{kid.name}</Text>
+          <Text style={themed.allowance}>
+            ${kid.allowanceAmount.toFixed(2)} / {frequencyLabel[kid.allowanceFrequency]}
           </Text>
         </View>
-      </View>
-      <View style={styles.rightSection}>
         <AnimatedNumber
           value={kid.balance}
-          style={[styles.balance, kid.balance > 0 && styles.balancePositive, isNegative && styles.balanceNegative]}
+          style={[themed.balance, isNegative && themed.balanceNegative]}
         />
-        <Text style={styles.balanceLabel}>Balance</Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
       </View>
+
       {goal && (
-        <View style={styles.goalSection}>
+        <View style={themed.goalSection}>
           <View style={styles.goalHeader}>
-            <Text style={styles.goalName} numberOfLines={1}>{goal.name}</Text>
-            <Text style={[styles.goalPercent, goalComplete && styles.goalPercentComplete]}>
+            <Text style={themed.goalName} numberOfLines={1}>{goal.name}</Text>
+            <Text style={[themed.goalPercent, goalComplete && themed.goalPercentComplete]}>
               {progressPercent}%
             </Text>
           </View>
-          <Text style={styles.goalAmounts}>
+          <ProgressBar
+            progress={progress}
+            color={goalComplete ? colors.success : colors.primary}
+            trackColor={colors.surfaceAlt}
+          />
+          <Text style={themed.goalAmounts}>
             ${Math.max(kid.balance, 0).toFixed(2)} of ${goal.targetAmount.toFixed(2)}
           </Text>
         </View>
       )}
-    </AnimatedPressable>
+    </Card>
   );
 }
 
-const createStyles = (colors: ThemeColors) =>
+const styles = StyleSheet.create({
+  card: {
+    marginBottom: Spacing.md,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  avatarText: {
+    fontSize: 24,
+  },
+  info: {
+    flex: 1,
+  },
+  goalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  track: {
+    height: 6,
+    borderRadius: Radius.pill,
+    overflow: 'hidden',
+  },
+  fill: {
+    height: '100%',
+    borderRadius: Radius.pill,
+  },
+});
+
+const createThemedStyles = (colors: ThemeColors) =>
   StyleSheet.create({
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: 16,
-      padding: Spacing.lg,
-      marginBottom: Spacing.md,
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      borderLeftWidth: 4,
-      shadowColor: colors.primaryDark,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.06,
-      shadowRadius: 12,
-      elevation: 3,
-    },
-    leftSection: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flex: 1,
-    },
-    avatarContainer: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       backgroundColor: colors.surfaceAlt,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    avatar: {
-      fontSize: 26,
-    },
-    info: {
-      marginLeft: 14,
-      flex: 1,
-    },
     name: {
-      fontSize: 17,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+      ...Type.headline,
       color: colors.text,
-      marginBottom: 3,
     },
     allowance: {
-      fontSize: 13,
+      ...Type.label,
       color: colors.textSecondary,
-    },
-    rightSection: {
-      alignItems: 'flex-end',
+      marginTop: 2,
     },
     balance: {
-      fontSize: 20,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
+      ...Type.headline,
+      fontSize: 18,
+      fontVariant: ['tabular-nums'],
       color: colors.text,
-    },
-    balancePositive: {
-      color: colors.success,
     },
     balanceNegative: {
       color: colors.danger,
     },
-    balanceLabel: {
-      fontSize: 11,
-      color: colors.textLight,
-      marginTop: 2,
-    },
     goalSection: {
-      width: '100%',
-      marginTop: Spacing.md,
+      marginTop: Spacing.lg,
       paddingTop: Spacing.md,
-      borderTopWidth: 1,
-      borderTopColor: colors.borderLight,
-    },
-    goalHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 6,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.hairline,
     },
     goalName: {
-      fontSize: 13,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
-      color: colors.textSecondary,
+      ...Type.label,
+      color: colors.text,
       flex: 1,
       marginRight: Spacing.sm,
     },
     goalPercent: {
-      fontSize: 13,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
-      color: colors.primary,
+      ...Type.label,
+      fontVariant: ['tabular-nums'],
+      color: colors.textSecondary,
     },
     goalPercentComplete: {
       color: colors.success,
     },
     goalAmounts: {
-      fontSize: 11,
+      ...Type.caption,
       color: colors.textLight,
+      marginTop: Spacing.sm,
     },
   });

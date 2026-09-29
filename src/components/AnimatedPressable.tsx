@@ -1,5 +1,5 @@
-import React from 'react';
-import { Pressable, PressableProps, StyleProp, ViewStyle, Platform } from 'react-native';
+import React, { useMemo } from 'react';
+import { Pressable, PressableProps, StyleProp, ViewStyle, Platform, StyleSheet } from 'react-native';
 import { hapticLight } from '../utils/haptics';
 import Animated, {
   useSharedValue,
@@ -8,14 +8,14 @@ import Animated, {
   withTiming,
   useReducedMotion,
   interpolate,
+  interpolateColor,
 } from 'react-native-reanimated';
-
-const SPRING_CONFIG = { damping: 15, stiffness: 200, mass: 0.4 };
+import { Springs, Durations } from '../constants/motion';
 
 const VARIANTS = {
-  button: { press: 0.96, hover: 1.03 },
-  card: { press: 0.98, hover: 1.015 },
-  row: { press: 0.98, hover: 1.02 },
+  button: { press: 0.96, hoverOpacity: 0.88 },
+  card: { press: 0.985, hoverOpacity: 0.94 },
+  row: { press: 0.98, hoverOpacity: 0.92 },
 } as const;
 
 export type AnimatedPressableVariant = keyof typeof VARIANTS;
@@ -23,6 +23,8 @@ export type AnimatedPressableVariant = keyof typeof VARIANTS;
 interface AnimatedPressableProps extends Omit<PressableProps, 'style'> {
   variant?: AnimatedPressableVariant;
   style?: StyleProp<ViewStyle>;
+  /** Background to fade to on web hover. Without it, hover dims the element slightly. */
+  hoverBackground?: string;
   children: React.ReactNode;
 }
 
@@ -34,6 +36,7 @@ const webCursor = isWeb ? { cursor: 'pointer' as const } : {};
 export default function AnimatedPressable({
   variant = 'button',
   style,
+  hoverBackground,
   children,
   onPressIn,
   onPressOut,
@@ -41,49 +44,54 @@ export default function AnimatedPressable({
   ...rest
 }: AnimatedPressableProps) {
   const reducedMotion = useReducedMotion();
-  const pressed = useSharedValue(false);
-  const hoverProgress = useSharedValue(0);
+  const pressed = useSharedValue(0);
+  const hovered = useSharedValue(0);
 
-  const { press: pressScale, hover: hoverScale } = VARIANTS[variant];
+  const { press: pressScale, hoverOpacity } = VARIANTS[variant];
+  const { restBackground, restOpacity } = useMemo(() => {
+    const flat = StyleSheet.flatten(style) ?? {};
+    return {
+      restBackground: typeof flat.backgroundColor === 'string' ? flat.backgroundColor : undefined,
+      restOpacity: typeof flat.opacity === 'number' ? flat.opacity : 1,
+    };
+  }, [style]);
+  const tintOnHover = isWeb && !!hoverBackground && !!restBackground;
 
   const animatedStyle = useAnimatedStyle(() => {
-    if (reducedMotion) return {};
-    if (pressed.value) {
+    const scale = reducedMotion ? 1 : interpolate(pressed.value, [0, 1], [1, pressScale]);
+    if (tintOnHover) {
       return {
-        transform: [{ scale: withSpring(pressScale, SPRING_CONFIG) }],
+        transform: [{ scale }],
+        backgroundColor: interpolateColor(hovered.value, [0, 1], [restBackground!, hoverBackground!]),
       };
     }
-    const scale = interpolate(hoverProgress.value, [0, 1], [1, hoverScale]);
-    const shadowOpacity = isWeb && variant === 'card'
-      ? interpolate(hoverProgress.value, [0, 1], [0.06, 0.14])
-      : undefined;
     return {
-      transform: [{ scale: withSpring(scale, SPRING_CONFIG) }],
-      ...(shadowOpacity !== undefined ? { shadowOpacity } : {}),
+      transform: [{ scale }],
+      opacity: restOpacity * interpolate(hovered.value, [0, 1], [1, hoverOpacity]),
     };
   });
 
   const handlePressIn: PressableProps['onPressIn'] = (e) => {
-    pressed.value = true;
+    pressed.value = withSpring(1, Springs.snappy);
     if (variant === 'button') hapticLight();
     onPressIn?.(e);
   };
 
   const handlePressOut: PressableProps['onPressOut'] = (e) => {
-    pressed.value = false;
+    pressed.value = withSpring(0, Springs.snappy);
     onPressOut?.(e);
   };
 
   const webHoverProps = isWeb
     ? {
-        onHoverIn: () => { hoverProgress.value = withTiming(1, { duration: 200 }); },
-        onHoverOut: () => { hoverProgress.value = withTiming(0, { duration: 200 }); },
+        onHoverIn: () => { hovered.value = withTiming(1, { duration: Durations.quick }); },
+        onHoverOut: () => { hovered.value = withTiming(0, { duration: Durations.base }); },
       }
     : {};
 
   return (
     <AnimatedPressableView
-      style={[animatedStyle, webCursor, style]}
+      style={[webCursor, style, animatedStyle]}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled}

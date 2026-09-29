@@ -6,29 +6,7 @@ import { EmptyState } from '../components/EmptyState';
 import { Kid, Transaction } from '../types';
 
 jest.mock('../context/ThemeContext', () => ({
-  useColors: () => ({
-    primary: '#6C63FF',
-    primaryLight: '#8B85FF',
-    primaryDark: '#4A42DB',
-    success: '#34D399',
-    successLight: '#D1FAE5',
-    successDark: '#059669',
-    danger: '#F87171',
-    dangerLight: '#FEE2E2',
-    dangerDark: '#DC2626',
-    warning: '#FBBF24',
-    warningLight: '#FEF3C7',
-    background: '#F8F9FD',
-    surface: '#FFFFFF',
-    surfaceAlt: '#F1F3F8',
-    text: '#1F2937',
-    textSecondary: '#6B7280',
-    textLight: '#9CA3AF',
-    textWhite: '#FFFFFF',
-    border: '#E5E7EB',
-    borderLight: '#F3F4F6',
-    shadow: 'rgba(108, 99, 255, 0.08)',
-  }),
+  useColors: () => jest.requireActual('../constants/colors').LightColors,
   useTheme: () => ({
     mode: 'light',
     setMode: jest.fn(),
@@ -36,6 +14,13 @@ jest.mock('../context/ThemeContext', () => ({
     isDark: false,
   }),
 }));
+
+jest.mock('@expo/vector-icons', () => {
+  const { Text } = require('react-native');
+  return {
+    Ionicons: ({ name, ...props }: any) => <Text {...props}>{name}</Text>,
+  };
+});
 
 function makeKid(overrides: Partial<Kid> = {}): Kid {
   return {
@@ -94,14 +79,14 @@ describe('KidCard', () => {
     const { getByText } = render(
       <KidCard kid={makeKid({ allowanceAmount: 10, allowanceFrequency: 'weekly' })} onPress={jest.fn()} />
     );
-    expect(getByText('$10.00 Weekly')).toBeTruthy();
+    expect(getByText('$10.00 / week')).toBeTruthy();
   });
 
   it('renders monthly allowance frequency', () => {
     const { getByText } = render(
       <KidCard kid={makeKid({ allowanceAmount: 50, allowanceFrequency: 'monthly' })} onPress={jest.fn()} />
     );
-    expect(getByText('$50.00 Monthly')).toBeTruthy();
+    expect(getByText('$50.00 / month')).toBeTruthy();
   });
 
   it('renders negative balance correctly', () => {
@@ -153,11 +138,11 @@ describe('KidCard', () => {
     expect(getByText('0%')).toBeTruthy();
   });
 
-  it('renders "Balance" label', () => {
-    const { getByText } = render(
+  it('labels the card with the kid and balance for screen readers', () => {
+    const { getByLabelText } = render(
       <KidCard kid={makeKid()} onPress={jest.fn()} />
     );
-    expect(getByText('Balance')).toBeTruthy();
+    expect(getByLabelText('Alice, balance 42.50')).toBeTruthy();
   });
 
   it('shows goal amounts correctly', () => {
