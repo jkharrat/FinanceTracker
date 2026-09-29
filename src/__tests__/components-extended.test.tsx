@@ -1569,3 +1569,78 @@ describe('NotificationItem (kid)', () => {
     expect(queryByTestId('swipe-action')).toBeNull();
   });
 });
+
+describe('PiggyRefresh', () => {
+  const reanimated = require('react-native-reanimated');
+  const haptics = require('../utils/haptics');
+  const {
+    usePiggyRefresh,
+    PiggyRefreshHeader,
+    RefreshCoinButton,
+    REFRESH_DONE_MS,
+  } = require('../components/PiggyRefresh');
+  const { renderHook } = require('@testing-library/react-native');
+
+  let light: jest.SpyInstance;
+  beforeEach(() => {
+    jest.useFakeTimers();
+    light = jest.spyOn(haptics, 'hapticLight').mockImplementation(() => {});
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+    light.mockRestore();
+    reanimated.useReducedMotion.mockReturnValue(false);
+  });
+
+  it('stays refreshing through a short done phase, then goes idle', async () => {
+    const refresh = jest.fn(() => Promise.resolve());
+    const { result } = renderHook(() => usePiggyRefresh(refresh));
+    expect(result.current.phase).toBe('idle');
+    await act(async () => { await result.current.onRefresh(); });
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(result.current.phase).toBe('done');
+    expect(result.current.refreshing).toBe(true);
+    expect(haptics.hapticLight).toHaveBeenCalled();
+    act(() => { jest.advanceTimersByTime(REFRESH_DONE_MS); });
+    expect(result.current.phase).toBe('idle');
+    expect(result.current.refreshing).toBe(false);
+  });
+
+  it('ignores a second refresh while one is running', async () => {
+    let resolve: () => void = () => {};
+    const refresh = jest.fn(() => new Promise<void>((r) => { resolve = r; }));
+    const { result } = renderHook(() => usePiggyRefresh(refresh));
+    let first: Promise<void> = Promise.resolve();
+    act(() => { first = result.current.onRefresh(); });
+    expect(result.current.phase).toBe('refreshing');
+    act(() => { result.current.onRefresh(); });
+    expect(refresh).toHaveBeenCalledTimes(1);
+    await act(async () => { resolve(); await first; });
+    expect(result.current.phase).toBe('done');
+  });
+
+  it('skips the done bounce with reduced motion', async () => {
+    reanimated.useReducedMotion.mockReturnValue(true);
+    const { result } = renderHook(() => usePiggyRefresh(() => Promise.resolve()));
+    await act(async () => { await result.current.onRefresh(); });
+    expect(result.current.phase).toBe('idle');
+  });
+
+  it('renders the piggy header in both modes', () => {
+    const pull = { value: 0 };
+    const { getByText, rerender } = render(<PiggyRefreshHeader phase="idle" pull={pull} />);
+    expect(getByText('🐷')).toBeTruthy();
+    expect(getByText('🪙')).toBeTruthy();
+    rerender(<PiggyRefreshHeader phase="refreshing" pull={pull} floating />);
+    expect(getByText('🐷')).toBeTruthy();
+  });
+
+  it('coin button refreshes and reports busy state', () => {
+    const onPress = jest.fn();
+    const { getByLabelText, rerender } = render(<RefreshCoinButton phase="idle" onPress={onPress} />);
+    fireEvent.press(getByLabelText('Refresh'));
+    expect(onPress).toHaveBeenCalledTimes(1);
+    rerender(<RefreshCoinButton phase="refreshing" onPress={onPress} />);
+    expect(getByLabelText('Refreshing')).toBeTruthy();
+  });
+});

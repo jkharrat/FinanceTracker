@@ -38,9 +38,9 @@ import GoalCard from '../../src/components/GoalCard';
 import GoalEditor from '../../src/components/GoalEditor';
 import ProfileSheet from '../../src/components/ProfileSheet';
 import { Button, ListRow, IconButton, SectionHeader } from '../../src/components/ui';
-import { groupTransactionsByDate, flatIndexById } from '../../src/utils/dateGrouping';
+import { groupTransactionsByDate, flatIndexById, TransactionSection } from '../../src/utils/dateGrouping';
 import { ThemeColors } from '../../src/constants/colors';
-import { AllowanceFrequency, SavingsGoal } from '../../src/types';
+import { AllowanceFrequency, SavingsGoal, Transaction } from '../../src/types';
 import { Type, KidType } from '../../src/constants/theme';
 import { Durations, Springs } from '../../src/constants/motion';
 import { Spacing } from '../../src/constants/spacing';
@@ -50,6 +50,12 @@ import Confetti from '../../src/components/Confetti';
 import LaunchButton from '../../src/components/LaunchButton';
 import ReceiveCelebration from '../../src/components/ReceiveCelebration';
 import { useMoneyArrived } from '../../src/hooks/useMoneyArrived';
+import {
+  usePiggyRefresh,
+  PiggyRefreshHeader,
+  RefreshCoinButton,
+  PULL_TRACKING,
+} from '../../src/components/PiggyRefresh';
 import { hapticSuccess } from '../../src/utils/haptics';
 
 const frequencyLabel: Record<AllowanceFrequency, string> = {
@@ -75,6 +81,8 @@ const entrance = (order: number) =>
     .damping(Springs.gentle.damping)
     .stiffness(Springs.gentle.stiffness);
 
+const AnimatedSectionList = Animated.createAnimatedComponent(SectionList<Transaction, TransactionSection>);
+
 const CONFETTI_EMOJI = ['🎉', '⭐', '💰', '✨'];
 const CONFETTI_PALETTE_EXTRA = ['#FF6B9D', '#38BDF8'];
 
@@ -88,7 +96,6 @@ function greeting() {
 export default function KidDashboardScreen() {
   const { user } = useAuth();
   const { kids, loading, getKid, updateSavingsGoal, refreshData } = useData();
-  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -156,10 +163,8 @@ export default function KidDashboardScreen() {
   const sections = useMemo(() => groupTransactionsByDate(filters.filtered), [filters.filtered]);
   const listIndex = useMemo(() => flatIndexById(sections), [sections]);
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try { await refreshData(); } finally { setRefreshing(false); }
-  }, [refreshData]);
+  const { phase: refreshPhase, refreshing, onRefresh, pull, scrollHandler } = usePiggyRefresh(refreshData);
+  const funRefresh = !reducedMotion && Platform.OS !== 'web';
 
   const handleSaveGoal = useCallback(async (goal: SavingsGoal) => {
     if (!kidId) return;
@@ -329,6 +334,7 @@ export default function KidDashboardScreen() {
           headerRight: compactHeader
             ? () => (
                 <View style={styles.headerRight}>
+                  {Platform.OS === 'web' && <RefreshCoinButton phase={refreshPhase} onPress={onRefresh} />}
                   <NotificationBell />
                   <IconButton
                     icon="settings-outline"
@@ -337,11 +343,17 @@ export default function KidDashboardScreen() {
                   />
                 </View>
               )
-            : undefined,
+            : Platform.OS === 'web'
+              ? () => <RefreshCoinButton phase={refreshPhase} onPress={onRefresh} />
+              : undefined,
         }}
       />
 
-      <SectionList
+      {funRefresh && (
+        <PiggyRefreshHeader phase={refreshPhase} pull={pull} floating={!PULL_TRACKING} />
+      )}
+
+      <AnimatedSectionList
         sections={sections}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderListHeader()}
@@ -369,8 +381,20 @@ export default function KidDashboardScreen() {
         stickySectionHeadersEnabled={false}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        onScroll={funRefresh && PULL_TRACKING ? scrollHandler : undefined}
+        scrollEventThrottle={16}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textLight} colors={[colors.primary]} />
+          funRefresh ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="transparent"
+              colors={['transparent']}
+              progressBackgroundColor="transparent"
+            />
+          ) : (
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textLight} colors={[colors.primary]} />
+          )
         }
       />
 
