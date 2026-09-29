@@ -19,6 +19,8 @@ interface ButtonProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   icon?: keyof typeof Ionicons.glyphMap;
+  /** Renders instead of `icon`, receiving the variant's foreground color. Used for animated icons. */
+  renderIcon?: (color: string, size: number) => React.ReactNode;
   loading?: boolean;
   disabled?: boolean;
   fullWidth?: boolean;
@@ -63,6 +65,7 @@ export default function Button({
   variant = 'primary',
   size = 'md',
   icon,
+  renderIcon,
   loading = false,
   disabled = false,
   fullWidth = false,
@@ -101,7 +104,9 @@ export default function Button({
       ]}
     >
       <View style={[styles.content, loading && styles.hidden]}>
-        {icon && <Ionicons name={icon} size={size === 'sm' ? 16 : 18} color={fg} />}
+        {renderIcon
+          ? renderIcon(fg, size === 'sm' ? 16 : 18)
+          : icon && <Ionicons name={icon} size={size === 'sm' ? 16 : 18} color={fg} />}
         <Text style={[textSize, { color: fg }]} numberOfLines={1}>
           {title}
         </Text>

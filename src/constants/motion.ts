@@ -19,6 +19,12 @@ export const Durations = {
   slow: 320,
   /** Kid dashboard block entrance stagger. */
   stagger: 70,
+  /** Tighter stagger for form sections inside a sheet. */
+  sheetStagger: 60,
+  /** How long a launch animation plays before navigation fires. */
+  launch: 200,
+  /** Sheet slide-down before leaving a screen. */
+  exit: 200,
 } as const;
 
 export const Easings = {

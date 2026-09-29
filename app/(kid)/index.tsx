@@ -45,6 +45,7 @@ import { Spacing } from '../../src/constants/spacing';
 import { SIDEBAR_BREAKPOINT } from '../../src/components/WebSidebar';
 import AnimatedListItem, { useEntranceWindow } from '../../src/components/AnimatedListItem';
 import Confetti from '../../src/components/Confetti';
+import LaunchButton from '../../src/components/LaunchButton';
 import { hapticSuccess } from '../../src/utils/haptics';
 
 const frequencyLabel: Record<AllowanceFrequency, string> = {
@@ -130,6 +131,7 @@ export default function KidDashboardScreen() {
   }, [goalComplete]);
 
   const stopCelebrating = useCallback(() => setCelebrating(false), []);
+  const openSend = useCallback(() => router.push('/(kid)/send'), [router]);
 
   const sections = useMemo(() => groupTransactionsByDate(filters.filtered), [filters.filtered]);
   const listIndex = useMemo(() => flatIndexById(sections), [sections]);
@@ -235,12 +237,12 @@ export default function KidDashboardScreen() {
       <Animated.View entering={enter(1)}>
       <BalanceCard label="Your balance" value={kid.balance} style={styles.block}>
         {canSend && (
-          <Button
+          <LaunchButton
             title="Send"
             icon="arrow-up"
             size="sm"
             variant="onHero"
-            onPress={() => router.push('/(kid)/send')}
+            onLaunch={openSend}
             style={styles.flex}
           />
         )}

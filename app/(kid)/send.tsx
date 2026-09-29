@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,15 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withSpring,
+  withTiming,
+  useReducedMotion,
+  ZoomIn,
+} from 'react-native-reanimated';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../../src/context/DataContext';
@@ -21,14 +29,63 @@ import { Spacing } from '../../src/constants/spacing';
 import { KidRadius, KidType, KID_BUTTON_LEDGE } from '../../src/constants/theme';
 import { useToast } from '../../src/context/ToastContext';
 import { useShake } from '../../src/hooks/useShake';
-import { hapticSuccess } from '../../src/utils/haptics';
+import { Durations, Springs } from '../../src/constants/motion';
 import AnimatedPressable from '../../src/components/AnimatedPressable';
-import SendSuccess from '../../src/components/SendSuccess';
+import AnimatedNumber from '../../src/components/AnimatedNumber';
+import SendCelebration from '../../src/components/SendCelebration';
+import SheetEntrance, { SheetEntranceHandle, useSheetStagger } from '../../src/components/SheetEntrance';
+import { Kid } from '../../src/types';
 
 interface SentInfo {
   amount: number;
   name: string;
   avatar: string;
+  previousBalance: number;
+}
+
+interface RecipientCardProps {
+  kid: Kid;
+  selected: boolean;
+  onPress: () => void;
+  colors: ThemeColors;
+  styles: ReturnType<typeof createStyles>;
+}
+
+function RecipientCard({ kid, selected, onPress, colors, styles }: RecipientCardProps) {
+  const reducedMotion = useReducedMotion();
+  const bounce = useSharedValue(1);
+
+  useEffect(() => {
+    if (!selected || reducedMotion) return;
+    bounce.value = withSequence(withTiming(0.94, { duration: Durations.quick / 2 }), withSpring(1, Springs.bouncy));
+  }, [selected, reducedMotion, bounce]);
+
+  const bounceStyle = useAnimatedStyle(() => ({ transform: [{ scale: bounce.value }] }));
+
+  return (
+    <Animated.View style={bounceStyle}>
+      <AnimatedPressable
+        variant="card"
+        style={[styles.recipientCard, selected && styles.recipientCardSelected]}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityState={{ selected }}
+        accessibilityLabel={`Send to ${kid.name}`}
+      >
+        <View style={[styles.recipientAvatar, selected && styles.recipientAvatarSelected]}>
+          <Text style={styles.recipientAvatarText}>{kid.avatar}</Text>
+        </View>
+        <Text style={[styles.recipientName, selected && styles.recipientNameSelected]}>
+          {kid.name}
+        </Text>
+        {selected && (
+          <Animated.View entering={reducedMotion ? undefined : ZoomIn.springify().damping(Springs.bouncy.damping)}>
+            <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+          </Animated.View>
+        )}
+      </AnimatedPressable>
+    </Animated.View>
+  );
 }
 
 export default function SendMoneyScreen() {
@@ -49,8 +106,28 @@ export default function SendMoneyScreen() {
   const [sent, setSent] = useState<SentInfo | null>(null);
   const finishSend = useCallback(() => router.back(), [router]);
 
+  const sheetRef = useRef<SheetEntranceHandle>(null);
+  const close = useCallback(() => {
+    if (sheetRef.current) sheetRef.current.dismiss(() => router.back());
+    else router.back();
+  }, [router]);
+  const enter = useSheetStagger();
+  const reducedMotion = useReducedMotion();
+
+  const formDim = useSharedValue(0);
+  const formStyle = useAnimatedStyle(() => ({
+    opacity: 1 - formDim.value * 0.6,
+    transform: [{ scale: 1 - formDim.value * 0.04 }],
+  }));
+
   const kidId = user?.role === 'kid' ? user.kidId : null;
   const sender = kidId ? getKid(kidId) : undefined;
+
+  // Start the balance at zero so it rolls up to the real amount once the sheet is in.
+  const [shownBalance, setShownBalance] = useState(reducedMotion ? sender?.balance ?? 0 : 0);
+  useEffect(() => {
+    if (sender) setShownBalance(sender.balance);
+  }, [sender?.balance]);
   const otherKids = useMemo(
     () => kids.filter((k) => k.id !== kidId),
     [kids, kidId]
@@ -73,11 +150,12 @@ export default function SendMoneyScreen() {
       const result = await transferMoney(kidId, selectedKidId, parsedAmount, desc);
 
       if (result.success) {
-        hapticSuccess();
+        formDim.value = withTiming(1, { duration: Durations.base });
         setSent({
           amount: parsedAmount,
           name: selectedKid?.name ?? 'your friend',
           avatar: selectedKid?.avatar ?? '😊',
+          previousBalance: sender.balance,
         });
       } else {
         setError(result.error ?? 'Transfer failed');
@@ -98,6 +176,9 @@ export default function SendMoneyScreen() {
     );
   }
 
+  const recipientsStart = 2;
+  const amountOrder = recipientsStart + otherKids.length;
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -107,64 +188,47 @@ export default function SendMoneyScreen() {
         options={{
           title: 'Send Money',
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+            <TouchableOpacity onPress={close} style={styles.headerButton} accessibilityLabel="Close">
               <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           ),
         }}
       />
 
+      <SheetEntrance ref={sheetRef}>
+      <Animated.View style={[styles.flex, formStyle]}>
       <FlatList
         data={[]}
         renderItem={null}
         ListHeaderComponent={
           <View style={styles.content}>
             {/* Balance Info */}
-            <View style={styles.balanceInfo}>
+            <Animated.View entering={enter(0)} style={styles.balanceInfo}>
               <Text style={styles.balanceLabel}>Your Balance</Text>
-              <Text style={styles.balanceAmount}>${sender.balance.toFixed(2)}</Text>
-            </View>
+              <AnimatedNumber value={shownBalance} style={styles.balanceAmount} duration={700} />
+            </Animated.View>
 
             {/* Recipient Selection */}
-            <Text style={styles.sectionTitle}>Send to</Text>
+            <Animated.Text entering={enter(1)} style={styles.sectionTitle}>Send to</Animated.Text>
             <View style={styles.recipientList}>
-              {otherKids.map((kid) => (
-                <TouchableOpacity
-                  key={kid.id}
-                  style={[
-                    styles.recipientCard,
-                    selectedKidId === kid.id && styles.recipientCardSelected,
-                  ]}
-                  onPress={() => {
-                    setSelectedKidId(kid.id);
-                    setError('');
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View
-                    style={[
-                      styles.recipientAvatar,
-                      selectedKidId === kid.id && styles.recipientAvatarSelected,
-                    ]}
-                  >
-                    <Text style={styles.recipientAvatarText}>{kid.avatar}</Text>
-                  </View>
-                  <Text
-                    style={[
-                      styles.recipientName,
-                      selectedKidId === kid.id && styles.recipientNameSelected,
-                    ]}
-                  >
-                    {kid.name}
-                  </Text>
-                  {selectedKidId === kid.id && (
-                    <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
+              {otherKids.map((kid, i) => (
+                <Animated.View key={kid.id} entering={enter(recipientsStart + i)}>
+                  <RecipientCard
+                    kid={kid}
+                    selected={selectedKidId === kid.id}
+                    onPress={() => {
+                      setSelectedKidId(kid.id);
+                      setError('');
+                    }}
+                    colors={colors}
+                    styles={styles}
+                  />
+                </Animated.View>
               ))}
             </View>
 
             {/* Amount Input */}
+            <Animated.View entering={enter(amountOrder)}>
             <Text style={styles.sectionTitle}>Amount</Text>
             <View style={[styles.amountContainer, focusedField === 'amount' && styles.inputFocused]}>
               <Text style={styles.currencySign}>$</Text>
@@ -188,8 +252,10 @@ export default function SendMoneyScreen() {
                 Insufficient balance. You can send up to ${sender.balance.toFixed(2)}
               </Text>
             )}
+            </Animated.View>
 
             {/* Description Input */}
+            <Animated.View entering={enter(amountOrder + 1)}>
             <Text style={styles.sectionTitle}>Note (optional)</Text>
             <TextInput
               style={[styles.descriptionInput, focusedField === 'note' && styles.inputFocused]}
@@ -203,6 +269,7 @@ export default function SendMoneyScreen() {
               onFocus={() => setFocusedField('note')}
               onBlur={() => setFocusedField(null)}
             />
+            </Animated.View>
 
             {/* Error */}
             {error !== '' && (
@@ -213,6 +280,7 @@ export default function SendMoneyScreen() {
             )}
 
             {/* Send Button */}
+            <Animated.View entering={enter(amountOrder + 2)}>
             <Animated.View style={shakeStyle}>
               <AnimatedPressable
                 variant="button"
@@ -235,17 +303,21 @@ export default function SendMoneyScreen() {
                 </Text>
               </AnimatedPressable>
             </Animated.View>
+            </Animated.View>
           </View>
         }
         keyExtractor={() => 'header'}
         showsVerticalScrollIndicator={false}
       />
+      </Animated.View>
+      </SheetEntrance>
 
       {sent && (
-        <SendSuccess
+        <SendCelebration
           amount={sent.amount}
           recipientName={sent.name}
           recipientAvatar={sent.avatar}
+          previousBalance={sent.previousBalance}
           onDone={finishSend}
         />
       )}
@@ -258,6 +330,9 @@ const createStyles = (colors: ThemeColors) =>
     container: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    flex: {
+      flex: 1,
     },
     headerButton: {
       padding: Spacing.sm,
@@ -300,9 +375,7 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.success,
     },
     sectionTitle: {
-      fontSize: 16,
-      fontFamily: FontFamily.bold,
-      fontWeight: '700',
+      ...KidType.headline,
       color: colors.text,
       marginBottom: Spacing.md,
     },
@@ -314,7 +387,7 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.surface,
-      borderRadius: 14,
+      borderRadius: KidRadius.button,
       padding: 14,
       gap: Spacing.md,
       borderWidth: 2,
@@ -322,27 +395,29 @@ const createStyles = (colors: ThemeColors) =>
     },
     recipientCardSelected: {
       borderColor: colors.primary,
-      backgroundColor: colors.surfaceAlt,
+      backgroundColor: colors.primarySoft,
     },
     recipientAvatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       backgroundColor: colors.surfaceAlt,
+      borderWidth: 3,
+      borderColor: 'transparent',
       alignItems: 'center',
       justifyContent: 'center',
     },
     recipientAvatarSelected: {
-      backgroundColor: colors.primaryLight,
+      backgroundColor: colors.surface,
+      borderColor: colors.primary,
     },
     recipientAvatarText: {
-      fontSize: 22,
+      fontSize: 24,
     },
     recipientName: {
+      ...KidType.headline,
       flex: 1,
-      fontSize: 16,
-      fontFamily: FontFamily.semiBold,
-      fontWeight: '600',
+      fontSize: 17,
       color: colors.text,
     },
     recipientNameSelected: {

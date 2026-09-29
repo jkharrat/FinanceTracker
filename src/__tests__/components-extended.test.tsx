@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, act } from '@testing-library/react-native';
 import { Text, View } from 'react-native';
 import NotificationItem from '../components/NotificationItem';
 import ProfileAvatar from '../components/ProfileAvatar';
@@ -1008,5 +1008,126 @@ describe('Kid variant', () => {
   it('still renders empty state text in kid mode', () => {
     const { getByText } = render(<EmptyState icon="📝" title="Nothing yet" subtitle="Soon!" />);
     expect(getByText('Nothing yet')).toBeTruthy();
+  });
+});
+
+// ─── Send animations ──────────────────────────────────────────────────────
+
+describe('LaunchButton', () => {
+  const LaunchButton = require('../components/LaunchButton').default;
+  const reanimated = require('react-native-reanimated');
+
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => {
+    jest.useRealTimers();
+    reanimated.useReducedMotion.mockReturnValue(false);
+  });
+
+  it('launches after the animation delay, once, even when tapped twice', () => {
+    const onLaunch = jest.fn();
+    const { getByLabelText } = render(<LaunchButton title="Send" icon="arrow-up" onLaunch={onLaunch} />);
+    fireEvent.press(getByLabelText('Send'));
+    fireEvent.press(getByLabelText('Send'));
+    expect(onLaunch).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(250);
+    expect(onLaunch).toHaveBeenCalledTimes(1);
+  });
+
+  it('can launch again after the cooldown', () => {
+    const onLaunch = jest.fn();
+    const { getByLabelText } = render(<LaunchButton title="Send" icon="arrow-up" onLaunch={onLaunch} />);
+    fireEvent.press(getByLabelText('Send'));
+    jest.advanceTimersByTime(800);
+    fireEvent.press(getByLabelText('Send'));
+    jest.advanceTimersByTime(250);
+    expect(onLaunch).toHaveBeenCalledTimes(2);
+  });
+
+  it('launches without waiting when reduced motion is on', () => {
+    reanimated.useReducedMotion.mockReturnValue(true);
+    const onLaunch = jest.fn();
+    const { getByLabelText } = render(<LaunchButton title="Send" icon="arrow-up" onLaunch={onLaunch} />);
+    fireEvent.press(getByLabelText('Send'));
+    jest.advanceTimersByTime(0);
+    expect(onLaunch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('SheetEntrance', () => {
+  const SheetEntrance = require('../components/SheetEntrance').default;
+
+  it('renders its children', () => {
+    const { getByText } = render(
+      <SheetEntrance>
+        <Text>Sheet body</Text>
+      </SheetEntrance>
+    );
+    expect(getByText('Sheet body')).toBeTruthy();
+  });
+
+  it('runs the callback when dismissed', () => {
+    const ref = React.createRef<any>();
+    const onDone = jest.fn();
+    render(
+      <SheetEntrance ref={ref}>
+        <Text>Sheet body</Text>
+      </SheetEntrance>
+    );
+    ref.current.dismiss(onDone);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('SendCelebration', () => {
+  const SendCelebration = require('../components/SendCelebration').default;
+  const reanimated = require('react-native-reanimated');
+  const props = { amount: 5, recipientName: 'Leo', recipientAvatar: '🐶', previousBalance: 20 };
+
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => {
+    jest.useRealTimers();
+    reanimated.useReducedMotion.mockReturnValue(false);
+  });
+
+  it('shows the message once the money lands', () => {
+    const { queryByText, getByText } = render(<SendCelebration {...props} onDone={jest.fn()} />);
+    expect(queryByText('Money sent! 🎉')).toBeNull();
+    act(() => { jest.advanceTimersByTime(1000); });
+    expect(getByText('Money sent! 🎉')).toBeTruthy();
+    expect(getByText('Leo got $5.00 from you')).toBeTruthy();
+  });
+
+  it('closes once when Done is pressed', () => {
+    const onDone = jest.fn();
+    const { getByLabelText } = render(<SendCelebration {...props} onDone={onDone} />);
+    act(() => { jest.advanceTimersByTime(1800); });
+    fireEvent.press(getByLabelText('Done'));
+    fireEvent.press(getByLabelText('Done'));
+    act(() => { jest.advanceTimersByTime(5000); });
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes itself when left alone', () => {
+    const onDone = jest.fn();
+    render(<SendCelebration {...props} onDone={onDone} />);
+    act(() => { jest.advanceTimersByTime(4500); });
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a tap that lands right as it opens', () => {
+    const onDone = jest.fn();
+    const { getByLabelText } = render(<SendCelebration {...props} onDone={onDone} />);
+    fireEvent.press(getByLabelText('Close'));
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it('skips the flight and shows the message right away with reduced motion', () => {
+    reanimated.useReducedMotion.mockReturnValue(true);
+    const onDone = jest.fn();
+    const { getByText, queryByText } = render(<SendCelebration {...props} onDone={onDone} />);
+    expect(getByText('Money sent! 🎉')).toBeTruthy();
+    expect(queryByText('💸')).toBeNull();
+    act(() => { jest.advanceTimersByTime(2600); });
+    expect(onDone).toHaveBeenCalledTimes(1);
   });
 });
