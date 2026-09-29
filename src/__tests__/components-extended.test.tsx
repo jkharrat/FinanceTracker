@@ -1232,3 +1232,81 @@ describe('ReceiveCelebration', () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 });
+
+// ─── Goal editor ──────────────────────────────────────────────────────────
+
+describe('GoalEditor (kid)', () => {
+  const GoalEditor = require('../components/GoalEditor').default;
+  const haptics = require('../utils/haptics');
+  const handlers = () => ({ onSave: jest.fn(), onRemove: jest.fn(), onCancel: jest.fn() });
+
+  beforeEach(() => { mockIsKid = true; });
+  afterEach(() => { mockIsKid = false; });
+
+  it('previews how far the balance already gets them while typing', () => {
+    const { getByLabelText, getByText } = render(<GoalEditor balance={40} {...handlers()} />);
+    expect(getByText('How much does it cost?')).toBeTruthy();
+    fireEvent.changeText(getByLabelText('Goal amount'), '100');
+    expect(getByText("You're already 40% there!")).toBeTruthy();
+    expect(getByText('40%')).toBeTruthy();
+    fireEvent.changeText(getByLabelText('Goal amount'), '30');
+    expect(getByText('You already have enough! 🎉')).toBeTruthy();
+  });
+
+  it('shakes instead of saving when the form is incomplete', () => {
+    const error = jest.spyOn(haptics, 'hapticError').mockImplementation(() => {});
+    const h = handlers();
+    const { getByLabelText } = render(<GoalEditor balance={10} {...h} />);
+    fireEvent.press(getByLabelText('Save'));
+    expect(h.onSave).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledTimes(1);
+    error.mockRestore();
+  });
+
+  it('saves a trimmed goal', () => {
+    const h = handlers();
+    const { getByLabelText } = render(<GoalEditor balance={10} {...h} />);
+    fireEvent.changeText(getByLabelText('Goal name'), '  Bike ');
+    fireEvent.changeText(getByLabelText('Goal amount'), '120');
+    fireEvent.press(getByLabelText('Save'));
+    expect(h.onSave).toHaveBeenCalledWith({ name: 'Bike', targetAmount: 120 });
+  });
+
+  it('keeps the admin editor unchanged', () => {
+    mockIsKid = false;
+    const { queryByText } = render(<GoalEditor balance={40} {...handlers()} />);
+    expect(queryByText('How much does it cost?')).toBeNull();
+  });
+});
+
+describe('GoalCard celebration (kid)', () => {
+  const GoalCard = require('../components/GoalCard').default;
+  const reanimated = require('react-native-reanimated');
+
+  beforeEach(() => { mockIsKid = true; jest.useFakeTimers(); });
+  afterEach(() => {
+    mockIsKid = false;
+    jest.useRealTimers();
+    reanimated.useReducedMotion.mockReturnValue(false);
+  });
+
+  it('pops a "Goal set!" badge with coins, then hands back', () => {
+    const onCelebrated = jest.fn();
+    const { getByText, getAllByText } = render(
+      <GoalCard goal={{ name: 'Bike', targetAmount: 100 }} balance={40} celebrate onCelebrated={onCelebrated} />
+    );
+    expect(getByText('Goal set! 🎯')).toBeTruthy();
+    expect(getAllByText('🪙').length).toBeGreaterThan(0);
+    act(() => { jest.advanceTimersByTime(2700); });
+    expect(onCelebrated).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the badge without coins under reduced motion', () => {
+    reanimated.useReducedMotion.mockReturnValue(true);
+    const { getByText, queryByText } = render(
+      <GoalCard goal={{ name: 'Bike', targetAmount: 100 }} balance={40} celebrate />
+    );
+    expect(getByText('Goal set! 🎯')).toBeTruthy();
+    expect(queryByText('🪙')).toBeNull();
+  });
+});

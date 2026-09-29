@@ -9,6 +9,8 @@ import Animated, {
   withTiming,
   useReducedMotion,
   ZoomIn,
+  FadeIn,
+  FadeOut,
 } from 'react-native-reanimated';
 import { useColors, useIsKid } from '../context/ThemeContext';
 import { ThemeColors, KidGoalGradient } from '../constants/colors';
@@ -18,15 +20,20 @@ import { Spacing } from '../constants/spacing';
 import { Springs, Durations } from '../constants/motion';
 import { hapticLight } from '../utils/haptics';
 import GoalRing from './GoalRing';
+import CoinBurst from './CoinBurst';
 import { Card } from './ui';
 
 interface GoalCardProps {
   goal: SavingsGoal;
   balance: number;
   onPress?: () => void;
+  /** Kid only: plays the "Goal set!" badge and coin burst, then calls `onCelebrated`. */
+  celebrate?: boolean;
+  onCelebrated?: () => void;
 }
 
 const MILESTONES = [25, 50, 75];
+const GOAL_SET_MS = 2600;
 
 function percentOf(goal: SavingsGoal, balance: number) {
   return Math.round(Math.min(Math.max(balance / goal.targetAmount, 0), 1) * 100);
@@ -68,7 +75,7 @@ function DefaultGoalCard({ goal, balance, onPress }: GoalCardProps) {
   );
 }
 
-function KidGoalCard({ goal, balance, onPress }: GoalCardProps) {
+function KidGoalCard({ goal, balance, onPress, celebrate = false, onCelebrated }: GoalCardProps) {
   const colors = useColors();
   const styles = useMemo(() => createKidStyles(colors), [colors]);
   const reducedMotion = useReducedMotion();
@@ -90,6 +97,13 @@ function KidGoalCard({ goal, balance, onPress }: GoalCardProps) {
     glow.value = withSequence(withTiming(1, { duration: Durations.base }), withTiming(0, { duration: 900 }));
   }, [percent, reducedMotion, pulse, glow]);
 
+  useEffect(() => {
+    if (!celebrate) return;
+    hapticLight();
+    const timer = setTimeout(() => onCelebrated?.(), GOAL_SET_MS);
+    return () => clearTimeout(timer);
+  }, [celebrate, onCelebrated]);
+
   const ringStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
   const glowStyle = useAnimatedStyle(() => ({
     opacity: glow.value * 0.5,
@@ -101,10 +115,15 @@ function KidGoalCard({ goal, balance, onPress }: GoalCardProps) {
     : [KidGoalGradient.start, colors.primary];
 
   return (
-    <Card onPress={onPress} accessibilityLabel={onPress ? 'Edit savings goal' : undefined}>
+    <Card
+      onPress={onPress}
+      accessibilityLabel={onPress ? 'Edit savings goal' : undefined}
+      style={celebrate ? styles.unclipped : undefined}
+    >
       <View style={styles.row}>
         <Animated.View style={ringStyle}>
           <Animated.View style={[styles.glow, { backgroundColor: complete ? colors.success : colors.primary }, glowStyle]} />
+          {celebrate && <CoinBurst count={8} />}
           <GoalRing
             percent={percent}
             size={88}
@@ -119,7 +138,17 @@ function KidGoalCard({ goal, balance, onPress }: GoalCardProps) {
           </GoalRing>
         </Animated.View>
         <View style={styles.text}>
-          <Text style={styles.label}>Saving for</Text>
+          {celebrate ? (
+            <Animated.View
+              entering={reducedMotion ? FadeIn.duration(Durations.base) : ZoomIn.springify().damping(Springs.bouncy.damping)}
+              exiting={FadeOut.duration(Durations.base)}
+              style={styles.setBadge}
+            >
+              <Text style={styles.setBadgeText}>Goal set! 🎯</Text>
+            </Animated.View>
+          ) : (
+            <Animated.Text entering={FadeIn.duration(Durations.base)} style={styles.label}>Saving for</Animated.Text>
+          )}
           <Text style={styles.name} numberOfLines={2}>{goal.name}</Text>
           {complete ? (
             <Animated.View entering={reducedMotion ? undefined : ZoomIn.springify().damping(8)} style={styles.badge}>
@@ -236,5 +265,21 @@ const createKidStyles = (colors: ThemeColors) =>
       ...KidType.button,
       fontSize: 14,
       color: colors.successDark,
+    },
+    unclipped: {
+      overflow: 'visible',
+    },
+    setBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.primary,
+      paddingHorizontal: 10,
+      paddingVertical: 3,
+      borderRadius: Radius.pill,
+      marginBottom: 4,
+    },
+    setBadgeText: {
+      ...KidType.button,
+      fontSize: 13,
+      color: colors.textWhite,
     },
   });

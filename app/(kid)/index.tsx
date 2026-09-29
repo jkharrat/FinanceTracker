@@ -20,6 +20,8 @@ import Animated, {
   withTiming,
   withSpring,
   useReducedMotion,
+  Keyframe,
+  Easing,
 } from 'react-native-reanimated';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { useData } from '../../src/context/DataContext';
@@ -60,6 +62,11 @@ const blockLayout = LinearTransition.springify()
   .stiffness(Springs.gentle.stiffness);
 const blockIn = FadeIn.duration(Durations.base);
 const blockOut = FadeOut.duration(Durations.quick);
+const shrinkOut = new Keyframe({
+  0: { opacity: 1, transform: [{ scale: 1 }] },
+  100: { opacity: 0, transform: [{ scale: 0.82 }], easing: Easing.in(Easing.cubic) },
+}).duration(Durations.slow);
+const blockInAfterShrink = FadeIn.duration(Durations.base).delay(Durations.slow - 60);
 
 /** Dashboard blocks rise in one after another on first load. */
 const entrance = (order: number) =>
@@ -94,6 +101,8 @@ export default function KidDashboardScreen() {
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [showGoalEditor, setShowGoalEditor] = useState(false);
+  const [editorExit, setEditorExit] = useState<'fade' | 'shrink'>('fade');
+  const [goalJustSet, setGoalJustSet] = useState(false);
 
   const reducedMotion = useReducedMotion();
   const wiggle = useSharedValue(0);
@@ -156,6 +165,8 @@ export default function KidDashboardScreen() {
     if (!kidId) return;
     try {
       await updateSavingsGoal(kidId, goal);
+      setEditorExit('fade');
+      setGoalJustSet(true);
       setShowGoalEditor(false);
     } catch (e: any) {
       const msg = e?.message || 'Failed to save goal';
@@ -165,16 +176,22 @@ export default function KidDashboardScreen() {
 
   const handleRemoveGoal = useCallback(async () => {
     if (!kidId) return;
+    // Set before the editor unmounts so its exit animation is read from this render.
+    setEditorExit('shrink');
     try {
       await updateSavingsGoal(kidId, null);
       setShowGoalEditor(false);
     } catch (e: any) {
+      setEditorExit('fade');
       const msg = e?.message || 'Failed to remove goal';
       Alert.alert('Error', msg);
     }
   }, [kidId, updateSavingsGoal]);
 
+  const clearGoalJustSet = useCallback(() => setGoalJustSet(false), []);
+
   const handleCancelGoal = useCallback(() => {
+    setEditorExit('fade');
     setShowGoalEditor(false);
   }, []);
 
@@ -192,9 +209,14 @@ export default function KidDashboardScreen() {
   const renderGoal = () => {
     if (showGoalEditor) {
       return (
-        <Animated.View key="editor" entering={blockIn} exiting={blockOut}>
+        <Animated.View
+          key="editor"
+          entering={blockIn}
+          exiting={editorExit === 'shrink' && !reducedMotion ? shrinkOut : blockOut}
+        >
           <GoalEditor
             existingGoal={kid.savingsGoal}
+            balance={kid.balance}
             onSave={handleSaveGoal}
             onRemove={handleRemoveGoal}
             onCancel={handleCancelGoal}
@@ -205,12 +227,22 @@ export default function KidDashboardScreen() {
     if (kid.savingsGoal) {
       return (
         <Animated.View key="goal" entering={blockIn} exiting={blockOut}>
-          <GoalCard goal={kid.savingsGoal} balance={kid.balance} onPress={() => setShowGoalEditor(true)} />
+          <GoalCard
+            goal={kid.savingsGoal}
+            balance={kid.balance}
+            onPress={() => setShowGoalEditor(true)}
+            celebrate={goalJustSet}
+            onCelebrated={clearGoalJustSet}
+          />
         </Animated.View>
       );
     }
     return (
-      <Animated.View key="set" entering={blockIn} exiting={blockOut}>
+      <Animated.View
+        key="set"
+        entering={editorExit === 'shrink' && !reducedMotion ? blockInAfterShrink : blockIn}
+        exiting={blockOut}
+      >
         <ListRow
           icon="flag-outline"
           title="Set a savings goal"
