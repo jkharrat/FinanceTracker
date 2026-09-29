@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,30 +19,68 @@ import Animated, {
   SlideOutDown,
   useAnimatedStyle,
   useSharedValue,
+  useReducedMotion,
+  withSequence,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { useTheme, useColors } from '../context/ThemeContext';
+import { useTheme, useColors, useIsKid } from '../context/ThemeContext';
 import type { ThemeMode } from '../context/ThemeContext';
 import { ThemeColors, ACCENT_PALETTES, Avatars } from '../constants/colors';
-import { Radius, Type, Elevation } from '../constants/theme';
+import type { AccentPalette } from '../constants/colors';
+import { Radius, Type, Elevation, KidType } from '../constants/theme';
 import { Springs, Durations } from '../constants/motion';
 import { Spacing } from '../constants/spacing';
+import { hapticLight } from '../utils/haptics';
 import ProfileAvatar from './ProfileAvatar';
 import AnimatedPressable from './AnimatedPressable';
+import CoinBurst from './CoinBurst';
+import {
+  AvatarTile,
+  AccentSwatch,
+  ColorRipple,
+  FlyingAvatar,
+  ThemeIcon,
+  Point,
+  centerOf,
+  measureBox,
+} from './ProfilePickerParts';
 import { Button } from './ui';
 
 const AnimatedBackdrop = Animated.createAnimatedComponent(Pressable);
 
-const THEME_OPTIONS: { mode: ThemeMode; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
-  { mode: 'light', icon: 'sunny-outline', label: 'Light' },
-  { mode: 'dark', icon: 'moon-outline', label: 'Dark' },
-  { mode: 'system', icon: 'contrast-outline', label: 'Auto' },
+const THEME_OPTIONS: {
+  mode: ThemeMode;
+  icon: keyof typeof Ionicons.glyphMap;
+  activeIcon: keyof typeof Ionicons.glyphMap;
+  label: string;
+}[] = [
+  { mode: 'light', icon: 'sunny-outline', activeIcon: 'sunny', label: 'Light' },
+  { mode: 'dark', icon: 'moon-outline', activeIcon: 'moon', label: 'Dark' },
+  { mode: 'system', icon: 'contrast-outline', activeIcon: 'contrast', label: 'Auto' },
 ];
+
+const KID_HERO = 88;
+const KID_HERO_EMOJI = 48;
+const KID_TILE_EMOJI = 24;
+const SPARKLES = ['✨', '⭐', '✨', '🌟'];
+
+interface Flight {
+  emoji: string;
+  from: Point;
+  to: Point;
+}
+
+interface Ripple {
+  key: number;
+  color: string;
+  origin: Point;
+}
 
 const SHEET_BREAKPOINT = 600;
 
@@ -56,7 +94,7 @@ interface ProfileSheetProps {
   onClose: () => void;
 }
 
-function ThemeSegmented({ colors }: { colors: ThemeColors }) {
+function ThemeSegmented({ colors, isKid }: { colors: ThemeColors; isKid: boolean }) {
   const { mode, setMode } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [segmentWidth, setSegmentWidth] = useState(0);
@@ -96,7 +134,15 @@ function ThemeSegmented({ colors }: { colors: ThemeColors }) {
             accessibilityState={{ selected: active }}
             accessibilityLabel={`${opt.label} theme`}
           >
-            <Ionicons name={opt.icon} size={16} color={active ? colors.text : colors.textSecondary} />
+            {isKid ? (
+              <ThemeIcon
+                name={active ? opt.activeIcon : opt.icon}
+                active={active}
+                color={active ? colors.primary : colors.textSecondary}
+              />
+            ) : (
+              <Ionicons name={opt.icon} size={16} color={active ? colors.text : colors.textSecondary} />
+            )}
             <Text style={[styles.segmentLabel, { color: active ? colors.text : colors.textSecondary }]}>
               {opt.label}
             </Text>
@@ -129,13 +175,92 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const isKid = useIsKid();
+  const reducedMotion = useReducedMotion();
+  const layerRef = useRef<View>(null);
+  const panelRef = useRef<View>(null);
+  const heroRef = useRef<View>(null);
+  const [pendingAvatar, setPendingAvatar] = useState<string | null>(null);
+  const [heroOverride, setHeroOverride] = useState<string | null>(null);
+  const [flight, setFlight] = useState<Flight | null>(null);
+  /** True from the tap until the emoji lands, including while positions are measured. */
+  const [flying, setFlying] = useState(false);
+  const [sparkleKey, setSparkleKey] = useState(0);
+  const [ripple, setRipple] = useState<Ripple | null>(null);
+  const squash = useSharedValue(0);
+  const selectedAvatar = pendingAvatar ?? avatar;
+  const heroAvatar = heroOverride ?? avatar;
+
   useEffect(() => {
     if (visible) {
       setEditName(displayName);
       setEditing(false);
       setError('');
+    } else {
+      setFlight(null);
+      setFlying(false);
+      setRipple(null);
+      setPendingAvatar(null);
+      setHeroOverride(null);
     }
   }, [visible, displayName]);
+
+  // Drop the optimistic picks once the saved avatar catches up.
+  useEffect(() => {
+    if (pendingAvatar && avatar === pendingAvatar) setPendingAvatar(null);
+    if (!flying && heroOverride && avatar === heroOverride) setHeroOverride(null);
+  }, [avatar, pendingAvatar, heroOverride, flying]);
+
+  const heroStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleX: 1 + squash.value * 0.22 }, { scaleY: 1 - squash.value * 0.2 }],
+  }));
+
+  const land = useCallback((emoji: string) => {
+    setFlight(null);
+    setFlying(false);
+    setHeroOverride(emoji);
+    setSparkleKey((k) => k + 1);
+    hapticLight();
+    squash.value = withSequence(withTiming(1, { duration: 80 }), withSpring(0, Springs.celebrate));
+  }, [squash]);
+
+  const pickKidAvatar = useCallback(async (emoji: string, tile: View | null) => {
+    if (!kid || emoji === selectedAvatar || flying) return;
+    setPendingAvatar(emoji);
+    updateKidAvatar(kid.id, emoji).catch((err) => {
+      console.error('Failed to update avatar:', err);
+      setPendingAvatar(null);
+      setHeroOverride(null);
+    });
+
+    if (reducedMotion) {
+      setHeroOverride(emoji);
+      return;
+    }
+    setFlying(true);
+    setHeroOverride(heroAvatar ?? null);
+    const [from, to, layer] = await Promise.all([
+      measureBox(tile),
+      measureBox(heroRef.current),
+      measureBox(layerRef.current),
+    ]);
+    if (!from || !to || !layer) {
+      land(emoji);
+      return;
+    }
+    setFlight({ emoji, from: centerOf(from, layer), to: centerOf(to, layer) });
+  }, [kid, selectedAvatar, flying, updateKidAvatar, reducedMotion, heroAvatar, land]);
+
+  const pickKidAccent = useCallback(async (palette: AccentPalette) => {
+    if (palette.id === accentPalette) return;
+    setAccentPalette(palette.id);
+    if (reducedMotion) return;
+    const [hero, panel] = await Promise.all([measureBox(heroRef.current), measureBox(panelRef.current)]);
+    if (!hero || !panel) return;
+    setRipple((r) => ({ key: (r?.key ?? 0) + 1, color: palette.swatch, origin: centerOf(hero, panel) }));
+  }, [accentPalette, setAccentPalette, reducedMotion]);
+
+  const clearRipple = useCallback(() => setRipple(null), []);
 
   const handleLogout = async () => {
     onClose();
@@ -182,6 +307,8 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
         onPress={onClose}
       >
         <Animated.View
+          ref={panelRef}
+          collapsable={false}
           entering={asSheet ? SlideInDown.springify().damping(Springs.sheet.damping).stiffness(Springs.sheet.stiffness) : dialogIn}
           exiting={asSheet ? SlideOutDown.duration(Durations.base) : FadeOut.duration(Durations.quick)}
           style={[
@@ -189,11 +316,23 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
             asSheet ? [styles.sheet, { paddingBottom: Spacing.xxl + insets.bottom }] : styles.dialog,
           ]}
         >
+          {isKid && (
+            <View pointerEvents="none" style={[styles.rippleClip, asSheet ? styles.rippleClipSheet : styles.rippleClipDialog]}>
+              {ripple && (
+                <ColorRipple key={ripple.key} color={ripple.color} origin={ripple.origin} onDone={clearRipple} />
+              )}
+            </View>
+          )}
           <Pressable onPress={(e) => e.stopPropagation()}>
             {asSheet && <View style={styles.grabber} />}
 
             <View style={styles.profileSection}>
-              {avatar ? (
+              {isKid && heroAvatar ? (
+                <Animated.View ref={heroRef} collapsable={false} style={[styles.kidHero, heroStyle]}>
+                  <Text style={styles.kidHeroText}>{heroAvatar}</Text>
+                  {sparkleKey > 0 && <CoinBurst key={sparkleKey} glyphs={SPARKLES} count={10} />}
+                </Animated.View>
+              ) : avatar ? (
                 <View style={styles.emojiAvatar}>
                   <Text style={styles.emojiAvatarText}>{avatar}</Text>
                 </View>
@@ -229,7 +368,7 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
                   disabled={!isAdmin}
                   accessibilityLabel={isAdmin ? 'Edit name' : displayName}
                 >
-                  <Text style={styles.name}>{displayName}</Text>
+                  <Text style={[styles.name, isKid && styles.kidName]}>{displayName}</Text>
                   {isAdmin && <Ionicons name="pencil" size={13} color={colors.textLight} />}
                 </AnimatedPressable>
               )}
@@ -241,8 +380,11 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
             {kid && (
               <>
                 <Text style={styles.sectionLabel}>Avatar</Text>
-                <View style={styles.avatarGrid}>
-                  {Avatars.map((emoji) => {
+                <View style={[styles.avatarGrid, isKid && styles.kidAvatarGrid]}>
+                  {isKid && Avatars.map((emoji) => (
+                    <AvatarTile key={emoji} emoji={emoji} active={selectedAvatar === emoji} onPick={pickKidAvatar} />
+                  ))}
+                  {!isKid && Avatars.map((emoji) => {
                     const active = kid.avatar === emoji;
                     return (
                       <AnimatedPressable
@@ -271,11 +413,19 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
             )}
 
             <Text style={[styles.sectionLabel, kid && styles.sectionLabelSpaced]}>Appearance</Text>
-            <ThemeSegmented colors={colors} />
+            <ThemeSegmented colors={colors} isKid={isKid} />
 
             <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Accent</Text>
             <View style={styles.accentRow}>
-              {ACCENT_PALETTES.map((palette) => {
+              {isKid && ACCENT_PALETTES.map((palette) => (
+                <AccentSwatch
+                  key={palette.id}
+                  palette={palette}
+                  active={accentPalette === palette.id}
+                  onPick={pickKidAccent}
+                />
+              ))}
+              {!isKid && ACCENT_PALETTES.map((palette) => {
                 const active = accentPalette === palette.id;
                 return (
                   <AnimatedPressable
@@ -305,6 +455,19 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
           </Pressable>
         </Animated.View>
       </AnimatedBackdrop>
+      {isKid && (
+        <View ref={layerRef} collapsable={false} style={StyleSheet.absoluteFill} pointerEvents="none">
+          {flight && (
+            <FlyingAvatar
+              emoji={flight.emoji}
+              from={flight.from}
+              to={flight.to}
+              endScale={KID_HERO_EMOJI / KID_TILE_EMOJI}
+              onArrive={() => land(flight.emoji)}
+            />
+          )}
+        </View>
+      )}
     </Modal>
   );
 }
@@ -363,6 +526,37 @@ const createStyles = (colors: ThemeColors) =>
     },
     emojiAvatarText: {
       fontSize: 34,
+    },
+    kidHero: {
+      width: KID_HERO,
+      height: KID_HERO,
+      borderRadius: KID_HERO / 2,
+      backgroundColor: colors.surfaceAlt,
+      borderWidth: 3,
+      borderColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    kidHeroText: {
+      fontSize: KID_HERO_EMOJI,
+    },
+    kidAvatarGrid: {
+      gap: Spacing.md,
+    },
+    rippleClip: {
+      ...StyleSheet.absoluteFillObject,
+      overflow: 'hidden',
+    },
+    rippleClipSheet: {
+      borderTopLeftRadius: Radius.xl,
+      borderTopRightRadius: Radius.xl,
+    },
+    rippleClipDialog: {
+      borderRadius: Radius.xl,
+    },
+    kidName: {
+      ...KidType.title,
+      fontSize: 22,
     },
     nameRow: {
       flexDirection: 'row',

@@ -48,17 +48,39 @@ const mockColors = {
 };
 
 let mockIsKid = false;
+const mockSetAccentPalette = jest.fn();
 
 jest.mock('../context/ThemeContext', () => ({
   useColors: () => mockColors,
   useTheme: () => ({
     mode: 'light',
     setMode: jest.fn(),
+    accentPalette: 'purple',
+    setAccentPalette: mockSetAccentPalette,
     colors: mockColors,
     isDark: false,
     variant: 'default',
   }),
   useIsKid: () => mockIsKid,
+}));
+
+const mockUpdateKidAvatar = jest.fn(() => Promise.resolve());
+let mockKidAvatar = '🐱';
+
+jest.mock('../context/AuthContext', () => ({
+  useAuth: () => ({
+    user: { role: 'kid', kidId: 'kid-1', name: 'Maya' },
+    session: null,
+    updateProfile: jest.fn(),
+    logout: jest.fn(),
+  }),
+}));
+
+jest.mock('../context/DataContext', () => ({
+  useData: () => ({
+    getKid: () => ({ id: 'kid-1', name: 'Maya', avatar: mockKidAvatar }),
+    updateKidAvatar: mockUpdateKidAvatar,
+  }),
 }));
 
 jest.mock('@expo/vector-icons', () => {
@@ -1308,5 +1330,100 @@ describe('GoalCard celebration (kid)', () => {
     );
     expect(getByText('Goal set! 🎯')).toBeTruthy();
     expect(queryByText('🪙')).toBeNull();
+  });
+});
+
+// ─── Profile picker ───────────────────────────────────────────────────────
+
+describe('Profile picker parts', () => {
+  const parts = require('../components/ProfilePickerParts');
+  const { ACCENT_PALETTES } = require('../constants/colors');
+
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it('AvatarTile reports the picked emoji', () => {
+    const onPick = jest.fn();
+    const { getByLabelText } = render(<parts.AvatarTile emoji="🚀" active={false} onPick={onPick} />);
+    fireEvent.press(getByLabelText('Avatar 🚀'));
+    expect(onPick).toHaveBeenCalledWith('🚀', expect.anything());
+  });
+
+  it('AccentSwatch reports its palette and marks the active one', () => {
+    const onPick = jest.fn();
+    const rose = ACCENT_PALETTES.find((p: any) => p.id === 'rose');
+    const { getByLabelText, getByText } = render(<parts.AccentSwatch palette={rose} active onPick={onPick} />);
+    expect(getByText('checkmark')).toBeTruthy();
+    fireEvent.press(getByLabelText('Rose'));
+    expect(onPick).toHaveBeenCalledWith(rose);
+  });
+
+  it('FlyingAvatar lands after the flight', () => {
+    const onArrive = jest.fn();
+    render(<parts.FlyingAvatar emoji="🚀" from={{ x: 0, y: 300 }} to={{ x: 100, y: 50 }} endScale={2} onArrive={onArrive} />);
+    expect(onArrive).not.toHaveBeenCalled();
+    act(() => { jest.advanceTimersByTime(parts.AVATAR_FLIGHT_MS); });
+    expect(onArrive).toHaveBeenCalledTimes(1);
+  });
+
+  it('ColorRipple finishes and cleans up its timer on unmount', () => {
+    const onDone = jest.fn();
+    const { unmount } = render(<parts.ColorRipple color="#f00" origin={{ x: 10, y: 10 }} onDone={onDone} />);
+    act(() => { jest.advanceTimersByTime(parts.RIPPLE_MS); });
+    expect(onDone).toHaveBeenCalledTimes(1);
+    const onDone2 = jest.fn();
+    const second = render(<parts.ColorRipple color="#f00" origin={{ x: 10, y: 10 }} onDone={onDone2} />);
+    second.unmount();
+    act(() => { jest.advanceTimersByTime(parts.RIPPLE_MS); });
+    expect(onDone2).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  it('ThemeIcon renders its icon', () => {
+    const { getByText, rerender } = render(<parts.ThemeIcon name="sunny" active color="#000" />);
+    rerender(<parts.ThemeIcon name="sunny-outline" active={false} color="#000" />);
+    expect(getByText('sunny-outline')).toBeTruthy();
+  });
+});
+
+describe('ProfileSheet (kid)', () => {
+  const ProfileSheet = require('../components/ProfileSheet').default;
+  const reanimated = require('react-native-reanimated');
+
+  beforeEach(() => {
+    mockIsKid = true;
+    mockKidAvatar = '🐱';
+    mockUpdateKidAvatar.mockClear();
+    mockSetAccentPalette.mockClear();
+  });
+  afterEach(() => {
+    mockIsKid = false;
+    reanimated.useReducedMotion.mockReturnValue(false);
+  });
+
+  it('saves a new avatar and moves the selection ring right away', () => {
+    const { getByLabelText } = render(<ProfileSheet visible onClose={jest.fn()} />);
+    fireEvent.press(getByLabelText('Avatar 🚀'));
+    expect(mockUpdateKidAvatar).toHaveBeenCalledWith('kid-1', '🚀');
+    expect(getByLabelText('Avatar 🚀').props.accessibilityState).toEqual({ selected: true });
+  });
+
+  it('ignores taps on the current avatar', () => {
+    const { getByLabelText } = render(<ProfileSheet visible onClose={jest.fn()} />);
+    fireEvent.press(getByLabelText('Avatar 🐱'));
+    expect(mockUpdateKidAvatar).not.toHaveBeenCalled();
+  });
+
+  it('swaps the big avatar immediately with reduced motion', () => {
+    reanimated.useReducedMotion.mockReturnValue(true);
+    const { getByLabelText, getAllByText } = render(<ProfileSheet visible onClose={jest.fn()} />);
+    fireEvent.press(getByLabelText('Avatar 🚀'));
+    expect(getAllByText('🚀').length).toBe(2);
+  });
+
+  it('switches the accent color', () => {
+    const { getByLabelText } = render(<ProfileSheet visible onClose={jest.fn()} />);
+    fireEvent.press(getByLabelText('Rose'));
+    expect(mockSetAccentPalette).toHaveBeenCalledWith('rose');
   });
 });

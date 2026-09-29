@@ -55,11 +55,13 @@ function Coin({ spec, onDone }: { spec: CoinSpec; onDone?: () => void }) {
 
 interface CoinBurstProps {
   count?: number;
+  /** Glyphs to cycle through. Defaults to coins with a few sparkles. */
+  glyphs?: string[];
   onComplete?: () => void;
 }
 
 /** A handful of coins and sparkles that float up from the parent's center. Remount to replay. */
-export default function CoinBurst({ count = 8, onComplete }: CoinBurstProps) {
+export default function CoinBurst({ count = 8, glyphs = GLYPHS, onComplete }: CoinBurstProps) {
   const reducedMotion = useReducedMotion();
 
   const specs = useMemo<CoinSpec[]>(
@@ -70,9 +72,9 @@ export default function CoinBurst({ count = 8, onComplete }: CoinBurstProps) {
         spin: (Math.random() - 0.5) * 360,
         delay: i * 40,
         size: 16 + Math.random() * 10,
-        glyph: GLYPHS[i % GLYPHS.length],
+        glyph: glyphs[i % glyphs.length],
       })),
-    [count],
+    [count, glyphs],
   );
 
   useEffect(() => {
