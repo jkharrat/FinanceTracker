@@ -1644,3 +1644,52 @@ describe('PiggyRefresh', () => {
     expect(getByLabelText('Refreshing')).toBeTruthy();
   });
 });
+
+describe('useMoneyFeedback', () => {
+  const reanimated = require('react-native-reanimated');
+  const { useMoneyFeedback, moneyConfirmation, CONFIRM_DELAY_MS } = require('../hooks/useMoneyFeedback');
+  const { renderHook } = require('@testing-library/react-native');
+
+  beforeEach(() => { jest.useFakeTimers(); });
+  afterEach(() => {
+    jest.useRealTimers();
+    reanimated.useReducedMotion.mockReturnValue(false);
+  });
+
+  it('words the confirmation for adds and removals', () => {
+    expect(moneyConfirmation('add', 10, 'Maya')).toBe('Added $10.00 to Maya');
+    expect(moneyConfirmation('subtract', 3.5, 'Leo')).toBe('Removed $3.50 from Leo');
+  });
+
+  it('holds the old balance until the sheet has closed, then confirms', () => {
+    const then = jest.fn();
+    const { result, rerender } = renderHook(({ b }: { b: number }) => useMoneyFeedback(b), { initialProps: { b: 42.5 } });
+    act(() => { result.current.hold(); });
+    rerender({ b: 52.5 });
+    expect(result.current.shownBalance).toBe(42.5);
+    act(() => { result.current.settle({ withBounce: true, then }); });
+    expect(then).not.toHaveBeenCalled();
+    act(() => { jest.advanceTimersByTime(CONFIRM_DELAY_MS); });
+    expect(result.current.shownBalance).toBe(52.5);
+    expect(then).toHaveBeenCalledTimes(1);
+  });
+
+  it('release shows the real balance right away after a failure', () => {
+    const { result, rerender } = renderHook(({ b }: { b: number }) => useMoneyFeedback(b), { initialProps: { b: 10 } });
+    act(() => { result.current.hold(); });
+    rerender({ b: 20 });
+    act(() => { result.current.release(); });
+    expect(result.current.shownBalance).toBe(20);
+  });
+
+  it('never holds or delays with reduced motion', () => {
+    reanimated.useReducedMotion.mockReturnValue(true);
+    const then = jest.fn();
+    const { result, rerender } = renderHook(({ b }: { b: number }) => useMoneyFeedback(b), { initialProps: { b: 1 } });
+    act(() => { result.current.hold(); });
+    rerender({ b: 2 });
+    expect(result.current.shownBalance).toBe(2);
+    act(() => { result.current.settle({ withBounce: true, then }); });
+    expect(then).toHaveBeenCalledTimes(1);
+  });
+});

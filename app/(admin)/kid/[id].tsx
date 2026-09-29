@@ -29,6 +29,7 @@ import { Durations } from '../../../src/constants/motion';
 import { Spacing } from '../../../src/constants/spacing';
 import { useToast } from '../../../src/context/ToastContext';
 import AnimatedListItem, { useEntranceWindow } from '../../../src/components/AnimatedListItem';
+import { useMoneyFeedback, moneyConfirmation } from '../../../src/hooks/useMoneyFeedback';
 
 const frequencyLabel: Record<AllowanceFrequency, string> = {
   weekly: 'week',
@@ -51,6 +52,7 @@ export default function KidDetailScreen() {
 
   const kid = id ? getKid(id) : undefined;
   const entranceOpen = useEntranceWindow(!!kid);
+  const feedback = useMoneyFeedback(kid?.balance ?? 0);
   const filters = useTransactionFilters(kid?.transactions ?? []);
 
   const sections = useMemo(() => groupTransactionsByDate(filters.filtered), [filters.filtered]);
@@ -82,23 +84,31 @@ export default function KidDetailScreen() {
   };
 
   const handleNewTransaction = async (amount: number, description: string, category: TransactionCategory) => {
+    const type = modalType;
+    feedback.hold();
     try {
-      await addTransaction(kid.id, modalType, amount, description, category);
+      await addTransaction(kid.id, type, amount, description, category);
       setModalVisible(false);
-      showToast('success', `$${amount.toFixed(2)} ${modalType === 'add' ? 'added' : 'subtracted'} successfully`);
+      feedback.settle({
+        withBounce: true,
+        then: () => showToast('success', moneyConfirmation(type, amount, kid.name)),
+      });
     } catch {
+      feedback.release();
       showToast('error', 'Failed to save transaction. Please try again.');
     }
   };
 
   const handleEditTransaction = async (amount: number, description: string, category: TransactionCategory) => {
     if (!editingTransaction) return;
+    feedback.hold();
     try {
       await updateTransaction(kid.id, editingTransaction.id, { amount, description, category });
       setEditingTransaction(null);
       setModalVisible(false);
-      showToast('success', 'Transaction updated');
+      feedback.settle({ then: () => showToast('success', 'Transaction updated') });
     } catch {
+      feedback.release();
       showToast('error', 'Failed to update transaction. Please try again.');
     }
   };
@@ -122,12 +132,14 @@ export default function KidDetailScreen() {
 
     if (!confirmed) return;
 
+    feedback.hold();
     try {
       await deleteTransaction(kid.id, editingTransaction.id);
       setEditingTransaction(null);
       setModalVisible(false);
-      showToast('success', 'Transaction deleted');
+      feedback.settle({ then: () => showToast('success', 'Transaction deleted') });
     } catch {
+      feedback.release();
       showToast('error', 'Failed to delete transaction. Please try again.');
     }
   };
@@ -177,9 +189,9 @@ export default function KidDetailScreen() {
   const renderListHeader = () => (
     <View>
       <View style={styles.profileRow}>
-        <View style={styles.avatar}>
+        <Animated.View style={[styles.avatar, feedback.avatarStyle]}>
           <Text style={styles.avatarText}>{kid.avatar}</Text>
-        </View>
+        </Animated.View>
         <View style={styles.profileText}>
           <Text style={styles.kidName} numberOfLines={1}>{kid.name}</Text>
           <Text style={styles.allowanceText}>
@@ -188,7 +200,7 @@ export default function KidDetailScreen() {
         </View>
       </View>
 
-      <BalanceCard label="Balance" value={kid.balance} style={styles.block}>
+      <BalanceCard label="Balance" value={feedback.shownBalance} style={styles.block}>
         <Button
           title="Add"
           icon="add"
